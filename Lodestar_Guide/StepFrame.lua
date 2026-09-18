@@ -551,6 +551,7 @@ local function createRow(parent, onClick)
 	row.detail = makeText(row, "GameFontDisableSmall", "LEFT")
 	row.detail:SetWordWrap(false)
 	row.detail:SetTextColor(0.6, 0.6, 0.6)
+	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	row:SetScript("OnClick", onClick)
 	row:SetScript("OnEnter", rowTooltip)
 	row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -619,7 +620,10 @@ local function hideRow(row)
 	row:Hide()
 end
 
-local function onRowClick(self)
+local function onRowClick(self, button)
+	-- Every clickable surface in the window offers the menu on right-click: a player who right-clicks
+	-- the window and hits a row instead of padding should not silently get nothing.
+	if button == "RightButton" then Guide:ShowGuideMenu() return end
 	if type(self.onClick) ~= "function" then return end
 	local ok, err = pcall(self.onClick, self)
 	if not ok then Lodestar:Debug("guide row click failed: %s", tostring(err)) end
@@ -702,7 +706,11 @@ local function createFrame()
 	frame.headline:SetTextColor(1, 1, 1)
 
 	frame.headlineButton = CreateFrame("Button", nil, frame)
-	frame.headlineButton:SetScript("OnClick", function() pointArrowAtStep() end)
+	frame.headlineButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	frame.headlineButton:SetScript("OnClick", function(_, button)
+		if button == "RightButton" then Guide:ShowGuideMenu() return end
+		pointArrowAtStep()
+	end)
 	frame.headlineButton:SetScript("OnEnter", function(self)
 		local step = Guide:CurrentStep()
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT")

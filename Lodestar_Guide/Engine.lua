@@ -58,7 +58,7 @@ end
 
 local function hasItem(itemID)
 	if not (C_Item and C_Item.GetItemCount) then return true end -- cannot tell: never skip
-	return (C_Item.GetItemCount(itemID, true) or 0) > 0
+	return (C_Item.GetItemCount(itemID) or 0) > 0 -- bags only: .item means carried, not banked
 end
 
 local function stepApplies(step, pf)
@@ -138,9 +138,16 @@ function Guide:LoadGuide(name, stepIndex)
 		-- Sync to the character, not to the saved position: a character that is mid-way (or has played
 		-- without the guide) lands on the step after the last one its completed quests account for.
 		local start, _, open = self:SuggestStartIndex(guide)
-		if not saved or start > saved then
-			stepIndex = start
-			synced = { from = saved, open = open }
+		if not saved then
+			stepIndex, synced = start, { open = open }
+		elseif start > saved then
+			-- Never step over work the character still has open: that is the player's real position.
+			-- The window's Sync button (and /lode guide sync) still jump on demand.
+			local openBetween = 0
+			for _, idx in ipairs(self:OpenStepsBefore(guide, start)) do
+				if idx >= saved then openBetween = openBetween + 1 end
+			end
+			if openBetween == 0 then stepIndex, synced = start, { from = saved, open = open } end
 		end
 	end
 	self.stepIndex = stepIndex or saved or 1
@@ -363,7 +370,8 @@ function Guide:IsActionComplete(action, flags)
 	elseif t == "buy" then
 		if flags and flags.manual then return true end
 		if not (C_Item and C_Item.GetItemCount) then return false end
-		return (C_Item.GetItemCount(action.itemID, true) or 0) >= (action.count or 1)
+		-- bags only (includeBank defaults false): .buy completes when you CARRY that many
+		return (C_Item.GetItemCount(action.itemID) or 0) >= (action.count or 1)
 	elseif t == "profession" then
 		if flags and flags.manual then return true end
 		local known = knownProfessions()
@@ -430,15 +438,22 @@ function Guide:SuggestStartIndex(guide)
 	local openBefore = {}   -- [idx] = true for applicable quest steps that are not complete
 	for idx, step in ipairs(guide.steps) do
 		if self:StepApplies(step, pf) then
-			local questActions, done = 0, 0
+			local questActions, done, proof = 0, 0, false
 			for _, a in ipairs(step.actions) do
 				if a.questID then
 					questActions = questActions + 1
-					if self:IsActionComplete(a, nil) then done = done + 1 end
+					if self:IsActionComplete(a, nil) then
+						done = done + 1
+						-- A quest merely sitting in the log proves nothing about where the character is:
+						-- players grab every quest at a hub, often long before the guide's step for it.
+						-- Only a turn-in or a finished objective may move the suggested start forward.
+						if a.type ~= "accept" or turnedIn(a.questID) then proof = true end
+					end
 				end
 			end
 			if questActions > 0 then
-				if done == questActions then last = idx else openBefore[idx] = true end
+				if done < questActions then openBefore[idx] = true
+				elseif proof then last = idx end
 			end
 		end
 	end
@@ -480,25 +495,34 @@ function Guide:SyncToQuestLog(silent)
 	return start
 end
 
---- Skip steps that don't apply or are already done. `initial` suppresses per-step announcements.
+--- Skip steps that don't apply or are already done, announcing only the step we land on.
+--- `initial` (guide load) suppresses that announcement.
 function Guide:EvaluateStep(initial)
 	if not self.current or not self.stepIndex then return end
-	if not self.db.profile.steps.autoAdvance and not initial then return end
+	-- Steps that do not apply to this character are skipped whatever `autoAdvance` says: the window
+	-- already hides them. `autoAdvance` only governs completion-driven advancing.
+	local advance = initial or self.db.profile.steps.autoAdvance
 	local pf = self:PlayerFilters()
+	local from = self.stepIndex
 	local guard = 0
 	while guard < 500 do
 		guard = guard + 1
 		local step = self.current.steps[self.stepIndex]
 		if not step then return end
-		if not stepApplies(step, pf) or self:IsStepComplete(step) then
+		if not stepApplies(step, pf) or (advance and self:IsStepComplete(step)) then
 			if self.stepIndex >= #self.current.steps then
 				self:FinishGuide()
 				return
 			end
-			self:SetStep(self.stepIndex + 1, initial)
+			-- Walk silently: the steps in between are done or belong to another class or race, and
+			-- announcing each one reads as instructions the player is meant to follow.
+			self:SetStep(self.stepIndex + 1, true)
 		else
 			break
 		end
+	end
+	if not initial and self.stepIndex ~= from and self.db.profile.steps.announce then
+		Lodestar:Msg("Step %d: %s", self.stepIndex, self:StepText(self.current.steps[self.stepIndex]))
 	end
 	self:RefreshStepFrame()
 end
@@ -562,9 +586,15 @@ function Guide:EngineOnEvent(event, ...)
 		local questID = (type(b) == "number" and b > 0) and b or a
 		if type(questID) == "number" then recentAccept[questID] = GetTime() end
 	elseif event == "QUEST_REMOVED" then
+		-- Also fires for turn-ins, and is not guaranteed to arrive after QUEST_TURNED_IN; decide a
+		-- second later, once the turn-in event (or the lagging completed flag) has had a chance to land.
 		local questID = ...
-		if type(questID) == "number" and not turnedIn(questID) then
-			self:OnQuestAbandoned(questID)
+		if type(questID) == "number" then
+			self:ScheduleTimer(function()
+				if self.current and not turnedIn(questID) and not C_QuestLog.IsOnQuest(questID) then
+					self:OnQuestAbandoned(questID)
+				end
+			end, 1)
 		end
 	elseif event == "HEARTHSTONE_BOUND" then
 		flag("hs")

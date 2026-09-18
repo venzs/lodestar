@@ -947,7 +947,16 @@ try("engine sync + abandon", function()
 	G:SetStep(16, true)
 	stub.questLog[3901] = nil
 	stub.fire("QUEST_REMOVED", 3901, false)
+	stub.advance(1.5)
 	check(G.stepIndex == 4, "abandon regressed to the accept step, at " .. tostring(G.stepIndex))
+	-- QUEST_REMOVED also fires for a turn-in, and may arrive before QUEST_TURNED_IN: waiting a second
+	-- before deciding is what stops a normal turn-in from rewinding the guide to the accept step.
+	G:SetStep(16, true)
+	stub.questLog[3901] = nil
+	stub.fire("QUEST_REMOVED", 3901, false)
+	stub.fire("QUEST_TURNED_IN", 3901, 100, 0)
+	stub.advance(1.5)
+	check(G.stepIndex >= 16, "turn-in delivered after QUEST_REMOVED is not treated as an abandon, at " .. tostring(G.stepIndex))
 	-- vendor completes on close, not open
 	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
 	stub.fire("MERCHANT_SHOW")
