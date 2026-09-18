@@ -14,6 +14,7 @@
 --       objects  [objID]  = same shape, without the creature-only fields
 --       quests   [questID]= { t, lvl, group, tag, cls, freq, rep, req, o, races, classes, giver, ender,
 --                            src, item, acceptAt, turninAt, prog = { [i] = { {map,x,y,zone,sub} … } },
+--                            wp = {map,x,y} (the client's own next-objective waypoint, see sweepWaypoints),
 --                            fin = { [i] = {map,x,y,zone,sub} }, xp = { level, xp }, money, done, scanned, via }
 --       taxi     [nodeID] = { name, map, x, y, zone, subzone, state, npc, links = { [nodeID] = true } }
 --       levels   [level]  = UnitXPMax at that level
@@ -53,6 +54,10 @@ local SCAN_MAX_PENDING = 40              -- requests in flight before the ticker
 local SCAN_TIMEOUT = 8                   -- seconds without an answer -> counted as missed (retried later)
 
 local WORLD_KEYS = { "npcs", "objects", "quests", "taxi", "levels" }
+
+-- Defined below, next to the position resolver it feeds, but called from the event dispatcher above
+-- it; Lua needs the name in scope first.
+local sweepWaypoints
 
 local db                        -- LodestarShareDB (world data)
 local scanDB                    -- LodestarScanDB (this account's trails and census cursor)
@@ -848,6 +853,7 @@ function Guide:HarvestOnEvent(event, ...)
 		offer = nil
 	elseif event == "QUEST_LOG_UPDATE" or event == "UNIT_QUEST_LOG_CHANGED" then
 		queueDiff()
+		sweepWaypoints()
 	elseif event == "PLAYER_TARGET_CHANGED" then
 		local _, kind, id = noteUnit("target", false)
 		lastTarget = (kind == "npc" and id) and { id = id, t = GetTime() } or nil
@@ -913,6 +919,55 @@ local function refPosition(ref)
 end
 
 --- Best known position for a quest in the log: mapID, x, y (0..1), how.
+-- Where the client itself says to go next ----------------------------------------------------------
+--
+-- C_QuestLog.GetNextWaypoint(questID) gives the map and position of a quest's next objective, for
+-- anything in the log, without going there. Forever exposes no quest POIs to addons, so this is the
+-- only source of objective positions that does not require a player to walk to the spot and be
+-- standing on it when the counter moves -- which is what makes the harvest slow to fill in. A quest
+-- accepted in a village now knows roughly where its objective is the moment it is accepted.
+--
+-- Recorded under its own key rather than as a sighting. It is the game's own hint, and it is about
+-- the CURRENT objective of THIS character, so it moves as the quest progresses; a player standing
+-- on the spot with the counter ticking is better evidence and keeps its precedence below.
+local WAYPOINT_EVERY = 10        -- seconds between sweeps of the log
+local lastWaypointSweep = 0
+
+function sweepWaypoints()
+	if not (C_QuestLog and C_QuestLog.GetNextWaypoint and C_QuestLog.GetNumQuestLogEntries) then return 0 end
+	local now = GetTime()
+	if now - lastWaypointSweep < WAYPOINT_EVERY then return 0 end
+	lastWaypointSweep = now
+	local added = 0
+	for i = 1, C_QuestLog.GetNumQuestLogEntries() do
+		local qi = C_QuestLog.GetInfo(i)
+		if qi and not qi.isHeader and qi.questID then
+			local ok, map, x, y = pcall(C_QuestLog.GetNextWaypoint, qi.questID)
+			map, x, y = plain(map), plain(x), plain(y)
+			-- Fractions of the map, and 0,0 is what the client returns for "no waypoint" rather than
+			-- a position at the top-left corner.
+			if ok and type(map) == "number" and type(x) == "number" and type(y) == "number"
+				and (x > 0 or y > 0) and x <= 1 and y <= 1 then
+				local q = questEntry(qi.questID, qi.title)
+				local px, py = math.floor(x * 1000 + 0.5) / 10, math.floor(y * 1000 + 0.5) / 10
+				local was = q.wp
+				if not (was and was[1] == map and math.abs(was[2] - px) < 0.1 and math.abs(was[3] - py) < 0.1) then
+					q.wp = { map, px, py }
+					added = added + 1
+					if Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("quest", qi.questID, q) end
+				end
+			end
+		end
+	end
+	return added
+end
+
+--- Exposed for the smoke test and for `/lode harvest`: sweep now, ignoring the throttle.
+function Guide:HarvestWaypoints()
+	lastWaypointSweep = 0
+	return sweepWaypoints()
+end
+
 function Guide:HarvestQuestPosition(questID, complete)
 	if not db then ensureDB() end
 	local q = db.quests[questID]
@@ -938,6 +993,12 @@ function Guide:HarvestQuestPosition(questID, complete)
 		if not mapID and q.prog and q.prog[idx] and q.prog[idx][1] then
 			local s = q.prog[idx][1]
 			mapID, x, y, how = s[1], s[2], s[3], "progress"
+		end
+		-- Last: the client's own waypoint. Weaker than a player who stood there and watched the
+		-- counter move, but far better than no arrow at all, and it is there from the moment the
+		-- quest is accepted.
+		if not mapID and q.wp then
+			mapID, x, y, how = q.wp[1], q.wp[2], q.wp[3], "waypoint"
 		end
 	end
 	if not mapID then return nil end

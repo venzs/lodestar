@@ -1599,6 +1599,52 @@ try("harvest capture", function()
 end)
 
 -- /lode share: where the file is, what is in it, and who contributed
+-- The client's own next-objective waypoint, harvested for every quest in the log.
+-- Forever exposes no quest POIs, so before this the only way a quest got an objective position was
+-- a player standing on the spot at the moment a counter moved. This gets a rough one the instant
+-- the quest is accepted, which is most of what the arrow needs.
+try("quest waypoints", function()
+	local H = G:HarvestDB()
+	H.quests[8801] = nil
+	stub.questLog[8801] = { title = "Waypointed", complete = false,
+		objectives = { { text = "x: 0/5", finished = false } }, wp = { map = 18, x = 0.4127, y = 0.6663 } }
+	G:HarvestWaypoints()
+	local q = H.quests[8801]
+	check(q and q.wp and q.wp[1] == 18, "waypoint recorded with its map: " .. tostring(q and q.wp and q.wp[1]))
+	-- Stored in percent, like every other position in the harvest, rounded to a tenth.
+	check(q.wp[2] == 41.3 and q.wp[3] == 66.6, "fractions converted to percent: " .. tostring(q.wp[2]) .. "," .. tostring(q.wp[3]))
+
+	-- It is the last resort, so a quest with nothing else gets an arrow from it.
+	local map, x, y, how = G:HarvestQuestPosition(8801, false)
+	check(map == 18 and how == "waypoint" and math.abs(x - 0.413) < 0.001, "position falls back to the waypoint: " .. tostring(how))
+
+	-- A player who actually stood on the objective outranks it.
+	q.prog = { [1] = { { 18, 20.0, 30.0, "Zone", "Sub" } } }
+	map, x, y, how = G:HarvestQuestPosition(8801, false)
+	check(how == "progress" and math.abs(x - 0.2) < 0.001, "a real sighting still wins: " .. tostring(how))
+	q.prog = nil
+
+	-- 0,0 is what the client returns for "no waypoint", not a position in the corner of the map.
+	H.quests[8802] = nil
+	stub.questLog[8802] = { title = "Nowhere", complete = false, objectives = {}, wp = { map = 18, x = 0, y = 0 } }
+	G:HarvestWaypoints()
+	check(H.quests[8802] == nil or H.quests[8802].wp == nil, "an empty waypoint is not recorded as the map corner")
+
+	-- The sweep is throttled: a quest log that updates every second must not rewrite the harvest
+	-- every second.
+	stub.questLog[8801].wp = { map = 18, x = 0.9, y = 0.9 }
+	stub.fire("QUEST_LOG_UPDATE")
+	check(H.quests[8801].wp[2] == 41.3, "a second sweep inside the throttle is skipped")
+	stub.advance(11)
+	stub.fire("QUEST_LOG_UPDATE")
+	check(H.quests[8801].wp[2] == 90, "and runs once the throttle has passed: " .. tostring(H.quests[8801].wp[2]))
+
+	stub.questLog[8801] = nil
+	stub.questLog[8802] = nil
+	H.quests[8801] = nil
+	H.quests[8802] = nil
+end)
+
 try("harvest share", function()
 	local sum = G:HarvestSummary()
 	check(sum.quests > 0 and sum.npcs > 0 and sum.taxi >= 3 and sum.positions > 0, "summary counts the world data")

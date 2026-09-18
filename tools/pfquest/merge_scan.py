@@ -110,7 +110,7 @@ def index_map(v):
 
 
 QUEST_KEYS = ("t", "lvl", "o", "giver", "ender", "xp", "money", "tag", "acceptAt", "turninAt", "prog", "fin",
-              "done", "auto", "freq", "rep", "src", "item", "group", "req", "races", "classes")
+              "done", "auto", "freq", "rep", "src", "item", "group", "req", "races", "classes", "wp")
 RESCAN_KEYS = ("o", "prog", "fin", "done")   # a later first-hand export replaces these outright
 TAXI_KEYS = ("name", "map", "x", "y", "state", "npc", "links", "zone")
 
@@ -226,6 +226,11 @@ def build(exports):
             spots[idx] = [pos]
         for idx, lst in index_map(q.get("prog")).items():
             spots.setdefault(idx, []).extend(lst)
+        # The client's own next-objective waypoint is the weakest position we record, so it only
+        # fills objective 1 when nobody has stood on the spot. It is still enough for a route to
+        # exist at all, which is the difference between a zone having a guide and not having one.
+        if not spots and q.get("wp"):
+            spots[1] = [q["wp"]]
         if spots and (forever_only or not van.get("obj")):
             entry["spots"] = {i: coord_list(v) for i, v in spots.items()}
         if forever_only and not entry.get("start") and q.get("acceptAt"):

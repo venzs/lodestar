@@ -16,6 +16,11 @@
   variables to disk in the client's format and reloading them in the client's window — after the
   addon's files, before its `ADDON_LOADED`. It covers frame positions, settings, the harvest and the
   upgrade path, and is the test that would have caught the frame-position bug.
+- Guide: the harvest now records **the client's own next-objective waypoint** for every quest in the
+  log (`C_QuestLog.GetNextWaypoint`). Forever exposes no quest POIs, so until now an objective only
+  got a position when a player was standing on the spot as a counter moved; a quest accepted in a
+  village now knows roughly where to go the moment it is accepted. Ranked below a real sighting, and
+  carried through `merge_scan.py` so generated routes benefit too.
 - Guides: **Skyborne 1-12: Zephras Isle**, the first route generated end to end from the merged
   database rather than hand-authored — 17 quests, ordered by the prerequisite chains and by an
   estimated level so the route does not open with content a level 1 character cannot accept.
