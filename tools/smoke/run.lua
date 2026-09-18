@@ -994,10 +994,10 @@ try("smart mode", function()
 	check(G:PickGuide() and G:PickGuide().name == "Horde/Undead 5-12: Tirisfal Glades", "level 10 picks the Tirisfal guide")
 	stub.level = 40
 	check(G:PickGuide() == nil, "outleveled guides are not auto-picked")
-	-- Forever's new races have no 1-12 route: a level 2 Skyborn must NOT be handed a level 12 zone
+	-- Forever's new races have no 1-12 route: a level 2 Skyborne must NOT be handed a level 12 zone
 	-- guide, because the only guides that pass the race filter are the faction-wide 12-20 ones.
 	local realRace = UnitRace
-	UnitRace = function() return "Skyborn", "Skyborn", 99 end
+	UnitRace = function() return "Skyborne", "Skyborne", 99 end
 	stub.level = 2
 	check(G:PickGuide() == nil, "a race with no starting route falls to smart mode, not a 12-20 guide")
 	stub.level = 11
