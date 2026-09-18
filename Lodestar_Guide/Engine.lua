@@ -96,6 +96,8 @@ function Guide:ApplicableGuides(ignoreLevel)
 	return list
 end
 
+local PICK_LEVEL_GRACE = 2   -- levels: auto-pick will load a route starting this soon, no further
+
 --- Choose the best guide for the character: most specific match covering the current level,
 --- else the applicable guide with the lowest level range above the player, else anything applicable.
 function Guide:PickGuide()
@@ -105,16 +107,21 @@ function Guide:PickGuide()
 		local outleveled = g.maxLevel and pf.level > g.maxLevel
 		if guideApplies(g, pf, true) and not outleveled then
 			local covers = g.minLevel and g.maxLevel and pf.level >= g.minLevel and pf.level <= g.maxLevel
+			local ahead = g.minLevel and g.minLevel > pf.level and (g.minLevel - pf.level) or 0
 			local specificity = (g.races and 2 or 0) + (g.classes and 2 or 0) + (g.faction ~= "Both" and 1 or 0)
 			local score
 			if covers then
 				score = 1000 + specificity
-			elseif g.minLevel and g.minLevel > pf.level then
-				score = 500 - (g.minLevel - pf.level) + specificity * 0.1
+			elseif ahead > 0 then
+				-- A route that starts a level or two ahead is worth loading; one that starts ten levels
+				-- ahead is not. Forever's new races have no 1-12 route at all, so the only guides passing
+				-- their race filter are the faction-wide 12-20 ones, and pointing a level 2 druid at a
+				-- level 12 zone is worse than saying nothing. nil here means smart mode.
+				score = ahead <= PICK_LEVEL_GRACE and (500 - ahead + specificity * 0.1) or nil
 			else
 				score = specificity
 			end
-			if not bestScore or score > bestScore then best, bestScore = g, score end
+			if score and (not bestScore or score > bestScore) then best, bestScore = g, score end
 		end
 	end
 	return best
@@ -790,7 +797,16 @@ function Guide:EnableEngine()
 			self:LoadGuide(saved)
 		elseif self.db.profile.steps.autoPickGuide then
 			local g = self:PickGuide()
-			if g then self:LoadGuide(g.name) else self:RefreshStepFrame() end
+			if g then
+				self:LoadGuide(g.name)
+			else
+				-- Say so rather than showing an empty window: on Forever this is the normal state for a
+				-- new race in its starting zone, and it is not a fault the player should have to guess at.
+				local raceName = UnitRace("player")
+				Lodestar:Msg("No route for a level %d %s yet — using smart mode, which builds the list from your quest log and the map. Everything you do here is recorded, and that is what the route gets built from.",
+					UnitLevel("player") or 0, tostring(raceName or "character"))
+				self:RefreshStepFrame()
+			end
 		else
 			self:RefreshStepFrame()
 		end
