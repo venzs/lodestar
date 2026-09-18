@@ -41,10 +41,14 @@ end
 
 local THREE = { ItemSource = true }
 
--- A value that survives being indexed, called, or both, however deep ATT goes.
+-- A value that survives being indexed, called, concatenated or printed, however deep ATT goes.
+-- The localization module builds UI strings out of these, and one unhandled concat was enough to
+-- abort a whole file.
 local ANYTHING = setmetatable({}, {
 	__index = function(t) return t end,
 	__call = function() return {} end,
+	__concat = function() return "" end,
+	__tostring = function() return "" end,
 })
 
 local handlers = {}

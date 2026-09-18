@@ -35,6 +35,14 @@ local Guide = Lodestar:GetModule("Guide")
 
 local SHARE_V = 1              -- LodestarShareDB format version (meta.v)
 local MAX_SAMPLES = 6          -- approximate positions kept per creature
+-- How close the player was when a creature was seen. A nameplate appears at ~40 yd, so a sighting
+-- recorded at the player's own position can be that far out -- fine for an arrow, poor for a map
+-- pin. CheckInteractDistance costs one C call and tells us when we were close enough that the
+-- player's position IS the creature's, to within a few yards. This is what makes walking past an
+-- NPC almost as good as talking to it, which is the difference between mapping a zone and
+-- interviewing it.
+local NEAR_TRADE = 2           -- CheckInteractDistance index: ~11 yd
+local NEAR_DUEL = 3            -- ~10 yd
 local SAMPLE_MIN_APART = 3     -- percent-of-map units; closer samples are merged
 local OBJ_SAMPLES = 6          -- positions kept per quest objective
 local OBJ_MIN_APART = 2        -- percent-of-map units between two objective samples
@@ -212,6 +220,17 @@ local function farEnough(e, mapID, x, y)
 	return true
 end
 
+--- How close we are to `unit`, as a quality grade: 2 = close enough to stand in for its position,
+--- 1 = somewhere in nameplate range, 0 = unknown. Never throws on units the API refuses.
+local function proximity(unit)
+	if not CheckInteractDistance then return 0 end
+	local ok, near = pcall(CheckInteractDistance, unit, NEAR_TRADE)
+	if ok and near then return 2 end
+	ok, near = pcall(CheckInteractDistance, unit, NEAR_DUEL)
+	if ok and near then return 2 end
+	return 1
+end
+
 --- Record a creature seen through a unit token. `exact` = we are interacting with it (within ~5 yd).
 local function noteUnit(unit, exact)
 	if not UnitExists(unit) or UnitIsPlayer(unit) then return nil end
@@ -247,11 +266,22 @@ local function noteUnit(unit, exact)
 			if kind == "npc" and Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("npc", id, e) end
 		elseif not e.exact then
 			e.samples = e.samples or {}
+			local near = proximity(unit)
 			if #e.samples < MAX_SAMPLES and farEnough(e, mapID, x, y) then
 				local zone, sub = zoneText()
 				tinsert(e.samples, { mapID, x, y, zone, sub })
 			end
-			if not e.map then e.map, e.x, e.y = mapID, x, y end
+			-- A closer sighting always replaces a further one. Walking past an NPC inside trade range
+			-- pins it about as well as opening its dialogue did, so a sweep through a zone maps it.
+			if not e.map or near > (e.near or 0) then
+				e.map, e.x, e.y, e.near = mapID, x, y, near
+				if near >= 2 then
+					local zone, sub = zoneText()
+					if zone ~= "" then e.zone = zone end
+					if sub ~= "" then e.subzone = sub end
+					if kind == "npc" and Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("npc", id, e) end
+				end
+			end
 		end
 	end
 	return e, kind, id
@@ -1160,6 +1190,43 @@ local function restoreBackup()
 	return backup
 end
 
+--- What is still missing on the map the player is standing on. The point of this is that mapping a
+--- zone does NOT require talking to anyone: a nameplate fires for every creature you walk past, and
+--- CheckInteractDistance tells us when we were close enough for that to be a real position. So the
+--- scarce thing is not conversations, it is ground covered -- and this says which ground.
+--- Returns: known, placed, unplaced (quests on this map with no position), nearNPCs, farNPCs.
+function Guide:HarvestGaps(mapID)
+	if not db then ensureDB() end
+	mapID = mapID or C_Map.GetBestMapForUnit("player")
+	local d = self.VanillaData
+	local known, placed, unplaced = 0, 0, {}
+	local nearNPCs, farNPCs = 0, 0
+	for _, e in pairs(db.npcs or {}) do
+		if e.map == mapID then
+			if e.exact or (e.near or 0) >= 2 then nearNPCs = nearNPCs + 1 else farNPCs = farNPCs + 1 end
+		end
+	end
+	-- A quest counts as "placed" when anything can point at it: a giver position from any source.
+	for qid, q in pairs(db.quests or {}) do
+		local onMap = (q.acceptAt and q.acceptAt.m == mapID) or (q.turninAt and q.turninAt.m == mapID)
+		local giver = q.giver and q.giver.id
+		local ge = giver and db.npcs[giver]
+		if not onMap and ge and ge.map == mapID then onMap = true end
+		if onMap or (q.spots and next(q.spots)) then
+			known = known + 1
+			local dq = d and d.quests[qid]
+			local hasPos = (ge and ge.x ~= nil) or (dq and (dq.start or dq.acceptAt)) or (q.acceptAt ~= nil)
+			if hasPos then
+				placed = placed + 1
+			else
+				unplaced[#unplaced + 1] = { id = qid, t = q.t or (dq and dq.t), lvl = q.lvl or (dq and dq.lvl) }
+			end
+		end
+	end
+	table.sort(unplaced, function(a, b) return (a.lvl or 99) < (b.lvl or 99) end)
+	return known, placed, unplaced, nearNPCs, farNPCs
+end
+
 local function handleHarvest(rest)
 	if not db then ensureDB() end
 	local verb, a = strsplit(" ", strtrim(rest or ""), 2)
@@ -1175,6 +1242,21 @@ local function handleHarvest(rest)
 				date("%Y-%m-%d %H:%M", slot.at or time()), worldCounts(slot))
 		end
 		Lodestar:Say("  |cffffff7f/lode share|r tells you where the file is. |cffffff7f/lode harvest sync on|off|r shares new finds with your guild.")
+	elseif verb == "gaps" or verb == "coverage" then
+		local mapID = C_Map.GetBestMapForUnit("player")
+		local known, placed, unplaced, nearNPCs, farNPCs = Guide:HarvestGaps(mapID)
+		Lodestar:Say("%s: %d of %d quests here can be pointed at; %d NPCs pinned closely, %d only roughly.",
+			Guide:MapName(mapID), placed, known, nearNPCs, farNPCs)
+		if #unplaced == 0 then
+			Lodestar:Say("  Nothing here is missing a position. Walk a zone with quests you have not mapped.")
+		else
+			Lodestar:Say("  %d still have nowhere to point. Walking within a few yards of their giver is enough -- you do not have to talk to anyone:", #unplaced)
+			for i = 1, math.min(#unplaced, 10) do
+				local u = unplaced[i]
+				Lodestar:Say("    %s%s", u.t or ("Quest " .. u.id), u.lvl and (" |cff888888(lvl " .. u.lvl .. ")|r") or "")
+			end
+			if #unplaced > 10 then Lodestar:Say("    ... and %d more.", #unplaced - 10) end
+		end
 	elseif verb == "share" then
 		if Guide.HarvestShareInfo then Guide:HarvestShareInfo() else Lodestar:Say("Sharing is not loaded.") end
 	elseif verb == "sync" then
@@ -1295,7 +1377,7 @@ function Guide:EnableHarvest()
 	if not self.scanSlash then
 		self.scanSlash = true
 		Lodestar:RegisterSlashVerb("scan", handleScan, "quest census: /lode scan quests <from> <to>")
-		Lodestar:RegisterSlashVerb("harvest", handleHarvest, "harvested world data: status, sync, wipe, restore")
+		Lodestar:RegisterSlashVerb("harvest", handleHarvest, "harvested world data: status, gaps, sync, wipe, restore")
 	end
 	-- Resume an interrupted census automatically -- but never one the user paused on purpose.
 	local s = scanDB.scan
