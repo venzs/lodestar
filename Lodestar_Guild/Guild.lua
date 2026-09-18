@@ -31,12 +31,12 @@ Guild.options = {
 		type = "toggle", order = 11, name = "Share my presence with the guild",
 		desc = "Sends your level, zone and XP progress to other Lodestar users in your guild over the addon channel. Nothing leaves the game.",
 		get = function() return Guild.db.profile.share end,
-		set = function(_, v) Guild.db.profile.share = v; if v then Guild:Broadcast() end end,
+		set = function(_, v) Guild.db.profile.share = v; if v and Guild:IsEnabled() then Guild:Broadcast() end end,
 	},
 	heartbeat = {
 		type = "range", order = 12, name = "Refresh interval (minutes)", min = 1, max = 15, step = 1,
 		get = function() return Guild.db.profile.heartbeatMinutes end,
-		set = function(_, v) Guild.db.profile.heartbeatMinutes = v; Guild:RestartHeartbeat() end,
+		set = function(_, v) Guild.db.profile.heartbeatMinutes = v; if Guild:IsEnabled() then Guild:RestartHeartbeat() end end,
 	},
 
 	boardHeader = { type = "header", order = 20, name = "Guild board" },

@@ -21,6 +21,11 @@ local function classFileFromID(classID)
 	end
 end
 
+--- True while the client hides club member data behind secret values (instances, PvP, encounters).
+local function chatLocked()
+	return C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() or false
+end
+
 --- Build the merged list of guildmates.
 function Guild:CollectRows()
 	local list, seen = {}, {}
@@ -28,11 +33,14 @@ function Guild:CollectRows()
 	local myZone = GetRealZoneText()
 	local sameZoneFirst = self.db.profile.board.sameZoneFirst
 
-	local clubId = C_Club and C_Club.GetGuildClubId and C_Club.GetGuildClubId()
+	-- In chat-messaging lockdown C_Club member info comes back as secret values that tainted code
+	-- cannot read, so skip the roster merge and show presence-only rows until it lifts.
+	local clubId = not chatLocked() and C_Club and C_Club.GetGuildClubId and C_Club.GetGuildClubId()
 	if clubId then
 		for _, memberId in ipairs(C_Club.GetClubMembers(clubId) or {}) do
 			local info = C_Club.GetMemberInfo(clubId, memberId)
-			if info and info.name and not info.isSelf then
+			local secret = info and issecretvalue and (issecretvalue(info.name) or issecretvalue(info.presence))
+			if info and not secret and info.name and not info.isSelf then
 				local online = info.presence ~= Enum.ClubMemberPresence.Offline and info.presence ~= Enum.ClubMemberPresence.Unknown
 				if online or self.db.profile.board.showOffline then
 					local short = Lodestar.ShortName(info.name)
@@ -146,8 +154,11 @@ local function createBoard()
 	board.title:SetPoint("TOP", 0, -16)
 	board.title:SetText(Lodestar.COLOR .. "Lodestar|r Guild Board")
 
-	local close = CreateFrame("Button", nil, board, "UIPanelCloseButton")
+	-- The scripted UIPanelCloseButton routes through HideUIPanel, which refuses tainted callers in
+	-- combat ("Interface action failed because of an AddOn"). Hiding our own frame is always allowed.
+	local close = CreateFrame("Button", nil, board, "UIPanelCloseButtonNoScripts")
 	close:SetPoint("TOPRIGHT", -6, -6)
+	close:SetScript("OnClick", function() board:Hide() end)
 
 	board.summary = board:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	board.summary:SetPoint("TOP", board.title, "BOTTOM", 0, -4)
@@ -188,14 +199,7 @@ local function createBoard()
 	end)
 end
 
-function Guild:RefreshBoard(immediate)
-	if not board or not board:IsShown() then return end
-	if not immediate then
-		if refreshQueued then return end
-		refreshQueued = true
-		self:ScheduleTimer(function() refreshQueued = false self:RefreshBoard(true) end, 1)
-		return
-	end
+local function renderBoard(self)
 	local list = self:CollectRows()
 	local online, withLodestar = 0, 0
 	for _, r in ipairs(list) do
@@ -223,6 +227,18 @@ function Guild:RefreshBoard(immediate)
 	end
 end
 
+function Guild:RefreshBoard(immediate)
+	if not board or not board:IsShown() then return end
+	if not immediate then
+		if refreshQueued then return end
+		refreshQueued = true
+		self:ScheduleTimer(function() refreshQueued = false self:RefreshBoard(true) end, 1)
+		return
+	end
+	-- Protected so one unreadable (secret) roster value cannot take the whole window down.
+	Lodestar.Try(renderBoard, self)
+end
+
 function Guild:ToggleBoard()
 	if not board then createBoard() end
 	if board:IsShown() then
@@ -236,13 +252,19 @@ function Guild:ToggleBoard()
 	board:Show()
 end
 
-function Guild:OnRosterEvent()
+function Guild:OnRosterEvent(event, canRequestRosterUpdate)
+	-- Level/zone for guild members come from the roster request; the server flags when it is stale.
+	if event == "GUILD_ROSTER_UPDATE" and canRequestRosterUpdate and board and board:IsShown()
+		and C_GuildInfo and C_GuildInfo.GuildRoster then
+		C_GuildInfo.GuildRoster()
+	end
 	self:RefreshBoard()
 end
 
 function Guild:EnableBoard()
 	self:RegisterEvent("GUILD_ROSTER_UPDATE", "OnRosterEvent")
 	self:RegisterEvent("CLUB_MEMBER_UPDATED", "OnRosterEvent")
+	self:RegisterEvent("CLUB_MEMBER_PRESENCE_UPDATED", "OnRosterEvent")
 	if not self.boardSlash then
 		self.boardSlash = true
 		Lodestar:RegisterSlashVerb("guild", function() self:ToggleBoard() end, "open the guild board")
@@ -259,5 +281,6 @@ end
 function Guild:DisableBoard()
 	self:UnregisterEvent("GUILD_ROSTER_UPDATE")
 	self:UnregisterEvent("CLUB_MEMBER_UPDATED")
+	self:UnregisterEvent("CLUB_MEMBER_PRESENCE_UPDATED")
 	if board then board:Hide() end
 end
