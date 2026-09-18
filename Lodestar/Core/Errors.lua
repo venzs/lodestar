@@ -1,45 +1,86 @@
--- Lodestar core: remember our own Lua errors in LodestarProbeDB.errors so they can be read
--- from the saved variables after a /reload (the beta has no BugSack yet). Errors from other
--- addons are passed straight through to whatever handler was installed before us.
+-- Lodestar core: error visibility on a client with no BugSack yet.
+--
+-- 12.x keeps every Lua error in ScriptErrorsFrame.errorData (even with the scriptErrors CVar off)
+-- and only lets secure code install error handlers, so we never touch seterrorhandler. Instead:
+--   /lode errors           lists Lodestar-related errors from ScriptErrorsFrame
+--   ADDON_ACTION_FORBIDDEN / ADDON_ACTION_BLOCKED are recorded with the function name and printed
+--   on logout the Lodestar-related entries are copied to LodestarProbeDB so they can be read from disk
 local Lodestar = _G.Lodestar
 
-local MAX_ERRORS = 40
-local installed = false
+local MAX = 40
 
-local function record(msg)
+local function probeDB()
 	local db = _G.LodestarProbeDB
 	if type(db) ~= "table" then
 		db = {}
 		_G.LodestarProbeDB = db
 	end
-	db.errors = db.errors or {}
-	local list = db.errors
-	local text = tostring(msg)
-	local last = list[#list]
-	if last and last.msg == text then
-		last.count = (last.count or 1) + 1
-		last.last = date("%Y-%m-%d %H:%M:%S")
-		return
+	return db
+end
+
+local function isOurs(text)
+	return type(text) == "string" and text:find("Lodestar", 1, true) ~= nil
+end
+
+--- Lodestar-related entries from Blizzard's error store: { message, stack, count, time }.
+function Lodestar:GetRecordedErrors()
+	local list = {}
+	local frame = _G.ScriptErrorsFrame
+	if frame and frame.GetCount and frame.GetErrorData then
+		local ok, count = pcall(frame.GetCount, frame)
+		if ok and type(count) == "number" then
+			for i = 1, count do
+				local ok2, data = pcall(frame.GetErrorData, frame, i)
+				if ok2 and type(data) == "table" and (isOurs(data.message) or isOurs(data.stack)) then
+					tinsert(list, { message = data.message, stack = data.stack, count = data.count, time = data.time })
+				end
+			end
+		end
 	end
-	tinsert(list, { msg = text, stack = debugstack and debugstack(3, 8, 0) or nil, at = date("%Y-%m-%d %H:%M:%S"), count = 1, version = Lodestar.version })
-	while #list > MAX_ERRORS do tremove(list, 1) end
+	return list
+end
+
+function Lodestar:SnapshotErrors()
+	local db = probeDB()
+	local list = self:GetRecordedErrors()
+	db.errors = {}
+	for i = math.max(1, #list - MAX + 1), #list do tinsert(db.errors, list[i]) end
+	db.errorsAt = date("%Y-%m-%d %H:%M:%S")
+	db.lodestarVersion = self.version
+end
+
+-- Protected / forbidden calls ---------------------------------------------------------------------
+
+function Lodestar:OnAddonActionEvent(event, addonName, functionName)
+	if type(addonName) ~= "string" or not addonName:find("^Lodestar") then return end
+	local db = probeDB()
+	db.blocked = db.blocked or {}
+	tinsert(db.blocked, { event = event, addon = addonName, func = tostring(functionName), at = date("%Y-%m-%d %H:%M:%S"),
+		stack = debugstack and debugstack(2, 12, 0) or nil, version = self.version })
+	while #db.blocked > MAX do tremove(db.blocked, 1) end
+	self.blockedCount = (self.blockedCount or 0) + 1
+	self:Say("|cffff5555%s|r: %s tried %s — recorded (/lode errors).", event == "ADDON_ACTION_FORBIDDEN" and "Forbidden call" or "Blocked call", addonName, tostring(functionName))
 end
 
 function Lodestar:InstallErrorCatcher()
-	if installed or not seterrorhandler or not geterrorhandler then return end
-	installed = true
-	local previous = geterrorhandler()
-	seterrorhandler(function(msg, ...)
-		local text = tostring(msg)
-		if text:find("Lodestar", 1, true) then
-			pcall(record, text)
-			Lodestar.errorCount = (Lodestar.errorCount or 0) + 1
-		end
-		if previous then return previous(msg, ...) end
-	end)
+	self:RegisterEvent("ADDON_ACTION_FORBIDDEN", "OnAddonActionEvent")
+	self:RegisterEvent("ADDON_ACTION_BLOCKED", "OnAddonActionEvent")
+	self:RegisterEvent("PLAYER_LOGOUT", "SnapshotErrors")
 end
 
-function Lodestar:GetRecordedErrors()
-	local db = _G.LodestarProbeDB
-	return db and db.errors or {}
+function Lodestar:PrintErrors()
+	local db = probeDB()
+	local blocked = db.blocked or {}
+	local errors = self:GetRecordedErrors()
+	if #blocked == 0 and #errors == 0 then
+		self:Say("No Lodestar errors or blocked calls recorded.")
+		return
+	end
+	for i, b in ipairs(blocked) do
+		self:Say("|cffff5555block #%d|r %s: %s called %s", i, b.at or "?", b.addon, b.func)
+	end
+	for i, e in ipairs(errors) do
+		self:Say("|cffff5555error #%d|r (x%d, %s) %s", i, e.count or 1, e.time or "?", tostring(e.message):sub(1, 300))
+	end
+	self:SnapshotErrors()
 end

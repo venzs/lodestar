@@ -111,6 +111,16 @@ function Lodestar:RunProbe()
 		end
 	end
 
+	if C_RestrictedActions and C_RestrictedActions.IsAddOnRestrictionActive and Enum and Enum.AddOnRestrictionType then
+		probe.restrictions = {}
+		for name, id in pairs(Enum.AddOnRestrictionType) do
+			probe.restrictions[name] = safe(C_RestrictedActions.IsAddOnRestrictionActive, id)
+		end
+	end
+	if C_CombatLog and C_CombatLog.IsCombatLogRestricted then probe.checks.combatLogRestricted = safe(C_CombatLog.IsCombatLogRestricted) end
+	probe.blocked = _G.LodestarProbeDB and _G.LodestarProbeDB.blocked or nil
+	probe.errors = self:GetRecordedErrors()
+
 	-- Live feature checks (things that exist but may be disabled by rules).
 	local mapID = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
 	probe.checks.bestMapID = mapID

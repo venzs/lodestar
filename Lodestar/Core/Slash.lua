@@ -47,17 +47,14 @@ function Lodestar:SetupSlash()
 		self:Say("Lodestar %s on client %s (toc %s)%s", self.version, tostring(build), tostring(toc), self.IsForever and " — Forever" or "")
 	end, "show version")
 	self:RegisterSlashVerb("errors", function(rest)
-		local list = self:GetRecordedErrors()
 		if rest == "clear" then
-			wipe(list)
+			local db = _G.LodestarProbeDB
+			if type(db) == "table" then db.blocked = nil db.errors = nil end
 			self:Say("Recorded errors cleared.")
 			return
 		end
-		if #list == 0 then self:Say("No Lodestar errors recorded this session.") return end
-		for i, e in ipairs(list) do
-			self:Say("|cffff5555#%d|r (x%d, %s) %s", i, e.count or 1, e.at or "?", e.msg)
-		end
-	end, "list Lodestar Lua errors caught this session (or /lode errors clear)")
+		self:PrintErrors()
+	end, "list Lodestar Lua errors and blocked calls (or /lode errors clear)")
 	self:RegisterSlashVerb("debug", function()
 		self.db.global.debug = not self.db.global.debug
 		self:Say(L["Debug output %s."], self.db.global.debug and L["on"] or L["off"])

@@ -45,7 +45,6 @@ function Lodestar:OnInitialize()
 	}
 	self.player.fullName = self.player.name .. "-" .. self.player.realm
 
-	self:InstallErrorCatcher()
 	self:SetupModuleRegistry()
 	self:SetupConfig()
 	self:SetupComm()
@@ -53,6 +52,7 @@ function Lodestar:OnInitialize()
 end
 
 function Lodestar:OnEnable()
+	self:InstallErrorCatcher()
 	self:ApplyModuleStates()
 	self:SetupMinimap()
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")

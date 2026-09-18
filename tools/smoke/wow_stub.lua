@@ -509,6 +509,9 @@ C_QuestLog.GetNextWaypointText = function() return "Objective" end
 C_QuestLog.GetQuestDifficultyLevel = function() return 2 end
 C_SuperTrack.SetSuperTrackedQuestID = function(id) stub.superTrackedQuest = id end
 C_CombatLog = { GetCurrentEventInfo = function() return 0, "UNIT_DIED", false, nil, nil, 0, 0, stub.diedGUID end }
+ScriptErrorsFrame = { errorData = {}, GetCount = function(self) return #self.errorData end, GetErrorData = function(self, i) return self.errorData[i] end }
+C_RestrictedActions = { IsAddOnRestrictionActive = function() return false end }
+Enum.AddOnRestrictionType = { Combat = 2, Chat = 1 }
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

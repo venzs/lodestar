@@ -185,6 +185,15 @@ try("options build", function()
 	end
 	walk(opts.args.Leveling) walk(opts.args.Economy) walk(opts.args.UI) walk(opts.args.Guild) walk(opts.args.general)
 end)
+try("blocked call capture", function()
+	stub.fire("ADDON_ACTION_FORBIDDEN", "Lodestar", "SomeProtectedFunction")
+	check(LodestarProbeDB.blocked and LodestarProbeDB.blocked[1].func == "SomeProtectedFunction", "forbidden call recorded")
+	ScriptErrorsFrame.errorData[1] = { message = "Interface/AddOns/Lodestar_UI/Chat.lua:12: boom", stack = "stack", count = 2, time = "x" }
+	ScriptErrorsFrame.errorData[2] = { message = "SomeOtherAddon.lua:1: nope", stack = "stack", count = 1, time = "x" }
+	check(#Lodestar:GetRecordedErrors() == 1, "only Lodestar errors listed")
+	stub.slash("/lode errors")
+	stub.slash("/lode errors clear")
+end)
 try("minimap menu", function() Lodestar:ShowModuleMenu() check(stub.menuShown, "context menu built") end)
 
 -- Guide: parser, engine, arrow, recorder
