@@ -110,9 +110,13 @@ local function stripVerb(text, verb)
 	return rest:sub(1, 1):upper() .. rest:sub(2)
 end
 
+--- Remember where the window was left. Dragging re-anchors the frame, and the anchor WoW leaves
+--- behind usually has a relativePoint different from the point -- so saving only the point and then
+--- restoring with SetPoint(point, UIParent, point, ...) measures the same offsets against a
+--- different corner, and the window lands somewhere else on every login.
 local function savePosition()
-	local point, _, _, x, y = frame:GetPoint(1)
-	cfg().pos = { point = point or "TOPRIGHT", x = x or 0, y = y or 0 }
+	local point, _, relativePoint, x, y = frame:GetPoint(1)
+	cfg().pos = { point = point or "TOPRIGHT", rel = relativePoint or point or "TOPRIGHT", x = x or 0, y = y or 0 }
 end
 
 local function makeButton(parent, text, width)
@@ -1143,7 +1147,8 @@ function Guide:UpdateStepFrame()
 		return
 	end
 	frame:ClearAllPoints()
-	frame:SetPoint(c.pos.point or "TOPRIGHT", UIParent, c.pos.point or "TOPRIGHT", c.pos.x or -40, c.pos.y or -200)
+	local point = c.pos.point or "TOPRIGHT"
+	frame:SetPoint(point, UIParent, c.pos.rel or point, c.pos.x or -40, c.pos.y or -200)
 	frame:SetScale(c.scale or 1)
 	frame:SetBackdropBorderColor(c.locked and 0.4 or 0.3, c.locked and 0.4 or 0.75, c.locked and 0.4 or 1, 0.9)
 	applyWidth(frameWidth())

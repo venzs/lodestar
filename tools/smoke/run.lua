@@ -987,6 +987,40 @@ try("smart mode", function()
 	check(t and t.kind == "quest", "arrow follows smart target in smart mode")
 	G:PinSmartItem(items[#items])
 	check(G:GetArrowTarget() and G:GetArrowTarget().title == items[#items].title, "pinned item becomes the arrow target")
+	G:PinSmartItem(nil)
+	-- The router: three things clustered together beat one slightly-closer errand on its own, and the
+	-- chosen area stays chosen while you work it instead of flickering to whatever is nearest.
+	G:ResetSmartPlan()
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.50, 0.50
+	stub.questLog = {
+		[3901] = { title = "Cluster A1", complete = false, objectives = { { text = "a", finished = false } }, wp = { map = 18, x = 0.560, y = 0.500 } },
+		[3902] = { title = "Cluster A2", complete = false, objectives = { { text = "b", finished = false } }, wp = { map = 18, x = 0.563, y = 0.502 } },
+		[3903] = { title = "Cluster A3", complete = true,  objectives = {},                                   wp = { map = 18, x = 0.566, y = 0.498 } },
+		[3904] = { title = "Lone errand", complete = false, objectives = { { text = "c", finished = false } }, wp = { map = 18, x = 0.530, y = 0.500 } },
+	}
+	local planned = G:SmartPlan(true)
+	check(planned and #planned.plan >= 3, "the plan groups the three neighbours into one area, got " .. tostring(planned and #planned.plan))
+	local titles = {}
+	for _, it in ipairs(planned.plan) do titles[it.title or "?"] = true end
+	check(titles["Cluster A1"] and titles["Cluster A2"] and titles["Cluster A3"], "the dense area wins over the closer lone errand")
+	check(not titles["Lone errand"], "the lone errand is left for afterwards")
+	local worst = 0
+	for i = 2, #planned.plan do
+		local a, b = planned.plan[i - 1], planned.plan[i]
+		local d = math.abs(a.x - b.x) + math.abs(a.y - b.y)
+		if d > worst then worst = d end
+	end
+	check(worst > 0 and worst < 0.02, "plan is ordered as a short walk, worst hop " .. string.format("%.4f", worst))
+	-- Stickiness: finishing one item must not hand the area over to the lone errand.
+	stub.questLog[3903] = nil
+	local again = G:SmartPlan(true)
+	local stillThere = false
+	for _, it in ipairs(again.plan) do if (it.title or ""):find("Cluster A") then stillThere = true end end
+	check(stillThere and again.area and again.area.sticky, "the area stays chosen while it still has work")
+	G:ResetSmartPlan()
+	stub.questLog = {}
+	stub.questLog[3901] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "x: 0/8", finished = false } }, wp = { map = 18, x = 0.33, y = 0.66 } }
+	stub.playerMap.x, stub.playerMap.y = 0.33, 0.66
 	G:RefreshStepFrame()
 	check(LodestarGuideFrame.title.text and LodestarGuideFrame.title.text:find("smart mode"), "window shows smart mode")
 	-- level 10 picks the 5-12 guide; level 40 has nothing and must not load an outleveled guide
@@ -1765,11 +1799,38 @@ try("minimap line", function()
 	-- target 100 yd east: with 140 px for 466 yd the end point is ~30 px to the right, inside the radius
 	local ex, ey, clamped = G:MinimapLineState()
 	check(ex and ex > 20 and ex < 40 and math.abs(ey) < 2 and not clamped, "line end scaled by minimap yards: " .. tostring(ex))
-	stub.questLog[3901].wp = { map = 18, x = 0.5, y = 0.662 }
-	G:RetargetArrow()
+	-- Pin the far point outright: smart mode now routes by area, so it would rightly prefer a nearer
+	-- cluster over one distant turn-in, and this case is about the line's clamping maths only.
+	G:PinPosition(18, 0.5, 0.662, "Far target")
 	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
 	ex, ey, clamped = G:MinimapLineState()
 	check(ex and math.abs(ex - 64) < 1 and clamped, "far target clamps to the minimap edge: " .. tostring(ex))
+	G:ClearPinnedPosition()
+	-- Position persistence: the window and the arrow must come back exactly where they were left.
+	-- Dragging leaves an anchor whose relativePoint differs from its point; restoring the offsets
+	-- against the point alone is what made every frame wander on each login.
+	LodestarGuideFrame:ClearAllPoints()
+	LodestarGuideFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", 640, 360)
+	LodestarGuideFrame:GetScript("OnDragStop")(LodestarGuideFrame)
+	local gp = G.db.profile.steps.pos
+	check(gp.point == "CENTER" and gp.rel == "BOTTOMLEFT" and gp.x == 640 and gp.y == 360,
+		"guide window saves its whole anchor: " .. tostring(gp.point) .. "/" .. tostring(gp.rel))
+	LodestarGuideFrame:ClearAllPoints()
+	G:UpdateStepFrame()   -- stands in for a relog: rebuild the frame from the profile
+	local rp, _, rrel, rx, ry = LodestarGuideFrame:GetPoint(1)
+	check(rp == "CENTER" and rrel == "BOTTOMLEFT" and rx == 640 and ry == 360,
+		"guide window restores to the same spot, got " .. tostring(rp) .. "/" .. tostring(rrel) .. " " .. tostring(rx) .. "," .. tostring(ry))
+	LodestarArrow:ClearAllPoints()
+	LodestarArrow:SetPoint("TOPLEFT", UIParent, "BOTTOMRIGHT", -120, 240)
+	LodestarArrow:GetScript("OnDragStop")(LodestarArrow)
+	LodestarArrow:ClearAllPoints()
+	G:UpdateArrowFrame()
+	local ap, _, arel, ax, ay = LodestarArrow:GetPoint(1)
+	check(ap == "TOPLEFT" and arel == "BOTTOMRIGHT" and ax == -120 and ay == 240,
+		"arrow restores to the same spot, got " .. tostring(ap) .. "/" .. tostring(arel))
+	G.db.profile.steps.pos = { point = "TOPRIGHT", rel = "TOPRIGHT", x = -40, y = -200 }
+	G.db.profile.arrow.pos = { point = "CENTER", rel = "CENTER", x = 0, y = 180 }
+	G:UpdateStepFrame() G:UpdateArrowFrame()
 	G.db.profile.arrow.minimapLine = false
 	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
 	check(not LodestarMinimapLine.shown, "line hidden when disabled")
@@ -2381,7 +2442,17 @@ try("character", function()
 	C:ShowPanelMenu()
 	panel:GetScript("OnDragStart")(panel)
 	panel:GetScript("OnDragStop")(panel)
-	check(type(C.db.profile.pos) == "table" and C.db.profile.pos.point == "TOP", "dragging saves the position in the profile")
+	check(type(C.db.profile.pos) == "table" and C.db.profile.pos.point and C.db.profile.pos.rel,
+		"dragging saves the position AND its relative point in the profile")
+	-- The bug this guards: a dragged frame's relativePoint is usually not its point, and restoring
+	-- the offsets against the wrong corner is what moved every window on every login.
+	panel:ClearAllPoints()
+	panel:SetPoint("CENTER", UIParent, "BOTTOMLEFT", 412, 388)
+	panel:GetScript("OnDragStop")(panel)
+	check(C.db.profile.pos.point == "CENTER" and C.db.profile.pos.rel == "BOTTOMLEFT"
+		and C.db.profile.pos.x == 412 and C.db.profile.pos.y == 388, "the whole anchor is round-tripped")
+	C:RefreshPanel()
+	C.db.profile.pos = nil
 	C:ResetPanelPosition()
 	check(C.db.profile.pos == nil, "docking clears the saved position")
 	-- module disable / enable

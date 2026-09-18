@@ -1,7 +1,13 @@
 -- Lodestar_Guide: "smart mode" — a data-free guide built from the client itself.
 --
--- With no authored route (or once the route is finished), the guide window lists what is worth
--- doing next, sorted by distance, and the arrow points at the top item:
+-- With no authored route (or once the route is finished), the guide window shows a PLAN rather than
+-- a list: everything worth doing is clustered by area, one area is chosen and worked to completion
+-- before moving on, and turn-ins you pass on the way are folded in. A plain distance sort is what
+-- makes an auto-guide feel scatty -- it re-points at whatever gather happens to be nearest, so you
+-- ping-pong across a zone. The chosen area is sticky: it keeps a scoring bonus until it is finished
+-- or you walk away from it, which is what stops the arrow flickering between two nearby things.
+--
+-- The kinds of thing that go into the plan:
 --   turn-ins   quests in the log that are complete
 --   objectives quests in progress
 --   available  quests you can pick up nearby (Blizzard quest lines when the client has them,
@@ -164,6 +170,168 @@ function Guide:CollectSmartItems(force)
 	return items
 end
 
+-- Routing ----------------------------------------------------------------------------------------
+
+local CLUSTER_YARDS = 150        -- items closer than this to a cluster's centroid join it
+local STICKY_MULTIPLIER = 0.6    -- the area being worked keeps this bonus on its score
+local LEAVE_YARDS = 500          -- ... until it is finished, or the player walks this far from it
+local TURNIN_DISCOUNT = 60       -- yards of "free" travel a turn-in gets, so it folds in en route
+local MAX_PLAN = 8
+
+-- How much an item is worth having in an area: a turn-in banked on the way is nearly free value,
+-- a hub is only a hint that quests exist there.
+local VALUE = { turnin = 3.0, objective = 2.5, train = 2.0, available = 1.5, hub = 0.8 }
+
+local active -- { wx, wy, continent, sigs = { [sig] = true } }: the area currently being worked
+
+local function itemSig(it)
+	return (it.kind or "?") .. ":" .. tostring(it.questID or it.poiID or it.title or "?")
+end
+
+--- World position of an item, cached on it for the life of the collect.
+local function itemWorld(it)
+	if it.wc == nil then
+		local c, wx, wy = Guide:WorldPos(it.mapID, it.x, it.y)
+		it.wc, it.wx, it.wy = c or false, wx, wy
+	end
+	if it.wc == false then return nil end
+	return it.wc, it.wx, it.wy
+end
+
+local function worldDist(c1, x1, y1, c2, x2, y2)
+	if not (c1 and c2) or c1 ~= c2 then return nil end
+	local dx, dy = x1 - x2, y1 - y2
+	return math.sqrt(dx * dx + dy * dy)
+end
+
+--- Greedy clustering: walk the items nearest-first and drop each into the first cluster whose
+--- centroid is within CLUSTER_YARDS, else start a new one. Nearest-first matters -- it seeds each
+--- cluster with the item closest to the player, so centroids form around real gathering points.
+local function clusterItems(items)
+	local clusters = {}
+	for _, it in ipairs(items) do
+		local c, wx, wy = itemWorld(it)
+		if c then
+			local home
+			for _, cl in ipairs(clusters) do
+				local d = worldDist(c, wx, wy, cl.continent, cl.wx, cl.wy)
+				if d and d <= CLUSTER_YARDS then home = cl break end
+			end
+			if not home then
+				home = { continent = c, wx = wx, wy = wy, items = {}, value = 0, n = 0 }
+				clusters[#clusters + 1] = home
+			end
+			home.n = home.n + 1
+			home.items[home.n] = it
+			-- running centroid
+			home.wx = home.wx + (wx - home.wx) / home.n
+			home.wy = home.wy + (wy - home.wy) / home.n
+			home.value = home.value + (VALUE[it.kind] or 1)
+			if not home.near or (it.dist or 1e9) < home.near then home.near = it.dist end
+		end
+	end
+	return clusters
+end
+
+--- Order a cluster as a walk: nearest-neighbour from the player, with turn-ins discounted so they
+--- are picked up in passing rather than saved for last.
+local function orderCluster(cluster, pc, pwx, pwy)
+	local remaining, out = {}, {}
+	for i, it in ipairs(cluster.items) do remaining[i] = it end
+	local cc, cx, cy = pc, pwx, pwy
+	while #remaining > 0 do
+		local bestI, bestScore
+		for i, it in ipairs(remaining) do
+			local c, wx, wy = itemWorld(it)
+			local d = worldDist(cc, cx, cy, c, wx, wy) or (it.dist or 1e9)
+			d = d - (it.kind == "turnin" and TURNIN_DISCOUNT or 0)
+			if not bestScore or d < bestScore then bestI, bestScore = i, d end
+		end
+		local chosen = table.remove(remaining, bestI)
+		out[#out + 1] = chosen
+		local c, wx, wy = itemWorld(chosen)
+		if c then cc, cx, cy = c, wx, wy end
+	end
+	return out
+end
+
+--- Is `cluster` the area we were already working? Matched on overlapping contents rather than on
+--- the centroid alone, which drifts as items are completed.
+local function isActive(cluster)
+	if not active or active.continent ~= cluster.continent then return false end
+	for _, it in ipairs(cluster.items) do
+		if active.sigs[itemSig(it)] then return true end
+	end
+	return false
+end
+
+--- The plan: the area to work now (ordered), and what is left for afterwards.
+--- Returns { plan = { item, ... }, area = { n, value, dist, sticky }, elsewhere = { item, ... } }.
+function Guide:SmartPlan(force)
+	local items = self:CollectSmartItems(force)
+	local pc, pwx, pwy
+	local pmap = C_Map.GetBestMapForUnit("player")
+	if pmap then
+		local pos = C_Map.GetPlayerMapPosition(pmap, "player")
+		if pos then
+			local x, y = pos:GetXY()
+			if x and y then pc, pwx, pwy = self:WorldPos(pmap, x, y) end
+		end
+	end
+	local clusters = clusterItems(items)
+	if #clusters == 0 then
+		active = nil
+		return { plan = {}, area = nil, elsewhere = items }
+	end
+	-- Score: travel cost per unit of value, so three things together beat one slightly-closer errand
+	-- on its own -- fixating on the nearest single objective is exactly what makes an auto-guide
+	-- feel scatty. The cluster's own spread is charged as travel too, so a sprawling set of points
+	-- does not get counted as if it were one stop.
+	local best, bestScore
+	for _, cl in ipairs(clusters) do
+		local spread = 0
+		for _, it in ipairs(cl.items) do
+			local c, wx, wy = itemWorld(it)
+			local d = c and worldDist(c, wx, wy, cl.continent, cl.wx, cl.wy) or 0
+			if d and d > spread then spread = d end
+		end
+		local travel = cl.near or worldDist(pc, pwx, pwy, cl.continent, cl.wx, cl.wy) or 1e6
+		local score = (travel + 40 + spread * 0.5) / math.max(cl.value, 0.1)
+		if isActive(cl) then
+			-- Stay put unless we have genuinely left the area.
+			local away = worldDist(pc, pwx, pwy, cl.continent, cl.wx, cl.wy)
+			if not away or away <= LEAVE_YARDS then score = score * STICKY_MULTIPLIER end
+			cl.sticky = true
+		end
+		if not bestScore or score < bestScore then best, bestScore = cl, score end
+	end
+	local plan = orderCluster(best, pc, pwx, pwy)
+	-- Remember what this area contained, so the next refresh recognises it even as items complete.
+	local sigs = {}
+	for _, it in ipairs(plan) do sigs[itemSig(it)] = true end
+	active = { continent = best.continent, wx = best.wx, wy = best.wy, sigs = sigs }
+	local inPlan = {}
+	for _, it in ipairs(plan) do inPlan[it] = true end
+	local elsewhere = {}
+	for _, it in ipairs(items) do if not inPlan[it] then elsewhere[#elsewhere + 1] = it end end
+	if #plan > MAX_PLAN then
+		for i = #plan, MAX_PLAN + 1, -1 do
+			table.insert(elsewhere, 1, plan[i])
+			plan[i] = nil
+		end
+	end
+	return {
+		plan = plan,
+		area = { n = #plan, value = best.value, dist = best.near, sticky = best.sticky or false },
+		elsewhere = elsewhere,
+	}
+end
+
+--- Forget the area being worked (a zone change, or the player asking for something else).
+function Guide:ResetSmartPlan()
+	active = nil
+end
+
 local function sameItem(a, b)
 	return a and b and a.kind == b.kind and a.questID == b.questID and a.mapID == b.mapID and a.x == b.x and a.y == b.y
 end
@@ -178,6 +346,11 @@ function Guide:SmartTarget(force)
 		end
 		pinned = nil
 	end
+	-- Follow the plan, so the arrow walks the area in order instead of snapping to whatever is
+	-- momentarily nearest.
+	local planned = self:SmartPlan(false)
+	local first = planned and planned.plan and planned.plan[1]
+	if first then return first end
 	for _, it in ipairs(items) do
 		if it.mapID and it.x and it.y then return it end
 	end

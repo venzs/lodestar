@@ -26,7 +26,8 @@ local function worldPos(mapID, x, y)
 	return continent, pos.x, pos.y
 end
 
---- Exposed for the recorder / optimizer.
+--- Exposed for the recorder, the optimizer and the smart-mode router, which measures between two
+--- arbitrary points rather than from the player.
 function Guide:WorldPos(mapID, x, y)
 	return worldPos(mapID, x, y)
 end
@@ -215,9 +216,11 @@ end
 
 -- Frame -----------------------------------------------------------------------------------------
 
+--- As in StepFrame: the relativePoint has to be saved with the offsets, or the arrow drifts to a
+--- new spot on every login because the same x/y are measured against a different corner.
 local function savePosition()
-	local point, _, _, x, y = arrow:GetPoint(1)
-	Guide.db.profile.arrow.pos = { point = point or "CENTER", x = x or 0, y = y or 0 }
+	local point, _, relativePoint, x, y = arrow:GetPoint(1)
+	Guide.db.profile.arrow.pos = { point = point or "CENTER", rel = relativePoint or point or "CENTER", x = x or 0, y = y or 0 }
 end
 
 local function colorFor(relative)
@@ -392,7 +395,8 @@ function Guide:UpdateArrowFrame()
 		return
 	end
 	arrow:ClearAllPoints()
-	arrow:SetPoint(cfg.pos.point or "CENTER", UIParent, cfg.pos.point or "CENTER", cfg.pos.x or 0, cfg.pos.y or 180)
+	local point = cfg.pos.point or "CENTER"
+	arrow:SetPoint(point, UIParent, cfg.pos.rel or point, cfg.pos.x or 0, cfg.pos.y or 180)
 	arrow:SetScale(cfg.scale or 1)
 	layoutArrow()
 	arrow:Show()

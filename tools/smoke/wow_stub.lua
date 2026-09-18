@@ -265,7 +265,7 @@ Frame.__index = function(t, k)
 	return nil
 end
 local frameMethods = {
-	"SetSize", "SetWidth", "SetHeight", "SetPoint", "ClearAllPoints", "SetFrameStrata", "SetFrameLevel", "SetClampedToScreen",
+	"SetSize", "SetWidth", "SetHeight", "SetFrameStrata", "SetFrameLevel", "SetClampedToScreen",
 	"SetMovable", "EnableMouse", "EnableMouseWheel", "RegisterForDrag", "RegisterForClicks", "SetBackdrop", "SetBackdropColor",
 	"SetBackdropBorderColor", "StartMoving", "StopMovingOrSizing", "SetScale", "SetAlpha", "SetJustifyH", "SetWordWrap",
 	"SetShadowOffset", "SetTextColor", "SetNormalTexture", "SetHighlightTexture", "SetMultiLine", "SetAutoFocus", "SetFontObject",
@@ -297,7 +297,21 @@ function Frame:GetName() return self.name end
 function Frame:GetParent() return self.parent end
 function Frame:GetOwner() return self.owner end
 function Frame:SetOwner(o) self.owner = o end
-function Frame:GetPoint() return "TOP", UIParent, "TOP", 0, -120 end
+-- Anchors are recorded rather than discarded: a frame's relativePoint routinely differs from its
+-- point after a drag, and saving one without the other is what makes a window move on every login.
+function Frame:SetPoint(point, relativeTo, relativePoint, x, y)
+	self.points = self.points or {}
+	if type(relativeTo) == "string" then -- SetPoint("TOP", x, y) short form
+		relativeTo, relativePoint, x, y = UIParent, point, relativeTo, relativePoint
+	end
+	self.points[#self.points + 1] = { point, relativeTo, relativePoint or point, x or 0, y or 0 }
+end
+function Frame:ClearAllPoints() self.points = nil end
+function Frame:GetPoint(i)
+	local p = self.points and self.points[i or 1]
+	if not p then return "TOP", UIParent, "TOP", 0, -120 end
+	return p[1], p[2], p[3], p[4], p[5]
+end
 function Frame:GetWidth() return 200 end
 function Frame:GetHeight() return 20 end
 function Frame:GetStringWidth() return 150 end

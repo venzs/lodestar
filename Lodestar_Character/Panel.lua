@@ -122,8 +122,11 @@ local function acquireHeader(index)
 end
 
 local function savePosition()
-	local point, _, _, x, y = panel:GetPoint(1)
-	Character.db.profile.pos = { point = point or "TOPLEFT", x = x or 0, y = y or 0 }
+	-- The relativePoint has to travel with the offsets: dragging re-anchors the frame and the
+	-- corner WoW leaves behind is usually not the same one, so saving the point alone moves the
+	-- panel somewhere new on every login.
+	local point, _, relativePoint, x, y = panel:GetPoint(1)
+	Character.db.profile.pos = { point = point or "TOPLEFT", rel = relativePoint or point or "TOPLEFT", x = x or 0, y = y or 0 }
 end
 
 local function createPanel()
@@ -186,7 +189,7 @@ function Character:AnchorPanel()
 	local anchor = rawget(_G, "CharacterFrame")
 	panel:ClearAllPoints()
 	if pos and pos.point then
-		panel:SetPoint(pos.point, UIParent, pos.point, pos.x or 0, pos.y or 0)
+		panel:SetPoint(pos.point, UIParent, pos.rel or pos.point, pos.x or 0, pos.y or 0)
 	elseif anchor then
 		panel:SetPoint("TOPLEFT", anchor, "TOPRIGHT", DOCK_X, DOCK_Y)
 	else
