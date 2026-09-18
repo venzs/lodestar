@@ -9,8 +9,39 @@ A suite of addons for **World of Warcraft: Forever**. One core, four modules, in
 | **Lodestar_Economy** | Auto-sell greys, auto-repair, account-wide gold ledger, vendor + auction prices in tooltips |
 | **Lodestar_UI** | Item/spell/NPC IDs and target-of-target in tooltips, map + minimap coordinates, clickable chat links, timestamps, copy-chat, fast loot |
 | **Lodestar_Guild** | Live guild board: who is online, where, what level, who wants a group (`/lode guild`, `/lode lfg`) |
+| **Lodestar_Guide** | Navigation arrow (points at the guide step, your `/way` pin, or the nearest quest objective/turn-in), step-by-step guide window, and a route recorder that turns your playthrough into a guide (`/lode record`) |
+| **Lodestar_Guides_Horde** | Guide data pack (routes in the text format below). Alliance pack to follow. |
 
 `/lode` opens settings. `/lode help` lists every command.
+
+## Guides
+
+Guides are plain text registered by a data-pack addon (see `Lodestar_Guides_Horde/Undead_Deathknell.lua`):
+
+```
+#guide Horde/Undead 1-5: Deathknell
+#faction Horde
+#race Undead
+#levels 1-5
+#next Horde/Undead 5-12: Tirisfal Glades
+
+step
+  .goto 18,30.8,66.2
+  .accept 3901 >>Accept Rude Awakening from Shadow Priest Sarvis
+step
+  .goto 18,30.4,68.9
+  .complete 364,1 >>Kill Mindless Zombies
+step
+  .goto 18,30.8,66.2
+  .turnin 364
+  .xp 3
+```
+
+Directives: `.goto map,x,y[,radius]` (map id or zone name), `.accept id`, `.turnin id`, `.complete id[,objective]`,
+`.xp level`, `.zone name`, `.train`, `.hs name`, `.fly name`, `.vendor`, `.text >>...`, plus `.class` / `.race` step
+filters. Steps auto-advance from the quest log; goto-only steps complete on arrival. `/lode record start` logs your
+own play (accepts, objective completions, turn-ins, hearth binds, trainers, mob levels) and `/lode record export`
+produces this format.
 
 ## Status
 

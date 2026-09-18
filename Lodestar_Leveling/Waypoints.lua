@@ -68,6 +68,10 @@ function Leveling:SetWaypoint(mapID, x, y, note)
 	return true
 end
 
+function Leveling:GetWaypointNote()
+	return lastNote
+end
+
 function Leveling:ClearWaypoint()
 	C_Map.ClearUserWaypoint()
 	lastNote = nil

@@ -83,7 +83,7 @@ UnitClass = function() return "Warrior", "WARRIOR", 1 end
 UnitLevel = function() return stub.level end
 UnitXP = function() return stub.xp end
 UnitXPMax = function() return stub.xpMax end
-UnitFactionGroup = function() return "Alliance", "Alliance" end
+UnitFactionGroup = function() return "Horde", "Horde" end
 UnitGUID = function(u) if u == "player" then return "Player-1-000001" end return "Creature-0-1-2-3-6-000ABC" end
 UnitExists = function(u) return u == "player" or u == "target" or u == "targettarget" or u == "questnpc" end
 UnitIsPlayer = function(u) return u == "player" or u == "targettarget" end
@@ -245,7 +245,7 @@ Settings = {
 	GetCategory = function(id) return { ID = id } end,
 	OpenToCategory = function(id) stub.openedCategory = id end,
 }
-MenuUtil = { CreateContextMenu = function(_, gen) local root = { CreateTitle = function() end, CreateCheckbox = function() end, CreateDivider = function() end, CreateButton = function() end } gen(nil, root) stub.menuShown = true end }
+MenuUtil = { CreateContextMenu = function(_, gen) local root = { CreateTitle = function() end, CreateCheckbox = function() end, CreateDivider = function() end, CreateButton = function() end, CreateRadio = function() end } gen(nil, root) stub.menuShown = true end }
 TooltipDataProcessor = { AddTooltipPostCall = function(kind, fn) stub.tooltipCalls = stub.tooltipCalls or {} stub.tooltipCalls[kind] = stub.tooltipCalls[kind] or {} tinsert(stub.tooltipCalls[kind], fn) end }
 TooltipUtil = {
 	GetDisplayedItem = function() return "Broken Fang", "|Hitem:1234::::::::1:::::|h[Broken Fang]|h", 1234 end,
@@ -482,6 +482,33 @@ ACCEPT, CANCEL, GAME_LOCALE = "Accept", "Cancel", "enUS"
 ChatEdit_InsertLink = function() return false end
 GetCursorInfo = function() return nil end
 ClearCursor = function() end
+-- Navigation / guide APIs
+GetPlayerFacing = function() return stub.facing or 0 end
+UnitRace = function() return "Undead", "Scourge", 5 end
+UnitCanAttack = function() return true end
+GetBindLocation = function() return "Deathknell" end
+CreateVector2D = function(x, y) return { x = x, y = y, GetXY = function(v) return v.x, v.y end } end
+stub.playerMap = { map = 18, x = 0.308, y = 0.662 }
+C_Map.GetBestMapForUnit = function() return stub.playerMap.map end
+C_Map.GetPlayerMapPosition = function(mapID) return { GetXY = function() return stub.playerMap.x, stub.playerMap.y end } end
+C_Map.GetWorldPosFromMapPos = function(mapID, pos) return 0, { x = -pos.y * 10000, y = -pos.x * 10000 } end -- fake continent 0
+C_Map.GetMapInfo = function(id) return { name = id == 18 and "Tirisfal Glades" or ("Map " .. tostring(id)), mapID = id, parentMapID = id == 18 and 947 or 0 } end
+C_Map.GetMapChildrenInfo = function() return { { name = "Tirisfal Glades", mapID = 18 }, { name = "Elwynn Forest", mapID = 37 } } end
+stub.questLog = {}   -- [questID] = { title, complete, objectives = { {text, finished} }, flagged }
+stub.flagged = {}
+C_QuestLog.GetNumQuestLogEntries = function() local n = 0 for _ in pairs(stub.questLog) do n = n + 1 end return n end
+C_QuestLog.GetInfo = function(i) local n = 0 for id, q in pairs(stub.questLog) do n = n + 1 if n == i then return { questID = id, title = q.title, isHeader = false, isHidden = false } end end end
+C_QuestLog.IsOnQuest = function(id) return stub.questLog[id] ~= nil end
+C_QuestLog.IsQuestFlaggedCompleted = function(id) return stub.flagged[id] == true end
+C_QuestLog.IsComplete = function(id) local q = stub.questLog[id] return q and q.complete or false end
+C_QuestLog.GetQuestObjectives = function(id) local q = stub.questLog[id] return q and q.objectives or {} end
+C_QuestLog.GetTitleForQuestID = function(id) local q = stub.questLog[id] return q and q.title or ({ [3901] = "Rude Awakening", [364] = "The Mindless Ones" })[id] end
+C_QuestLog.RequestLoadQuestByID = function() end
+C_QuestLog.GetNextWaypoint = function(id) local q = stub.questLog[id] if q and q.wp then return q.wp.map, q.wp.x, q.wp.y end end
+C_QuestLog.GetNextWaypointText = function() return "Objective" end
+C_QuestLog.GetQuestDifficultyLevel = function() return 2 end
+C_SuperTrack.SetSuperTrackedQuestID = function(id) stub.superTrackedQuest = id end
+C_CombatLog = { GetCurrentEventInfo = function() return 0, "UNIT_DIED", false, nil, nil, 0, 0, stub.diedGUID end }
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: |cff4fc3f7Lodestar|r Guides: Horde
+## Notes: Horde leveling routes for the Lodestar Guide engine. Data only — requires Lodestar_Guide.
+## Author: Abhi
+## Version: @project-version@
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+## Dependencies: Lodestar, Lodestar_Guide
+## X-Category: Quests & Leveling
+## X-License: MIT
+## X-Lodestar-GuidePack: Horde
+
+Undead_Deathknell.lua

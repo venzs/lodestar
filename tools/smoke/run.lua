@@ -42,7 +42,7 @@ local function loadToc(addon)
 	stub.fire("ADDON_LOADED", addon)
 end
 
-local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild" }
+local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild", "Lodestar_Guide", "Lodestar_Guides_Horde" }
 for _, a in ipairs(addons) do loadToc(a) end
 
 stub.loggedIn = true
@@ -57,13 +57,13 @@ local function check(cond, what)
 end
 local function try(what, fn)
 	checks = checks + 1
-	local ok, err = pcall(fn)
+	local ok, err = xpcall(fn, function(e) return os.getenv("SMOKE_TRACE") and debug.traceback(e, 2) or e end)
 	if not ok then tinsert(failures, what .. ": " .. tostring(err)) end
 end
 
 local Lodestar = _G.Lodestar
 check(Lodestar and Lodestar.db, "core initialised")
-check(#Lodestar.moduleList == 4, "four modules registered, got " .. tostring(#Lodestar.moduleList))
+check(#Lodestar.moduleList == 5, "five modules registered, got " .. tostring(#Lodestar.moduleList))
 for _, m in ipairs(Lodestar.moduleList) do check(m:IsEnabled(), "module enabled: " .. m.key) end
 check(#stub.sent >= 2, "login comms sent (version + presence), got " .. #stub.sent)
 check(stub.displayedPlayed ~= true, "played-time chat lines were muted")
@@ -186,6 +186,154 @@ try("options build", function()
 	walk(opts.args.Leveling) walk(opts.args.Economy) walk(opts.args.UI) walk(opts.args.Guild) walk(opts.args.general)
 end)
 try("minimap menu", function() Lodestar:ShowModuleMenu() check(stub.menuShown, "context menu built") end)
+
+-- Guide: parser, engine, arrow, recorder
+local G = Lodestar:GetModule("Guide")
+try("parser", function()
+	local P = G.Parser
+	local g, err = P.Parse([[
+#guide Test 1-2: Parser
+#faction Horde
+#race Undead
+#levels 1-2
+#next Nope
+step
+  .goto 18,30.8,66.2
+  .accept 3901 >>Accept Rude Awakening
+step Kill things
+  .goto Tirisfal Glades,31,67,15
+  .complete 364,1
+  .complete 364,2 >>Second objective
+step
+  .turnin 364
+  .xp 3
+step
+  .goto 18,40,40
+step
+  .hs Deathknell
+  .train
+  .class Paladin
+]])
+	check(g, "parsed: " .. tostring(err))
+	check(g and #g.steps == 5, "five steps")
+	check(g and g.steps[1].actions[1].type == "accept" and g.steps[1].actions[1].questID == 3901, "accept parsed")
+	check(g and g.steps[1].actions[1].text == "Accept Rude Awakening", ">> text parsed")
+	check(g and g.steps[2].label == "Kill things" and g.steps[2].go.map == "Tirisfal Glades" and g.steps[2].go.radius == 15, "label and named map goto")
+	check(g and g.steps[2].actions[2].objective == 2, "objective index parsed")
+	check(g and g.steps[3].actions[2].type == "level" and g.steps[3].actions[2].level == 3, "xp parsed")
+	check(g and g.steps[4].arrival, "goto-only step marks arrival")
+	check(g and g.steps[5].classes and g.steps[5].classes["paladin"], "class filter parsed")
+	check(g and g.races and g.races["undead"], "race header parsed")
+	local bad, berr = P.Parse("#guide X\nstep\n  .bogus 1")
+	check(bad == nil and berr and berr:find("unknown directive"), "bad directive rejected: " .. tostring(berr))
+	check(P.StepText(g.steps[1], function(id) return "Rude Awakening" end) == "Accept Rude Awakening", "step text")
+	check(P.StepText(g.steps[4], nil, nil, function(m) return "Tirisfal Glades" end):find("Go to 40.0, 40.0"), "goto-only text")
+end)
+try("guide pack loaded", function()
+	check(G.guideByName["Horde/Undead 1-5: Deathknell"] ~= nil, "Deathknell sample registered")
+	local picked = G:PickGuide()
+	check(picked and picked.name == "Horde/Undead 1-5: Deathknell", "auto-pick chose the undead guide: " .. tostring(picked and picked.name))
+	check(G.current and G.current.name == picked.name, "guide auto-loaded at login")
+	check(G.stepIndex == 1, "starts at step 1")
+end)
+try("engine advance", function()
+	-- accept 3901 -> step 1 done
+	stub.questLog[3901] = { title = "Rude Awakening", complete = false, objectives = {} }
+	stub.fire("QUEST_ACCEPTED", 3901)
+	stub.advance(1)
+	check(G.stepIndex == 2, "advanced to step 2 after accept, at " .. tostring(G.stepIndex))
+	-- turn in 3901 and accept 3903 -> step 2 done
+	stub.questLog[3901] = nil stub.flagged[3901] = true
+	stub.fire("QUEST_TURNED_IN", 3901, 250, 0)
+	stub.questLog[3903] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "Rattlecage Skeleton slain: 0/8", finished = false } } }
+	stub.fire("QUEST_ACCEPTED", 3903)
+	stub.advance(1)
+	check(G.stepIndex == 3, "advanced to step 3, at " .. tostring(G.stepIndex))
+	-- manual next / prev
+	G:NextStep() check(G.stepIndex == 4, "manual next")
+	G:PrevStep() check(G.stepIndex == 3, "manual prev")
+	stub.slash("/lode guide step 2")
+	check(G.stepIndex >= 3, "step 2 is already complete so evaluate skips forward, at " .. tostring(G.stepIndex))
+	stub.slash("/lode guide list")
+	stub.slash("/lode guide load Deathknell")
+	stub.slash("/lode guide")
+	stub.slash("/lode guide")
+end)
+try("arrow", function()
+	stub.slash("/lode arrow guide")
+	G:RetargetArrow()
+	local t = G:GetArrowTarget()
+	check(t and t.kind == "guide", "arrow targets the guide step: " .. tostring(t and t.kind))
+	local dist, bearing = G:VectorTo(18, 0.308, 0.60)
+	check(dist and dist > 0 and bearing, "vector computed: " .. tostring(dist))
+	stub.slash("/lode arrow quest")
+	stub.questLog[3903].wp = { map = 18, x = 0.33, y = 0.66 }
+	G:RetargetArrow()
+	t = G:GetArrowTarget()
+	check(t and t.kind == "quest" and t.questID == 3903, "arrow targets nearest quest waypoint")
+	check(stub.superTrackedQuest == 3903, "super-tracked the quest")
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	check(LodestarArrow.dist.text and LodestarArrow.dist.text:find("yd"), "distance text rendered: " .. tostring(LodestarArrow.dist.text))
+	stub.slash("/lode arrow auto")
+	stub.slash("/lode arrow")
+	stub.slash("/lode arrow")
+end)
+try("recorder", function()
+	stub.slash("/lode record start Test route")
+	check(G.db.char.recording ~= nil, "recording started")
+	stub.fire("GOSSIP_SHOW")
+	stub.questLog[364] = { title = "The Mindless Ones", complete = false, objectives = { { text = "Mindless Zombie slain: 0/8", finished = false } } }
+	stub.fire("QUEST_ACCEPTED", 364)
+	stub.fire("PLAYER_TARGET_CHANGED")
+	stub.diedGUID = "Creature-0-1-2-3-6-000ABC"
+	stub.fire("COMBAT_LOG_EVENT_UNFILTERED")
+	stub.questLog[364].objectives[1].finished = true
+	stub.playerMap.x, stub.playerMap.y = 0.304, 0.689
+	stub.fire("QUEST_LOG_UPDATE")
+	stub.fire("PLAYER_LEVEL_UP", 14)
+	stub.fire("HEARTHSTONE_BOUND")
+	stub.fire("TRAINER_SHOW") stub.fire("TRAINER_CLOSED")
+	stub.questLog[364].complete = true
+	stub.playerMap.x, stub.playerMap.y = 0.308, 0.662
+	stub.fire("QUEST_COMPLETE")
+	stub.questLog[364] = nil stub.flagged[364] = true
+	stub.fire("QUEST_TURNED_IN", 364, 450, 0)
+	stub.slash("/lode record status")
+	local r = G.db.char.recording
+	local types = {}
+	for _, e in ipairs(r.entries) do types[e.type] = (types[e.type] or 0) + 1 end
+	check(types.accept == 1 and types.complete == 1 and types.turnin == 1 and types.level == 1 and types.hs == 1 and types.train == 1, "recorded all entry types")
+	local text = G:BuildRecordingText(r)
+	check(text:find("#guide Test route", 1, true) and text:find(".accept 364", 1, true) and text:find(".complete 364,1", 1, true) and text:find(".turnin 364", 1, true), "export text has the quest steps")
+	check(text:find("mobs: Kobold Vermin x1", 1, true), "export text has mob levels: " .. tostring(text:match("mobs:[^\n]*")))
+	check(text:find("%.hs Deathknell") and text:find("%.train"), "export has hs and train")
+	local parsed, perr = G.Parser.Parse(text)
+	check(parsed ~= nil, "exported guide parses back: " .. tostring(perr))
+	stub.slash("/lode record export")
+	check(G.guideByName["Test route"] ~= nil, "exported recording registered as a guide")
+	check(LodestarCopyFrame.shown, "copy box shown for export")
+	stub.slash("/lode record stop")
+	stub.slash("/lode record list")
+	stub.slash("/lode record show Test route")
+	stub.slash("/lode record discard")
+end)
+try("guide menus", function() G:ShowGuideMenu() G:ShowArrowMenu() end)
+try("guide options", function()
+	local opts = Lodestar:BuildOptions()
+	check(opts.args.Guide ~= nil, "guide options group present")
+	local function walk(group)
+		for _, opt in pairs(group.args or {}) do
+			if opt.type == "group" then walk(opt)
+			elseif opt.get then
+				local v = opt.get({})
+				if opt.set and (opt.type == "toggle" or opt.type == "range" or opt.type == "select") then opt.set({}, v) end
+			elseif opt.type == "description" and type(opt.name) == "function" then opt.name() end
+		end
+	end
+	walk(opts.args.Guide)
+end)
+
+-- AceDB strips defaults from the saved tables on logout, so this must be the last thing we do.
 try("logout", function() stub.fire("PLAYER_LOGOUT") end)
 
 -- Report

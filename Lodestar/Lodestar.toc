@@ -17,6 +17,7 @@ Locales\enUS.lua
 Core\Init.lua
 Core\Utils.lua
 Core\Errors.lua
+Core\CopyBox.lua
 Core\Modules.lua
 Core\Config.lua
 Core\Comm.lua

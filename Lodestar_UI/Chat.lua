@@ -10,7 +10,7 @@ local URL_EVENTS = {
 }
 
 local LINK_TYPE = "lodeurl"
-local copyFrame, copyButton
+local copyButton
 
 local function linkify(url)
 	return ("|H%s:%s|h|cff4fc3f7[%s]|r|h"):format(LINK_TYPE, url, url)
@@ -36,57 +36,9 @@ local function urlFilter(_, _, msg, ...)
 	return false
 end
 
--- Copy box ---------------------------------------------------------------------------------
-
-local function ensureCopyFrame()
-	if copyFrame then return copyFrame end
-	copyFrame = CreateFrame("Frame", "LodestarCopyFrame", UIParent, "BackdropTemplate")
-	copyFrame:SetSize(560, 320)
-	copyFrame:SetPoint("CENTER")
-	copyFrame:SetFrameStrata("DIALOG")
-	copyFrame:SetMovable(true)
-	copyFrame:EnableMouse(true)
-	copyFrame:RegisterForDrag("LeftButton")
-	copyFrame:SetScript("OnDragStart", copyFrame.StartMoving)
-	copyFrame:SetScript("OnDragStop", copyFrame.StopMovingOrSizing)
-	copyFrame:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-		tile = true, tileSize = 32, edgeSize = 32,
-		insets = { left = 11, right = 12, top = 12, bottom = 11 },
-	})
-	copyFrame:Hide()
-	tinsert(UISpecialFrames, "LodestarCopyFrame") -- Escape closes it
-
-	local title = copyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	title:SetPoint("TOP", 0, -16)
-	title:SetText(Lodestar.COLOR .. "Lodestar|r — Ctrl+C to copy, Escape to close")
-
-	local close = CreateFrame("Button", nil, copyFrame, "UIPanelCloseButton")
-	close:SetPoint("TOPRIGHT", -6, -6)
-
-	local scroll = CreateFrame("ScrollFrame", "LodestarCopyScroll", copyFrame, "UIPanelScrollFrameTemplate")
-	scroll:SetPoint("TOPLEFT", 18, -40)
-	scroll:SetPoint("BOTTOMRIGHT", -34, 18)
-
-	local edit = CreateFrame("EditBox", nil, scroll)
-	edit:SetMultiLine(true)
-	edit:SetAutoFocus(false)
-	edit:SetFontObject(ChatFontNormal)
-	edit:SetWidth(500)
-	edit:SetScript("OnEscapePressed", function() copyFrame:Hide() end)
-	edit:SetScript("OnTextChanged", function() scroll:UpdateScrollChildRect() end)
-	scroll:SetScrollChild(edit)
-	copyFrame.edit = edit
-	return copyFrame
-end
-
-function UI:ShowCopyBox(text)
-	local frame = ensureCopyFrame()
-	frame.edit:SetText(text or "")
-	frame:Show()
-	frame.edit:SetFocus()
-	frame.edit:HighlightText()
+-- Copy box lives in the core (Lodestar:ShowCopyBox) so other modules can use it.
+function UI:ShowCopyBox(text, title)
+	Lodestar:ShowCopyBox(text, title)
 end
 
 local function onHyperlink(link)

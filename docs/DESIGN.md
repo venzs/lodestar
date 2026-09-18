@@ -64,6 +64,25 @@ Core handles `V`; Guild handles `P` (presence) and `Q` (query). Every message do
   Economy's gold ledger is `global`, its price memory is `factionrealm`.
 - `LodestarProbeDB` — dev/diagnostic only: probe output and caught errors.
 
+## Guide engine (Lodestar_Guide)
+
+- **Arrow** (`Arrow.lua`): target priority guide step → `/way` pin → nearest quest via
+  `C_QuestLog.GetNextWaypoint` (Blizzard's own routing: objective, or turn-in once complete). Bearing =
+  `atan2(dy, dx)` in world yards from `C_Map.GetWorldPosFromMapPos` minus `GetPlayerFacing()`; the texture is
+  rotated with `SetRotation`. Retargets on quest-log events and every 5 s.
+- **Parser** (`Parser.lua`): pure Lua, unit-tested in the smoke run. `.goto` is stored as `step.go` because
+  `goto` is a keyword to luacheck.
+- **Engine** (`Engine.lua`): completion is derived from the quest log (`IsOnQuest`, `IsQuestFlaggedCompleted`,
+  `GetQuestObjectives[i].finished`, `IsComplete`), levels, zones, and per-step flags set by events
+  (hearth bound, trainer closed, flight taken, vendor). Auto-advance skips completed/inapplicable steps.
+  Progress is per character; `#next` chains guides.
+- **Recorder** (`Recorder.lua`): entries with position, player level, quest level, NPC, kill levels (from
+  `COMBAT_LOG_EVENT_UNFILTERED` UNIT_DIED matched against recent targets). Export groups accept/turn-in
+  entries into hub steps (≤20 yd, ≤3 min) and writes the text format.
+- **Data plan**: quest catalog from the client's DB2 tables (wago.tools CSV for build 1.60.1: QuestV2CliTask,
+  QuestObjective, QuestPOIPoint, ContentTuning) + NPC positions from recordings → route optimizer (hub
+  batching, XP per travel minute, level gating) → draft guides → recorded laps to refine.
+
 ## Verification without the game
 
 `tools/extract_api.py` parses Blizzard's exported UI source, resolves the TOC gates for `camelot` and
