@@ -258,6 +258,9 @@ end
 --- "Starts:" lines: the Vanilla data's quest givers filtered like the pick-up list, then quests the
 --- harvest saw this NPC offer that the data does not start here ("(new)").
 local function startLines(lines, kind, id, harvestEntry, label)
+	-- Same reason as smart mode: right after a reload the client says every quest is uncompleted, so
+	-- offering pick-ups then means offering back quests this character finished long ago.
+	if Guide.CompletedQuestsReady and not Guide:CompletedQuestsReady() then return end
 	local n = 0
 	for _, s in ipairs(Guide:DataAvailableFrom(kind, id)) do
 		if n >= MAX_START_LINES then break end

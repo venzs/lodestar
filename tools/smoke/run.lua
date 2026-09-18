@@ -988,6 +988,39 @@ try("smart mode", function()
 	G:PinSmartItem(items[#items])
 	check(G:GetArrowTarget() and G:GetArrowTarget().title == items[#items].title, "pinned item becomes the arrow target")
 	G:PinSmartItem(nil)
+	-- Reported from the beta: "I just reloaded and it's telling me to pick up quests I've already
+	-- done." The completed-quest list arrives AFTER you enter the world, and until it does the client
+	-- says every quest is uncompleted -- so every "you can pick this up" filter answers wrongly.
+	stub.flagged[3901] = true
+	stub.questLog = {}
+	stub.completedNotLoaded = true
+	G:ResetCompletedReady()
+	check(not G:CompletedQuestsReady(), "completed list is not trusted before it has loaded")
+	local early = G:CollectSmartItems(true)
+	local offeredEarly = 0
+	for _, it in ipairs(early) do if it.kind == "available" then offeredEarly = offeredEarly + 1 end end
+	check(offeredEarly == 0, "nothing is offered for pick-up while the completed list is missing, got " .. offeredEarly)
+	stub.completedNotLoaded = nil
+	check(G:CompletedQuestsReady(), "... and it is trusted the moment the list arrives")
+	local late = G:CollectSmartItems(true)
+	local offeredLate, offeredDone = 0, 0
+	for _, it in ipairs(late) do
+		if it.kind == "available" then
+			offeredLate = offeredLate + 1
+			if it.questID == 3901 then offeredDone = offeredDone + 1 end
+		end
+	end
+	check(offeredLate > 0, "pick-ups come back once the list has loaded")
+	check(offeredDone == 0, "a quest this character already completed is never offered again")
+	stub.flagged[3901] = nil
+	-- A brand new character really has completed nothing, so an empty list must not withhold forever.
+	stub.completedNotLoaded = true
+	G:ResetCompletedReady()
+	check(not G:CompletedQuestsReady(), "empty list is treated as not-yet-loaded at first")
+	stub.advance(13)
+	check(G:CompletedQuestsReady(), "... but is trusted after the grace period, so a fresh character is not stuck")
+	stub.completedNotLoaded = nil
+	G:ResetCompletedReady()
 	-- The router: three things clustered together beat one slightly-closer errand on its own, and the
 	-- chosen area stays chosen while you work it instead of flickering to whatever is nearest.
 	G:ResetSmartPlan()

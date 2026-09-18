@@ -527,6 +527,14 @@ C_QuestLog.GetNumQuestLogEntries = function() local n = 0 for _ in pairs(stub.qu
 C_QuestLog.GetInfo = function(i) local n = 0 for id, q in pairs(stub.questLog) do n = n + 1 if n == i then return { questID = id, title = q.title, isHeader = false, isHidden = false } end end end
 C_QuestLog.IsOnQuest = function(id) return stub.questLog[id] ~= nil end
 C_QuestLog.IsQuestFlaggedCompleted = function(id) return stub.flagged[id] == true end
+-- The real client answers this only once the server has sent the completed list, which lands a
+-- moment AFTER entering the world. stub.completedNotLoaded models that window.
+C_QuestLog.GetAllCompletedQuestIDs = function()
+	local out = {}
+	if stub.completedNotLoaded then return out end
+	for id, done in pairs(stub.flagged) do if done then out[#out + 1] = id end end
+	return out
+end
 C_QuestLog.IsComplete = function(id) local q = stub.questLog[id] return q and q.complete or false end
 C_QuestLog.GetQuestObjectives = function(id) local q = stub.questLog[id] return q and q.objectives or {} end
 C_QuestLog.GetTitleForQuestID = function(id) local q = stub.questLog[id] return q and q.title or ({ [3901] = "Rude Awakening", [364] = "The Mindless Ones" })[id] end

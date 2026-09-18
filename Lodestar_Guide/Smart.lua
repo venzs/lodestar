@@ -31,6 +31,43 @@ local pinned                 -- item the player clicked in the list; arrow follo
 local cache, cacheAt = nil, 0
 local lastSources = {}       -- [questID] = "waypoint" | "poi" | "harvest" | "none"  (for /lode guide diag)
 
+-- Completed-quest readiness --------------------------------------------------------------------
+--
+-- The server sends the completed-quest list a moment AFTER you enter the world, and until it lands
+-- C_QuestLog.IsQuestFlaggedCompleted answers false for everything. Every "you can pick this up"
+-- filter in the suite is built on that call, so for the first seconds of a reload the addon will
+-- cheerfully offer back quests the character finished days ago. GetAllCompletedQuestIDs is the
+-- honest readiness check: once it returns anything, the list has arrived.
+--
+-- A genuinely fresh character has completed nothing, so an empty answer cannot be distinguished
+-- from "not loaded yet" -- hence the timeout, after which we trust the client either way.
+local completedReadyAt, completedReady = nil, false
+local COMPLETED_GRACE = 12   -- seconds after entering the world before we trust an empty list
+
+function Guide:ResetCompletedReady()
+	completedReady, completedReadyAt = false, GetTime()
+end
+
+--- True once the client's completed-quest list can be believed.
+function Guide:CompletedQuestsReady()
+	if completedReady then return true end
+	if C_QuestLog.GetAllCompletedQuestIDs then
+		local ok, list = pcall(C_QuestLog.GetAllCompletedQuestIDs)
+		if ok and type(list) == "table" and #list > 0 then
+			completedReady = true
+			return true
+		end
+	else
+		completedReady = true  -- no way to check on this client; do not withhold the list forever
+		return true
+	end
+	if completedReadyAt and (GetTime() - completedReadyAt) > COMPLETED_GRACE then
+		completedReady = true  -- a brand new character really has finished nothing
+		return true
+	end
+	return false
+end
+
 local function firstUnfinishedObjective(questID)
 	local objectives = C_QuestLog.GetQuestObjectives(questID)
 	if type(objectives) ~= "table" then return nil end
@@ -147,10 +184,16 @@ function Guide:CollectSmartItems(force)
 	local mapID = C_Map.GetBestMapForUnit("player")
 	questLogItems(items, mapID)
 	if mapID then
-		availableItems(items, mapID)
-		hubItems(items, mapID)
-		if self.HarvestAvailableItems then self:HarvestAvailableItems(items, mapID) end
-		if self.DataAvailableItems then self:DataAvailableItems(items, mapID) end
+		-- Quests in the log are safe to show immediately -- the log arrives with you. Everything that
+		-- answers "can I pick this up?" depends on the completed-quest list, which does not, so those
+		-- sources wait rather than offering back finished quests for the first seconds of a reload.
+		local canOffer = self:CompletedQuestsReady()
+		if canOffer then
+			availableItems(items, mapID)
+			hubItems(items, mapID)
+			if self.HarvestAvailableItems then self:HarvestAvailableItems(items, mapID) end
+			if self.DataAvailableItems then self:DataAvailableItems(items, mapID) end
+		end
 		if self.TrainItems then self:TrainItems(items, mapID) end
 	end
 	for _, it in ipairs(items) do

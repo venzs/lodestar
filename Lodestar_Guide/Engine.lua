@@ -680,6 +680,10 @@ function Guide:EngineOnEvent(event, ...)
 		end
 	elseif event == "QUEST_DATA_LOAD_RESULT" then
 		self:RefreshStepFrame()
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		-- The completed-quest list has not arrived yet; until it does, "you can pick this up" is not
+		-- a question the client can answer honestly (Smart.lua: CompletedQuestsReady).
+		if self.ResetCompletedReady then self:ResetCompletedReady() end
 	end
 	if ENGINE_EVENTS[event] or event == "HEARTHSTONE_BOUND" or event == "TRAINER_CLOSED" or event == "MERCHANT_CLOSED" then
 		self:QueueEvaluate()
