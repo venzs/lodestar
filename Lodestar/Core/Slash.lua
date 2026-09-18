@@ -6,6 +6,15 @@ local L = Lodestar.L
 local verbs = {}
 local verbOrder = {}
 
+--- Every registered verb, in registration order. Exposed so the smoke test can exercise all of
+--- them without a hand-maintained list -- a list like that is always one feature out of date, and
+--- the verb nobody remembered to add is the one that throws.
+function Lodestar:SlashVerbs()
+	local out = {}
+	for _, verb in ipairs(verbOrder) do out[#out + 1] = verb end
+	return out
+end
+
 function Lodestar:RegisterSlashVerb(verb, handler, help)
 	verb = verb:lower()
 	if not verbs[verb] then tinsert(verbOrder, verb) end

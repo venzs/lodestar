@@ -3218,6 +3218,46 @@ try("character", function()
 	stub.level = 3
 end)
 
+-- Deliberately near the end: this toggles every module off and on and runs every command, so it
+-- leaves windows open, guides loaded and panels rebuilt. Anything that asserts on that state has to
+-- have run already.
+-- Every slash verb, with every module both on and off.
+-- A command whose module has been turned off is a standing trap: the handler is still registered
+-- (they are registered once, at first enable, and never unregistered) but the state it reads is
+-- gone. The list is taken from the registry rather than written out here, so a verb added later is
+-- covered the day it is added -- a hand-kept list is always one feature behind, and the verb nobody
+-- remembered to add is the one that throws.
+try("every slash verb, module on and off", function()
+	local verbs = Lodestar:SlashVerbs()
+	check(#verbs >= 15, "the registry has the verbs: " .. #verbs)
+
+	local modules = {}
+	for _, m in ipairs(Lodestar.moduleList) do modules[#modules + 1] = m.key end
+	local wasEnabled = {}
+	for _, key in ipairs(modules) do wasEnabled[key] = Lodestar:IsModuleEnabled(key) end
+
+	local failures, runs = {}, 0
+	local function runAll(label)
+		for _, verb in ipairs(verbs) do
+			runs = runs + 1
+			-- Bare verb only: every handler treats no arguments as "show me", which is the path a
+			-- confused player takes and the one that must never throw.
+			local ok, err = pcall(Lodestar.HandleSlash, Lodestar, verb)
+			if not ok then failures[#failures + 1] = label .. " /lode " .. verb .. ": " .. tostring(err) end
+		end
+	end
+
+	runAll("all on")
+	for _, key in ipairs(modules) do
+		Lodestar:SetModuleEnabled(key, false)
+		runAll(key .. " off")
+		Lodestar:SetModuleEnabled(key, true)
+	end
+
+	for key, on in pairs(wasEnabled) do Lodestar:SetModuleEnabled(key, on) end
+	check(#failures == 0, ("%d of %d slash runs threw: %s"):format(#failures, runs, table.concat(failures, " | ")))
+end)
+
 -- AceDB strips defaults from the saved tables on logout, so this must be the last thing we do.
 try("logout", function() stub.fire("PLAYER_LOGOUT") end)
 
