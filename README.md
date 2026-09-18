@@ -60,7 +60,7 @@ addon API with the Midnight-era restrictions, not the Classic Era API; everythin
 Requirements: git, Python 3, Lua 5.1, luacheck (`apt install lua5.1 lua-check` / `brew install lua@5.1 luacheck`).
 
 ```
-tools/check.sh          # regenerate the Forever API surface from Blizzard's UI source, then luacheck + apicheck + smoke test
+tools/check.sh          # regenerate the Forever API surface, then luacheck, apicheck, TOC + event checks, guide lint, smoke and persistence
 tools/dev-link.cmd      # Windows: junction each addon folder into the beta's Interface\AddOns
 ```
 
@@ -69,7 +69,10 @@ tools/dev-link.cmd      # Windows: junction each addon folder into the beta's In
 Forever game type ("Camelot" internally) and writes `tools/wow-api/`. luacheck then flags any global that
 doesn't exist in that client, and `tools/apicheck.py` verifies every `C_*` call, event name and `Enum` value
 against the generated API docs. `tools/smoke/run.lua` loads the whole suite under a small WoW stub and drives
-the main code paths.
+the main code paths, including matrix passes over every race and level, every slash command against every module
+state, and all 155 settings entries. `tools/smoke/persist.lua` runs two real sessions in two Lua states with the
+saved variables serialised to disk and reloaded in the client's window, which is the only way to see what
+survives a logout.
 
 ### Layout
 
@@ -83,14 +86,14 @@ Lodestar_Guide/      guide engine, arrow, trails, harvest, Data/ (Vanilla.lua fr
 Lodestar_Guides_*/   guide packs (text routes)
 Lodestar_Character/  character-sheet stats
 tools/               dev tooling (not shipped): smoke harness, API extractor, pfquest import, router, trails seeds
-data/beta/           LodestarScanDB exports from the beta (JSON), input to tools/pfquest/merge_scan.py
+data/beta/           harvest exports from the beta (JSON), merged into Data/Forever.lua by tools/refresh_harvest.sh
 docs/DESIGN.md       architecture, module contract, roadmap
 ```
 
 ### Releasing
 
 Tag `vX.Y.Z` and push the tag. `.github/workflows/release.yml` runs the BigWigs packager, which replaces
-`@project-version@` in the TOCs, zips the five folders and publishes to GitHub Releases (and CurseForge /
+`@project-version@` in the TOCs, zips the nine folders and publishes to GitHub Releases (and CurseForge /
 Wago / WoWInterface once the API-key secrets are set).
 
 ## Data sources
