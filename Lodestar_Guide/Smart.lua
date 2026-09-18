@@ -173,8 +173,12 @@ end
 -- Routing ----------------------------------------------------------------------------------------
 
 local CLUSTER_YARDS = 150        -- items closer than this to a cluster's centroid join it
-local STICKY_MULTIPLIER = 0.6    -- the area being worked keeps this bonus on its score
-local LEAVE_YARDS = 500          -- ... until it is finished, or the player walks this far from it
+-- Stickiness is a TIEBREAK, not a veto. It exists to stop the arrow flickering between two things a
+-- few yards apart while you work an area -- it must never argue with a player who has decided to go
+-- somewhere else. So the bonus is small, it only applies while you are still standing in the area,
+-- and it is dropped the moment you are measurably walking away from it.
+local STICKY_MULTIPLIER = 0.85   -- a nudge in favour of the area being worked
+local LEAVING_YARDS = 15         -- moving this much further from the area than last check = leaving
 local TURNIN_DISCOUNT = 60       -- yards of "free" travel a turn-in gets, so it folds in en route
 local MAX_PLAN = 8
 
@@ -298,10 +302,16 @@ function Guide:SmartPlan(force)
 		local travel = cl.near or worldDist(pc, pwx, pwy, cl.continent, cl.wx, cl.wy) or 1e6
 		local score = (travel + 40 + spread * 0.5) / math.max(cl.value, 0.1)
 		if isActive(cl) then
-			-- Stay put unless we have genuinely left the area.
 			local away = worldDist(pc, pwx, pwy, cl.continent, cl.wx, cl.wy)
-			if not away or away <= LEAVE_YARDS then score = score * STICKY_MULTIPLIER end
-			cl.sticky = true
+			-- Hold the area while you are in it OR on your way to it, and let go the moment you are
+			-- measurably walking away. Walking away is a decision: the arrow follows the player, it
+			-- never argues with them. Anything else and the arrow points back the way you came.
+			local leaving = away and active.lastAway and (away - active.lastAway) > LEAVING_YARDS
+			if not leaving then
+				score = score * STICKY_MULTIPLIER
+				cl.sticky = true
+			end
+			cl.away = away
 		end
 		if not bestScore or score < bestScore then best, bestScore = cl, score end
 	end
@@ -309,7 +319,8 @@ function Guide:SmartPlan(force)
 	-- Remember what this area contained, so the next refresh recognises it even as items complete.
 	local sigs = {}
 	for _, it in ipairs(plan) do sigs[itemSig(it)] = true end
-	active = { continent = best.continent, wx = best.wx, wy = best.wy, sigs = sigs }
+	local away = worldDist(pc, pwx, pwy, best.continent, best.wx, best.wy)
+	active = { continent = best.continent, wx = best.wx, wy = best.wy, sigs = sigs, lastAway = away }
 	local inPlan = {}
 	for _, it in ipairs(plan) do inPlan[it] = true end
 	local elsewhere = {}

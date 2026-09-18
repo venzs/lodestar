@@ -445,7 +445,9 @@ end
 
 function Guide:EnableArrow()
 	if not arrow then createArrow() end
-	retargetTimer = self:ScheduleRepeatingTimer("RetargetArrow", 5)
+	-- Every 2s, not 5: in smart mode this is what decides WHICH thing the arrow points at, and five
+	-- seconds of pointing at somewhere you have already left reads as the arrow being stuck.
+	retargetTimer = self:ScheduleRepeatingTimer("RetargetArrow", 2)
 	self:RetargetArrow()
 	if not self.arrowSlash then
 		self.arrowSlash = true

@@ -1017,6 +1017,30 @@ try("smart mode", function()
 	local stillThere = false
 	for _, it in ipairs(again.plan) do if (it.title or ""):find("Cluster A") then stillThere = true end end
 	check(stillThere and again.area and again.area.sticky, "the area stays chosen while it still has work")
+	-- Reported from the beta: "the arrow tells me to go back and doesn't adjust even though I'm
+	-- running towards the new place." Everything here is inside the old 500 yd release radius on
+	-- purpose -- in a starting zone it always is, which is why the old rule never let go.
+	G:ResetSmartPlan()
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.500, 0.500
+	stub.questLog = {
+		[3901] = { title = "Behind me A", complete = false, objectives = { { text = "a", finished = false } }, wp = { map = 18, x = 0.480, y = 0.500 } },
+		[3902] = { title = "Behind me B", complete = false, objectives = { { text = "b", finished = false } }, wp = { map = 18, x = 0.478, y = 0.501 } },
+		[3903] = { title = "Ahead C",     complete = false, objectives = { { text = "c", finished = false } }, wp = { map = 18, x = 0.540, y = 0.500 } },
+		[3904] = { title = "Ahead D",     complete = false, objectives = { { text = "d", finished = false } }, wp = { map = 18, x = 0.542, y = 0.501 } },
+	}
+	local function leads(pl) return (pl.plan[1] and pl.plan[1].title) or "?" end
+	local first = G:SmartPlan(true)
+	check(leads(first):find("Behind me"), "starts on the nearer pair behind us: " .. leads(first))
+	-- run east past them, staying well inside 500 yd of the area we are leaving
+	for _, x in ipairs({ 0.505, 0.510, 0.515 }) do
+		stub.playerMap.x = x
+		G:SmartPlan(true)
+	end
+	local after = G:SmartPlan(true)
+	check(leads(after):find("Ahead"), "running towards the new area hands the arrow over to it, got " .. leads(after))
+	G:ResetSmartPlan()
+	stub.questLog = {}
+	stub.playerMap.x, stub.playerMap.y = 0.500, 0.500
 	-- The window shows the plan as a numbered walk under an area header, not kind buckets.
 	G:RefreshStepFrame()
 	local seen, ordinals = {}, 0
