@@ -105,7 +105,7 @@ function Guide:TravelHint(target, dist)
 				if to and toDist then
 					local saving = dist - toDist
 					if saving >= HINT_MIN_SAVING and (not bestSaving or saving > bestSaving) then
-						best, bestSaving = ("|cff7fff7fFly|r to %s, then %d yd"):format(to.name, toDist), saving
+						best = ("|cff7fff7fFly|r to %s, then %d yd"):format(to.name, toDist)
 					end
 				end
 			end
