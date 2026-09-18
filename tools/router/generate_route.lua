@@ -145,6 +145,24 @@ local accepted, done = {}, {}
 local cx, cy                          -- where the route currently stands
 local guard = 0
 
+-- Level is a real constraint, not a tie-break. The first draft of this route opened with a level 5
+-- quest because its giver stood two yards from the level 1 giver, and a character walking in at
+-- level 1 simply cannot take it -- the step would sit there unfinishable while the rest of the zone
+-- went undone. So the route carries an estimated level and will not schedule a quest far above it.
+--
+-- The estimate is deliberately crude: quests turned in, over a starting zone's rough pace. Nothing
+-- better is available -- per-quest XP is only recorded where a player has actually turned that quest
+-- in, and the XP-per-level table is thinner still -- and a crude estimate applied consistently beats
+-- a precise one that exists for three quests out of seventeen.
+local QUESTS_PER_LEVEL = 2.5
+local ACCEPT_GRACE = 3       -- a quest is offered a few levels before its own level
+
+local function estimatedLevel(turnedIn)
+	return 1 + math.floor(turnedIn / QUESTS_PER_LEVEL)
+end
+
+local turnedIn = 0
+
 while count > 0 and guard < 500 do
 	guard = guard + 1
 	-- Everything whose prerequisites are already turned in.
@@ -156,6 +174,15 @@ while count > 0 and guard < 500 do
 		end
 		if not blocked then ready[#ready + 1] = q end
 	end
+	-- Of those, the ones a character this far into the zone could actually accept. If that leaves
+	-- nothing, the estimate is behind the content rather than the content being wrong, so the lowest
+	-- remaining level is taken anyway -- never stall the route over a guess.
+	local level = estimatedLevel(turnedIn)
+	local inLevel = {}
+	for _, q in ipairs(ready) do
+		if (q.lvl or 1) <= level + ACCEPT_GRACE then inLevel[#inLevel + 1] = q end
+	end
+	if #inLevel > 0 then ready = inLevel end
 	if #ready == 0 then
 		-- A cycle, or a chain whose head we cannot see: take the lowest level and carry on rather
 		-- than dropping quests silently.
@@ -163,10 +190,19 @@ while count > 0 and guard < 500 do
 		table.sort(ready, function(a, b) return (a.lvl or 99) < (b.lvl or 99) end)
 		ready = { ready[1] }
 	end
-	-- Nearest ready quest; level breaks ties so a route does not wander into content too high.
+	-- Nearest ready quest, with content above the estimated level costing extra to visit. A pure
+	-- distance sort sends the route at whatever giver happens to stand closest, which in a starting
+	-- village means a level 5 quest gets picked up before the level 2 ones twenty yards further on
+	-- -- and a quest done well above its level is XP thrown away. Distance is in map percent, so a
+	-- level of overshoot costing a percent and a half of the map is about the right trade in a zone
+	-- this size: it reorders neighbours without sending anyone across the map.
+	local OVERSHOOT_COST = 1.5
+	local function score(q)
+		return dist(cx, cy, q.gx, q.gy) + math.max(0, (q.lvl or 1) - level) * OVERSHOOT_COST
+	end
 	table.sort(ready, function(a, b)
-		local da, db = dist(cx, cy, a.gx, a.gy), dist(cx, cy, b.gx, b.gy)
-		if math.abs(da - db) > 0.5 then return da < db end
+		local sa, sb = score(a), score(b)
+		if math.abs(sa - sb) > 0.01 then return sa < sb end
 		return (a.lvl or 99) < (b.lvl or 99)
 	end)
 	local pick = ready[1]
@@ -188,7 +224,7 @@ while count > 0 and guard < 500 do
 		order[#order + 1] = { kind = "do", quest = q }
 	end
 	order[#order + 1] = { kind = "turnin", x = pick.ex, y = pick.ey, npc = pick.ender, quests = here }
-	for _, q in ipairs(here) do done[q.id] = true end
+	for _, q in ipairs(here) do done[q.id] = true turnedIn = turnedIn + 1 end
 	cx, cy = pick.ex, pick.ey
 end
 
@@ -238,11 +274,29 @@ end
 --- Flatten the plan into stops, then merge consecutive stops standing in the same place. Handing a
 --- quest back and taking the next one from the same NPC is one stop for the player, and splitting it
 --- across two steps makes a short route look like a long one.
+---
+--- With one exception: a quest must never be accepted and handed back in the same step. When the
+--- giver and the ender are the same NPC and we know nothing about the objectives, the two actions
+--- land on the same spot and merge, and the guide then reads "accept this, now turn it in" with no
+--- hint of what happens in between. The engine holds correctly -- it will not advance past a turn-in
+--- until the quest is complete -- but the player is left staring at a step that looks broken. So
+--- that merge is refused, and the filler "do" step that would otherwise be dropped is kept.
 local stops = {}
+
+local function stopHas(stop, kind, questID)
+	for _, a in ipairs(stop.actions) do
+		if a.kind == kind and a.q and a.q.id == questID then return true end
+	end
+	return false
+end
 
 local function addStop(x, y, npc, action)
 	local last = stops[#stops]
-	if last and last.x and x and math.abs(last.x - x) < 0.3 and math.abs(last.y - y) < 0.3 then
+	local sameSpot = last and last.x and x and math.abs(last.x - x) < 0.3 and math.abs(last.y - y) < 0.3
+	if sameSpot and action.kind == "turnin" and action.q and stopHas(last, "accept", action.q.id) then
+		sameSpot = false
+	end
+	if sameSpot then
 		last.npc = last.npc or npc
 		last.actions[#last.actions + 1] = action
 		return
@@ -263,9 +317,11 @@ for _, stepRec in ipairs(order) do
 		local spot = list and list[1]
 		if spot and spot.m == mapID then sx, sy = spot[2], spot[3] end
 		-- A "do" step with neither a position nor an objective to name says nothing the turn-in does
-		-- not already say, and a route full of "Finish <quest>" reads as padding. Drop it: the engine
-		-- holds on the turn-in until the quest is actually complete anyway.
-		if line or sx then
+		-- not already say, and a route full of "Finish <quest>" reads as padding. Drop it -- unless
+		-- dropping it would put the accept and the turn-in back to back at the same NPC, where the
+		-- filler is the only thing telling the player that something happens in between.
+		local sameNPC = q.giver and q.ender and q.giver == q.ender
+		if line or sx or sameNPC then
 			addStop(sx, sy, nil, { kind = "complete", q = q, text = line })
 		end
 	elseif stepRec.kind == "turnin" then

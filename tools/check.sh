@@ -26,6 +26,8 @@ echo "--- apicheck ---"
 python3 tools/apicheck.py .
 echo "--- tocs ---"
 python3 tools/check_tocs.py
+echo "--- guides ---"
+python3 tools/router/lint_guides.py
 echo "--- smoke ---"
 lua5.1 tools/smoke/run.lua
 echo "--- persistence across a logout ---"

@@ -9,6 +9,7 @@
 ## X-License: MIT
 ## X-Lodestar-GuidePack: Horde
 
+Skyborne_ZephrasIsle.lua
 Undead_Deathknell.lua
 Undead_Tirisfal.lua
 Orc_Troll_Durotar.lua

@@ -7,7 +7,8 @@
 Every `Guide:RegisterGuide([[ ... ]])` block is parsed with the same directive grammar as
 Lodestar_Guide/Parser.lua and checked:
 
-  ids         every quest id in .accept / .turnin / .complete exists in Data/Vanilla.lua
+  ids         every quest id in .accept / .turnin / .complete exists in one of the three databases
+              the addon loads: Data/Vanilla.lua, Data/Forever.lua (the beta harvest) or Data/ATT.lua
   accept      every .accept is turned in later (same guide, or a guide down the #next chain), unless it is
               in the guide's last step
   turnin      every .turnin was accepted earlier (same guide or a guide that leads here through #next)
@@ -43,12 +44,47 @@ ACTION_TYPES = {
 }
 NEEDS_GOTO = {"accept", "turnin", "complete"}
 
+# Filled once at start-up from the two generated overlays; see forever_quest_ids / att_quest_ids.
+EXTRA_QUEST_IDS: set[int] = set()
+
 
 def load_vanilla():
     spec = importlib.util.spec_from_file_location("pfquest_query", QUERY_PY)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)  # type: ignore[union-attr]
     return mod.load()
+
+
+def forever_quest_ids():
+    """Quest ids the Forever overlay knows, from Data/Forever.lua's `F.quests[id]={...}` lines."""
+    path = os.path.join(ROOT, "Lodestar_Guide", "Data", "Forever.lua")
+    if not os.path.exists(path):
+        return set()
+    return {int(m) for m in re.findall(r"^F\.quests\[(\d+)\]=", open(path, encoding="utf-8").read(), re.M)}
+
+
+def att_quest_ids():
+    """Quest ids from Data/ATT.lua.
+
+    The generator emits several `fill = function(t) ... end fill(<target>)` chunks, and the same
+    `t[id]=` line shape is used for quests, NPCs and objects. Taking every id would let a mistyped
+    quest id pass because some NPC happens to share the number, so each chunk is attributed to the
+    table it is actually filled into.
+    """
+    path = os.path.join(ROOT, "Lodestar_Guide", "Data", "ATT.lua")
+    if not os.path.exists(path):
+        return set()
+    ids: set[int] = set()
+    chunk: list[str] = []
+    for line in open(path, encoding="utf-8"):
+        target = re.match(r"^fill\((\S+)\)", line)
+        if target:
+            if target.group(1) == "A.quests":
+                ids.update(int(m) for c in chunk for m in re.findall(r"^t\[(\d+)\]=", c))
+            chunk = []
+        else:
+            chunk.append(line)
+    return ids
 
 
 # --- parsing --------------------------------------------------------------------------------------------------
@@ -229,9 +265,16 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
             if a.type == "turnin" and a.quest is not None and a.quest not in turnin_step:
                 turnin_step[a.quest] = st.index
     for st in g.steps:
-        needs_goto = any(a.type in NEEDS_GOTO for a in st.actions)
-        if needs_goto and st.goto is None:
-            g.error(st.line, "step with accept/turnin/complete has no .goto")
+        # An accept or a turn-in without a position is an authoring mistake: there is a specific NPC
+        # to stand in front of. A step that only says "complete this" may legitimately have nowhere
+        # to point -- a generated route emits one whenever the objective's location is unknown, and
+        # inventing coordinates there would be worse than leaving the arrow alone.
+        if st.goto is None:
+            hard = any(a.type in ("accept", "turnin") for a in st.actions)
+            if hard:
+                g.error(st.line, "step with accept/turnin has no .goto")
+            elif any(a.type == "complete" for a in st.actions):
+                g.warn(st.line, "complete step has no .goto -- the arrow has nothing to point at")
         for a in st.actions:
             if a.type == "level":
                 level = max(level, a.level or level)
@@ -240,7 +283,12 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
                 continue
             q = quests.get(a.quest)
             if q is None:
-                g.error(a.line, f".{a.type} {a.quest}: quest id not in the Vanilla data")
+                # Forever's own quests are not in the Vanilla database at all; they come from the
+                # harvest and from ATT. Known there but not here means no title or position to check
+                # against, which is a gap in what we can verify, not a bad id.
+                if a.quest in EXTRA_QUEST_IDS:
+                    continue
+                g.error(a.line, f".{a.type} {a.quest}: quest id in no database (Vanilla, Forever or ATT)")
                 continue
             title = q.get("t", "?")
             if a.type == "accept":
@@ -362,6 +410,9 @@ def main(argv=None) -> int:
     ap.add_argument("files", nargs="*", help="guide .lua files (default: every Lodestar_Guides_*/**/*.lua)")
     ap.add_argument("--tolerance", type=float, default=4.0, help="max distance (map percent units) between a .goto and the giver/ender")
     args = ap.parse_args(argv)
+    # Forever's own quests live in the two generated overlays, not in the Vanilla database.
+    EXTRA_QUEST_IDS.update(forever_quest_ids())
+    EXTRA_QUEST_IDS.update(att_quest_ids())
     paths = args.files or sorted(glob.glob(os.path.join(ROOT, "Lodestar_Guides_*", "**", "*.lua"), recursive=True))
     errors, _ = lint(paths, args.tolerance)
     return 1 if errors else 0

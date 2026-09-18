@@ -1385,10 +1385,22 @@ try("smart mode", function()
 	check(G:PickGuide() and G:PickGuide().name == "Horde/Undead 5-12: Tirisfal Glades", "level 10 picks the Tirisfal guide")
 	stub.level = 40
 	check(G:PickGuide() == nil, "outleveled guides are not auto-picked")
-	-- Forever's new races have no 1-12 route: a level 2 Skyborne must NOT be handed a level 12 zone
-	-- guide, because the only guides that pass the race filter are the faction-wide 12-20 ones.
+	-- Skyborne starts on Zephras Isle, and the generated route for it is what a level 2 Skyborne
+	-- must get. Before that route existed the only guides passing the race filter were the
+	-- faction-wide 12-20 ones, and a new character was handed a level 12 zone.
 	local realRace = UnitRace
 	UnitRace = function() return "Skyborne", "Skyborne", 99 end
+	stub.level = 2
+	local pick = G:PickGuide()
+	check(pick and pick.name == "Skyborne 1-12: Zephras Isle", "a level 2 Skyborne gets the Zephras route, got " .. tostring(pick and pick.name))
+	stub.level = 11
+	pick = G:PickGuide()
+	check(pick and pick.name == "Skyborne 1-12: Zephras Isle", "and still has it at 11, got " .. tostring(pick and pick.name))
+
+	-- A race with no starting route at all still must not be handed a zone twelve levels away, and
+	-- must still get the level-grace pick once it is nearly there. Both halves of that were the
+	-- original bug, so both stay covered by a race nothing has been authored for.
+	UnitRace = function() return "Mechagnome", "Mechagnome", 98 end
 	stub.level = 2
 	check(G:PickGuide() == nil, "a race with no starting route falls to smart mode, not a 12-20 guide")
 	stub.level = 11

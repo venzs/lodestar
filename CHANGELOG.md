@@ -16,6 +16,11 @@
   variables to disk in the client's format and reloading them in the client's window — after the
   addon's files, before its `ADDON_LOADED`. It covers frame positions, settings, the harvest and the
   upgrade path, and is the test that would have caught the frame-position bug.
+- Guides: **Skyborne 1-12: Zephras Isle**, the first route generated end to end from the merged
+  database rather than hand-authored — 17 quests, ordered by the prerequisite chains and by an
+  estimated level so the route does not open with content a level 1 character cannot accept.
+  `tools/router/lint_guides.py` now knows the Forever and ATT quest ids, so generated routes for new
+  content can be checked at all.
 - Economy: **bags and repairs** — `/lode bags` and a minimap tooltip line give free slots, what a
   vendor would pay for what you are carrying, and what a full repair would cost. The repair figure
   calibrates itself: the client only quotes a cost while a repair vendor is open, so the
