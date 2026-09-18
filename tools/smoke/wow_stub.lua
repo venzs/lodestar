@@ -143,7 +143,7 @@ SendChatMessage = function() end
 SlashCmdList = {}
 UISpecialFrames = {}
 StaticPopupDialogs = {}
-StaticPopup_Show = function() end
+StaticPopup_Show = function(which) stub.shownPopup = which end
 NORMAL_FONT_COLOR = { r = 1, g = 0.82, b = 0, WrapTextInColorCode = function(_, t) return t end }
 RAID_CLASS_COLORS = { WARRIOR = { r = 0.78, g = 0.61, b = 0.43, WrapTextInColorCode = function(_, t) return "|cffc79c6e" .. t .. "|r" end } }
 WOW_PROJECT_MAINLINE, WOW_PROJECT_CLASSIC, WOW_PROJECT_ID = 1, 2, 1
@@ -727,6 +727,11 @@ C_QuestLog.ReadyForTurnIn = function(id) local q = stub.questLog[id] return q an
 C_QuestLog.SetSelectedQuest = function(id) stub.selectedQuest = id end
 C_QuestLog.GetSelectedQuest = function() return stub.selectedQuest end
 GetQuestLogRewardXP = function(id) local q = stub.questLog[id or stub.selectedQuest] return q and q.xp or 0 end
+-- Popups: a fake DELETE_GOOD_ITEM dialog with an edit box
+stub.deleteDialog = { which = "DELETE_GOOD_ITEM", editBox = { text = "", SetText = function(self, t) self.text = t end, GetText = function(self) return self.text end } }
+stub.deleteDialog.GetEditBox = function(self) return self.editBox end
+StaticPopup_FindVisible = function(which) if stub.shownPopup == which then return stub.deleteDialog end end
+DELETE_ITEM_CONFIRM_STRING = "DELETE"
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

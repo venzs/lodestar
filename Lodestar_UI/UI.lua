@@ -29,6 +29,9 @@ UI.defaults = {
 		loot = {
 			fast = true,
 		},
+		popups = {
+			fillDelete = true,
+		},
 	},
 }
 
@@ -107,6 +110,13 @@ UI.options = {
 		get = function() return UI.db.profile.loot.fast end,
 		set = function(_, v) UI.db.profile.loot.fast = v end,
 	},
+	popupsHeader = { type = "header", order = 50, name = "Popups" },
+	popupsDelete = {
+		type = "toggle", order = 51, name = "Type DELETE for me",
+		desc = "Fills in the confirmation word when you destroy a good item, so only the Yes click is left.",
+		get = function() return UI.db.profile.popups.fillDelete end,
+		set = function(_, v) UI.db.profile.popups.fillDelete = v end,
+	},
 }
 
 function UI:OnEnable()
@@ -114,6 +124,7 @@ function UI:OnEnable()
 	self:EnableCoordinates()
 	self:EnableChat()
 	self:EnableLoot()
+	self:EnablePopups()
 end
 
 function UI:OnDisable()

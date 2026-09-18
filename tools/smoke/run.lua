@@ -1457,6 +1457,19 @@ try("forever overlay", function()
 	stub.slash("/lode quest 99142")
 	stub.questLog[99142] = nil
 end)
+try("delete popup", function()
+	stub.deleteDialog.editBox.text = ""
+	StaticPopup_Show("DELETE_GOOD_ITEM")
+	stub.advance(0.1)
+	check(stub.deleteDialog.editBox.text == "DELETE", "DELETE typed into the confirmation box: " .. tostring(stub.deleteDialog.editBox.text))
+	stub.deleteDialog.editBox.text = ""
+	Lodestar:GetModule("UI").db.profile.popups.fillDelete = false
+	StaticPopup_Show("DELETE_GOOD_ITEM")
+	stub.advance(0.1)
+	check(stub.deleteDialog.editBox.text == "", "option off leaves the box alone")
+	Lodestar:GetModule("UI").db.profile.popups.fillDelete = true
+	stub.shownPopup = nil
+end)
 try("guide menus", function() G:ShowGuideMenu() G:ShowArrowMenu() end)
 try("guide options", function()
 	local opts = Lodestar:BuildOptions()

@@ -14,3 +14,4 @@ Tooltips.lua
 Coordinates.lua
 Chat.lua
 Loot.lua
+Popups.lua
