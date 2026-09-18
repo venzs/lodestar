@@ -1,6 +1,6 @@
 # Lodestar
 
-A suite of addons for **World of Warcraft: Forever**. One core, four modules, install what you want.
+A suite of addons for **World of Warcraft: Forever**. One core, seven modules and guide packs — install what you want.
 
 | Addon | What it does |
 |---|---|
@@ -9,8 +9,8 @@ A suite of addons for **World of Warcraft: Forever**. One core, four modules, in
 | **Lodestar_Economy** | Auto-sell greys, auto-repair, account-wide gold ledger, vendor + auction prices in tooltips |
 | **Lodestar_UI** | Item/spell/NPC IDs and target-of-target in tooltips, map + minimap coordinates, clickable chat links, timestamps, copy-chat, fast loot |
 | **Lodestar_Guild** | Live guild board: who is online, where, what level, who wants a group (`/lode guild`, `/lode lfg`). On realms that restrict addon messages (the Forever beta) it shows the guild roster and `/lode lfg` drafts a guild chat line for you to send |
-| **Lodestar_Guide** | Navigation arrow (points at the guide step, your `/way` pin, or the nearest quest objective/turn-in), step-by-step guide window, and a route recorder that turns your playthrough into a guide (`/lode record`) |
-| **Lodestar_Guides_Horde** | Guide data pack: Horde routes in the text format below (Deathknell/Tirisfal, Durotar, Mulgore, Silverpine, the Barrens). |
+| **Lodestar_Guide** | Navigation arrow that routes along known roads (learned from where you walk, seeded for the starting zones) with a minimap line to the target; guide window with sync-to-quest-log, speed-run/completionist modes and class trainer reminders; smart mode that lists turn-ins, objectives and pick-ups from the built-in Vanilla database plus what the addon has harvested on Forever; Questie-style quest tooltips on mobs, NPCs and items; a census/harvester (`/lode scan`) that records Forever's new quests and NPCs; a route recorder (`/lode record`) |
+| **Lodestar_Guides_Horde** | Guide data pack: Horde routes 1-30 (Deathknell/Tirisfal, Durotar, Mulgore, Silverpine, the Barrens, Hillsbrad, Stonetalon, Ashenvale, Thousand Needles) — drafts from the Vanilla database and the route optimizer, to be verified in play. |
 | **Lodestar_Guides_Alliance** | Guide data pack: Alliance routes (Elwynn, Dun Morogh, Teldrassil, Westfall, Loch Modan, Darkshore) — drafts from the Vanilla database and the route optimizer, to be verified in play. |
 | **Lodestar_Character** | The character-sheet stats Blizzard hides, rendered inside the standard stats pane: melee/ranged/spell hit with miss tables vs +0..+3, crit and haste split, spell power per school, MP5/HP5, attack speed and DPS, weapon skills, enemy miss/crit/crush, block value, armor reduction, item level, durability, XP/rested, talent and Legacy points, PvP rank |
 
@@ -39,11 +39,16 @@ step
   .xp 3
 ```
 
-Directives: `.goto map,x,y[,radius]` (map id or zone name), `.accept id`, `.turnin id`, `.complete id[,objective]`,
-`.xp level`, `.zone name`, `.train`, `.hs name`, `.fly name`, `.vendor`, `.text >>...`, plus `.class` / `.race` step
-filters. Steps auto-advance from the quest log; goto-only steps complete on arrival. `/lode record start` logs your
-own play (accepts, objective completions, turn-ins, hearth binds, trainers, mob levels) and `/lode record export`
-produces this format.
+Directives: `.goto map,x,y[,radius]` (map id or zone name), `.path x,y;x,y;...` (road waypoints), `.accept id`,
+`.turnin id`, `.complete id[,objective]`, `.buy itemID[,count]`, `.xp level`, `.zone name`, `.train [NPC]`, `.hs name`,
+`.fly name`, `.vendor`, `.repair`, `.profession A,B`, `.camp`, `.cook`, `.text >>...`, `.optional [>>reason]`
+(completionist mode only), plus `.class` / `.race` / `.item` step filters. Steps auto-advance from the quest log;
+goto-only steps complete on arrival. `/lode record start` logs your own play (accepts, objective completions,
+turn-ins, hearth binds, trainers, mob levels) and `/lode record export` produces this format.
+
+Useful commands: `/lode guide sync` (re-sync to your quest log), `/lode guide smart`, `/lode guide completionist on|off`,
+`/lode quest <id|name>` (look up the database), `/lode scan quests <from> <to>` (quest census), `/lode scan status`,
+`/lode trails`, `/lode arrow [auto|guide|waypoint|quest|off]`, `/lode guide diag` (what the client answers per quest).
 
 ## Status
 
@@ -74,7 +79,11 @@ Lodestar_Leveling/   module addons depend on Lodestar and register with Lodestar
 Lodestar_Economy/
 Lodestar_UI/
 Lodestar_Guild/
-tools/               dev tooling (not shipped)
+Lodestar_Guide/      guide engine, arrow, trails, harvest, Data/ (Vanilla.lua from pfQuest, Forever.lua from the beta harvest)
+Lodestar_Guides_*/   guide packs (text routes)
+Lodestar_Character/  character-sheet stats
+tools/               dev tooling (not shipped): smoke harness, API extractor, pfquest import, router, trails seeds
+data/beta/           LodestarScanDB exports from the beta (JSON), input to tools/pfquest/merge_scan.py
 docs/DESIGN.md       architecture, module contract, roadmap
 ```
 
@@ -91,6 +100,11 @@ Wago / WoWInterface once the API-key secrets are set).
 `Lodestar_Guide/Data/LICENSE-pfQuest.txt`), itself built from [VMaNGOS](https://github.com/vmangos). It gives the
 arrow and the router quest givers, turn-in NPCs, objective mobs/objects, quest-item drop sources and their positions
 for every Vanilla quest ID. Regenerate with `tools/pfquest/fetch.sh && python3 tools/pfquest/import.py`.
+
+`Lodestar_Guide/Data/Forever.lua` is the Forever overlay: quests, NPCs, positions and XP harvested on the beta by
+Lodestar itself (`LodestarScanDB`, see `Lodestar_Guide/Harvest.lua`). Export a SavedVariables file with
+`lua5.1 tools/pfquest/sv_to_json.lua <WTF/.../SavedVariables/Lodestar_Guide.lua> > data/beta/scan-<date>.json`, then
+`python3 tools/pfquest/merge_scan.py` regenerates the overlay from every export in `data/beta/`.
 
 ## License
 
