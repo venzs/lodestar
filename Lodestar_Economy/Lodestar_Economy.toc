@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: |cff4fc3f7Lodestar|r Economy
+## Notes: Auto-sell junk, auto-repair, a gold ledger across your characters, vendor and auction prices in tooltips, and auction house price memory. Part of the Lodestar suite.
+## Author: Abhi
+## Version: @project-version@
+## IconTexture: Interface\Icons\INV_Misc_Coin_01
+## Dependencies: Lodestar
+## X-Category: Auction & Economy
+## X-License: MIT
+## X-Lodestar-Module: Economy
+
+Economy.lua
+Merchant.lua
+Gold.lua
+Tooltip.lua
+AuctionScan.lua

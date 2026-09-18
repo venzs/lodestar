@@ -1,0 +1,263 @@
+-- Lodestar_Guild: the guild board window (/lode guild).
+-- Merges the game's guild roster (C_Club) with the live presence other Lodestar users send.
+local Lodestar = _G.Lodestar
+local Guild = Lodestar:GetModule("Guild")
+
+local ROWS = 18
+local ROW_HEIGHT = 18
+local COLS = { name = 150, level = 36, zone = 170, xp = 40, note = 120 }
+local PRESENCE_TTL = 20 * 60 -- seconds before a presence entry is considered stale
+
+local board
+local rows = {}
+local offset = 0
+local refreshQueued = false
+
+local function classFileFromID(classID)
+	if not classID then return nil end
+	if C_CreatureInfo and C_CreatureInfo.GetClassInfo then
+		local info = C_CreatureInfo.GetClassInfo(classID)
+		return info and info.classFile
+	end
+end
+
+--- Build the merged list of guildmates.
+function Guild:CollectRows()
+	local list, seen = {}, {}
+	local now = GetTime()
+	local myZone = GetRealZoneText()
+	local sameZoneFirst = self.db.profile.board.sameZoneFirst
+
+	local clubId = C_Club and C_Club.GetGuildClubId and C_Club.GetGuildClubId()
+	if clubId then
+		for _, memberId in ipairs(C_Club.GetClubMembers(clubId) or {}) do
+			local info = C_Club.GetMemberInfo(clubId, memberId)
+			if info and info.name and not info.isSelf then
+				local online = info.presence ~= Enum.ClubMemberPresence.Offline and info.presence ~= Enum.ClubMemberPresence.Unknown
+				if online or self.db.profile.board.showOffline then
+					local short = Lodestar.ShortName(info.name)
+					local p = self.presence[short]
+					local fresh = p and (now - p.t) < PRESENCE_TTL
+					seen[short] = true
+					tinsert(list, {
+						name = short,
+						class = (fresh and p.c) or classFileFromID(info.classID),
+						level = (fresh and p.l) or info.level or 0,
+						zone = (fresh and p.z ~= "" and p.z) or info.zone or "",
+						sub = fresh and p.s or nil,
+						xp = fresh and p.x or nil,
+						note = fresh and p.n or nil,
+						online = online,
+						lodestar = fresh and true or false,
+						rank = info.guildRank,
+					})
+				end
+			end
+		end
+	end
+	-- Presence from people the roster didn't list (roster not loaded yet, or cross-faction guild quirks).
+	for name, p in pairs(self.presence) do
+		if not seen[name] and (now - p.t) < PRESENCE_TTL then
+			tinsert(list, { name = name, class = p.c, level = p.l or 0, zone = p.z or "", sub = p.s, xp = p.x, note = p.n, online = true, lodestar = true })
+		end
+	end
+
+	table.sort(list, function(a, b)
+		if a.online ~= b.online then return a.online end
+		if sameZoneFirst and myZone then
+			local az, bz = a.zone == myZone, b.zone == myZone
+			if az ~= bz then return az end
+		end
+		if (a.note ~= nil) ~= (b.note ~= nil) then return a.note ~= nil end
+		if a.level ~= b.level then return a.level > b.level end
+		return a.name < b.name
+	end)
+	return list
+end
+
+-- Window -----------------------------------------------------------------------------------
+
+local function createRow(parent, index)
+	local row = CreateFrame("Button", nil, parent)
+	row:SetSize(COLS.name + COLS.level + COLS.zone + COLS.xp + COLS.note + 16, ROW_HEIGHT)
+	row:SetPoint("TOPLEFT", parent.listAnchor, "TOPLEFT", 0, -(index - 1) * ROW_HEIGHT)
+	row.hl = row:CreateTexture(nil, "HIGHLIGHT")
+	row.hl:SetAllPoints()
+	row.hl:SetColorTexture(1, 1, 1, 0.08)
+	local x = 4
+	for _, key in ipairs({ "name", "level", "zone", "xp", "note" }) do
+		local fs = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		fs:SetPoint("LEFT", row, "LEFT", x, 0)
+		fs:SetWidth(COLS[key] - 4)
+		fs:SetJustifyH((key == "level" or key == "xp") and "RIGHT" or "LEFT")
+		fs:SetWordWrap(false)
+		row[key] = fs
+		x = x + COLS[key]
+	end
+	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	row:SetScript("OnClick", function(self, button)
+		if not self.data then return end
+		if button == "RightButton" then
+			if C_PartyInfo and C_PartyInfo.InviteUnit then C_PartyInfo.InviteUnit(self.data.name) end
+		else
+			local open = _G.ChatFrame_OpenChat or (ChatFrameUtil and ChatFrameUtil.OpenChat)
+			if open then open("/w " .. self.data.name .. " ", DEFAULT_CHAT_FRAME) end
+		end
+	end)
+	row:SetScript("OnEnter", function(self)
+		if not self.data then return end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:AddLine(Lodestar.ClassColorText(self.data.name, self.data.class))
+		if self.data.rank then GameTooltip:AddLine(self.data.rank, 1, 1, 1) end
+		if self.data.sub and self.data.sub ~= "" then GameTooltip:AddLine(self.data.zone .. " — " .. self.data.sub, 1, 1, 1) end
+		if self.data.note then GameTooltip:AddLine("Looking for: " .. self.data.note, 0.5, 1, 0.5) end
+		GameTooltip:AddLine(self.data.lodestar and "|cff4fc3f7Lodestar user|r" or "|cff888888No Lodestar|r")
+		GameTooltip:AddLine("|cffaaaaaaLeft-click: whisper · Right-click: invite|r")
+		GameTooltip:Show()
+	end)
+	row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	return row
+end
+
+local function createBoard()
+	board = CreateFrame("Frame", "LodestarGuildBoard", UIParent, "BackdropTemplate")
+	board:SetSize(COLS.name + COLS.level + COLS.zone + COLS.xp + COLS.note + 40, ROWS * ROW_HEIGHT + 90)
+	board:SetFrameStrata("HIGH")
+	board:SetMovable(true)
+	board:EnableMouse(true)
+	board:SetClampedToScreen(true)
+	board:RegisterForDrag("LeftButton")
+	board:SetScript("OnDragStart", board.StartMoving)
+	board:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+		local point, _, _, x, y = self:GetPoint(1)
+		Guild.db.profile.board.pos = { point = point or "CENTER", x = x or 0, y = y or 0 }
+	end)
+	board:SetBackdrop({
+		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+		tile = true, tileSize = 32, edgeSize = 32,
+		insets = { left = 11, right = 12, top = 12, bottom = 11 },
+	})
+	board:Hide()
+	tinsert(UISpecialFrames, "LodestarGuildBoard")
+
+	board.title = board:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	board.title:SetPoint("TOP", 0, -16)
+	board.title:SetText(Lodestar.COLOR .. "Lodestar|r Guild Board")
+
+	local close = CreateFrame("Button", nil, board, "UIPanelCloseButton")
+	close:SetPoint("TOPRIGHT", -6, -6)
+
+	board.summary = board:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	board.summary:SetPoint("TOP", board.title, "BOTTOM", 0, -4)
+
+	-- Column headers
+	local header = CreateFrame("Frame", nil, board)
+	header:SetPoint("TOPLEFT", 20, -58)
+	header:SetSize(10, ROW_HEIGHT)
+	local x = 4
+	for _, key in ipairs({ "name", "level", "zone", "xp", "note" }) do
+		local fs = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		fs:SetPoint("LEFT", header, "LEFT", x, 0)
+		fs:SetWidth(COLS[key] - 4)
+		fs:SetJustifyH((key == "level" or key == "xp") and "RIGHT" or "LEFT")
+		fs:SetText(({ name = "Name", level = "Lvl", zone = "Zone", xp = "XP", note = "Looking for" })[key])
+		x = x + COLS[key]
+	end
+
+	board.listAnchor = CreateFrame("Frame", nil, board)
+	board.listAnchor:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
+	board.listAnchor:SetSize(10, 10)
+	for i = 1, ROWS do rows[i] = createRow(board, i) end
+
+	board:EnableMouseWheel(true)
+	board:SetScript("OnMouseWheel", function(_, delta)
+		offset = math.max(0, offset - delta * 3)
+		Guild:RefreshBoard(true)
+	end)
+
+	board.hint = board:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	board.hint:SetPoint("BOTTOM", 0, 16)
+	board.hint:SetText("/lode lfg <text> to post a group request · scroll for more")
+
+	board:SetScript("OnShow", function()
+		if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+		Guild:Query()
+		Guild:RefreshBoard(true)
+	end)
+end
+
+function Guild:RefreshBoard(immediate)
+	if not board or not board:IsShown() then return end
+	if not immediate then
+		if refreshQueued then return end
+		refreshQueued = true
+		self:ScheduleTimer(function() refreshQueued = false self:RefreshBoard(true) end, 1)
+		return
+	end
+	local list = self:CollectRows()
+	local online, withLodestar = 0, 0
+	for _, r in ipairs(list) do
+		if r.online then online = online + 1 end
+		if r.lodestar then withLodestar = withLodestar + 1 end
+	end
+	local guildName = GetGuildInfo("player") or "No guild"
+	board.summary:SetText(("%s — %d online, %d running Lodestar"):format(guildName, online, withLodestar))
+	if offset > math.max(0, #list - ROWS) then offset = math.max(0, #list - ROWS) end
+	for i = 1, ROWS do
+		local row, data = rows[i], list[i + offset]
+		row.data = data
+		if data then
+			row.name:SetText(Lodestar.ClassColorText(data.name, data.class))
+			row.level:SetText(data.level > 0 and tostring(data.level) or "")
+			row.zone:SetText(data.zone or "")
+			row.xp:SetText(data.xp and (data.xp .. "%") or "")
+			row.note:SetText(data.note and ("|cff7fff7f" .. data.note .. "|r") or "")
+			local alpha = data.online and 1 or 0.4
+			row:SetAlpha(alpha)
+			row:Show()
+		else
+			row:Hide()
+		end
+	end
+end
+
+function Guild:ToggleBoard()
+	if not board then createBoard() end
+	if board:IsShown() then
+		board:Hide()
+		return
+	end
+	local pos = self.db.profile.board.pos
+	board:ClearAllPoints()
+	board:SetPoint(pos.point or "CENTER", UIParent, pos.point or "CENTER", pos.x or 0, pos.y or 0)
+	offset = 0
+	board:Show()
+end
+
+function Guild:OnRosterEvent()
+	self:RefreshBoard()
+end
+
+function Guild:EnableBoard()
+	self:RegisterEvent("GUILD_ROSTER_UPDATE", "OnRosterEvent")
+	self:RegisterEvent("CLUB_MEMBER_UPDATED", "OnRosterEvent")
+	if not self.boardSlash then
+		self.boardSlash = true
+		Lodestar:RegisterSlashVerb("guild", function() self:ToggleBoard() end, "open the guild board")
+		Lodestar:RegisterTooltipProvider(function(tooltip)
+			if not self:IsEnabled() or not IsInGuild() then return end
+			local n = 0
+			local now = GetTime()
+			for _, p in pairs(self.presence) do if now - p.t < PRESENCE_TTL then n = n + 1 end end
+			tooltip:AddDoubleLine("Guildmates with Lodestar", tostring(n), 1, 0.82, 0, 1, 1, 1)
+		end)
+	end
+end
+
+function Guild:DisableBoard()
+	self:UnregisterEvent("GUILD_ROSTER_UPDATE")
+	self:UnregisterEvent("CLUB_MEMBER_UPDATED")
+	if board then board:Hide() end
+end

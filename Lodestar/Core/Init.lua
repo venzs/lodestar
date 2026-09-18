@@ -1,0 +1,73 @@
+-- Lodestar core: addon object, saved variables, lifecycle.
+local ADDON_NAME = ...
+
+local Lodestar = LibStub("AceAddon-3.0"):NewAddon("Lodestar", "AceEvent-3.0", "AceConsole-3.0", "AceTimer-3.0", "AceComm-3.0", "AceSerializer-3.0")
+_G.Lodestar = Lodestar
+
+Lodestar.L = LibStub("AceLocale-3.0"):GetLocale("Lodestar")
+Lodestar.version = C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version") or "dev"
+if Lodestar.version:find("^@") then Lodestar.version = "dev" end
+Lodestar.COMM_PREFIX = "Lodestar"
+Lodestar.COLOR = "|cff4fc3f7"
+
+-- Build / flavor detection. Forever reports 1.60.x, so its interface number sits between Era (1.15.x) and TBC (2.x).
+do
+	local _, _, _, toc = GetBuildInfo()
+	Lodestar.tocVersion = tonumber(toc) or 0
+	Lodestar.IsForever = Lodestar.tocVersion >= 16000 and Lodestar.tocVersion < 20000
+	Lodestar.IsMainlineAPI = Lodestar.IsForever or Lodestar.tocVersion >= 100000
+end
+
+local defaults = {
+	profile = {
+		modules = {},          -- [moduleName] = true/false (missing = enabled)
+		minimap = { hide = false, minimapPos = 220 },
+		chatMessages = true,
+		versionNotices = true,
+	},
+	global = {
+		debug = false,
+	},
+	char = {},
+}
+
+function Lodestar:OnInitialize()
+	self.db = LibStub("AceDB-3.0"):New("LodestarDB", defaults, true)
+	self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
+	self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
+	self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
+
+	self.player = {
+		name = UnitName("player"),
+		realm = GetNormalizedRealmName() or GetRealmName(),
+		class = select(2, UnitClass("player")),
+		faction = UnitFactionGroup("player"),
+	}
+	self.player.fullName = self.player.name .. "-" .. self.player.realm
+
+	self:InstallErrorCatcher()
+	self:SetupModuleRegistry()
+	self:SetupConfig()
+	self:SetupComm()
+	self:SetupSlash()
+end
+
+function Lodestar:OnEnable()
+	self:ApplyModuleStates()
+	self:SetupMinimap()
+	self:RegisterEvent("PLAYER_ENTERING_WORLD")
+end
+
+function Lodestar:PLAYER_ENTERING_WORLD(_, isLogin, isReload)
+	if isLogin or isReload then
+		self:ScheduleTimer("BroadcastVersion", 8)
+	end
+end
+
+function Lodestar:OnProfileChanged()
+	self:ApplyModuleStates()
+	for _, module in self:IterateModules() do
+		if module.OnProfileChanged then module:OnProfileChanged() end
+	end
+	self:RefreshConfig()
+end

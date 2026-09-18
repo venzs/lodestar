@@ -1,0 +1,10 @@
+# packager output
+.release/
+# generated API surface (tools/check.sh recreates it from Blizzard's UI source)
+tools/wow-api/
+# editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

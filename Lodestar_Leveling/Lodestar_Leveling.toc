@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: |cff4fc3f7Lodestar|r Leveling
+## Notes: XP/hour and time-to-level tracker, quest auto-accept and turn-in, /way waypoints, and level-up stats. Part of the Lodestar suite.
+## Author: Abhi
+## Version: @project-version@
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+## Dependencies: Lodestar
+## X-Category: Quests & Leveling
+## X-License: MIT
+## X-Lodestar-Module: Leveling
+
+Leveling.lua
+XPTracker.lua
+QuestAutomation.lua
+Waypoints.lua
+LevelStats.lua

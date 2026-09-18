@@ -1,0 +1,25 @@
+# BigWigs packager configuration (https://github.com/BigWigsMods/packager)
+# The repo holds five addons; move-folders lifts each one to the top level of the zip so a
+# single download installs the whole suite. Libraries are checked in (Lodestar/Libs), so no externals.
+package-as: Lodestar
+enable-nolib-creation: no
+
+move-folders:
+  Lodestar/Lodestar: Lodestar
+  Lodestar/Lodestar_Leveling: Lodestar_Leveling
+  Lodestar/Lodestar_Economy: Lodestar_Economy
+  Lodestar/Lodestar_UI: Lodestar_UI
+  Lodestar/Lodestar_Guild: Lodestar_Guild
+
+ignore:
+  - tools
+  - docs
+  - README.md
+  - CHANGELOG.md
+  - .luacheckrc
+  - .editorconfig
+  - .github
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

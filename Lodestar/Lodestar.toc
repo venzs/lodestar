@@ -1,0 +1,25 @@
+## Interface: 16001
+## Title: |cff4fc3f7Lodestar|r
+## Notes: The core of the Lodestar suite — settings, module registry, guild comms and the minimap button. Required by every Lodestar module.
+## Author: Abhi
+## Version: @project-version@
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+## SavedVariables: LodestarDB, LodestarProbeDB
+## X-Category: Suite
+## X-License: MIT
+## X-Lodestar-Module: Core
+## AddonCompartmentFunc: Lodestar_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Lodestar_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Lodestar_OnAddonCompartmentLeave
+
+Libs\Libs.xml
+Locales\enUS.lua
+Core\Init.lua
+Core\Utils.lua
+Core\Errors.lua
+Core\Modules.lua
+Core\Config.lua
+Core\Comm.lua
+Core\Minimap.lua
+Core\Probe.lua
+Core\Slash.lua

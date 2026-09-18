@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: |cff4fc3f7Lodestar|r Guild
+## Notes: Live guild presence — see which guildmates are online, where they are, what level they are and who is looking for a group, shared between Lodestar users. Part of the Lodestar suite.
+## Author: Abhi
+## Version: @project-version@
+## IconTexture: Interface\Icons\INV_Misc_GroupNeedMore
+## Dependencies: Lodestar
+## X-Category: Guild
+## X-License: MIT
+## X-Lodestar-Module: Guild
+
+Guild.lua
+Presence.lua
+Board.lua
