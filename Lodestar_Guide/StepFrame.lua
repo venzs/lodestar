@@ -67,6 +67,7 @@ local stepCache = {}              -- derived-once-per-step values (see derive())
 local placeCache = {}             -- [map:x:y] = { zone, sub } | false   harvested zone names
 local pendingQuestLoads = {}
 local focus                       -- the action row the player clicked, while the arrow follows it
+local FOCUS_OWNER = {}            -- identity token so we only ever clear our own arrow pin
 
 -- Small helpers -----------------------------------------------------------------------------------
 
@@ -372,34 +373,22 @@ end
 --- Drop the temporary waypoint a row click created and hand the arrow back to the guide step.
 local function releaseFocus()
 	if not focus then return end
-	local held = focus
 	focus = nil
-	local wp = C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
-	local pos = wp and wp.position
-	if pos and wp.uiMapID == held.mapID and math.abs((pos.x or 0) - held.x) < 1e-4 and math.abs((pos.y or 0) - held.y) < 1e-4 then
-		if C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
-	end
-	if Guide.db.profile.arrow.mode == "WAYPOINT" then Guide.db.profile.arrow.mode = "AUTO" end
-	Guide:RetargetArrow()
+	Guide:ClearPinnedPosition(FOCUS_OWNER)
 end
 
---- Point the arrow at one action by dropping a waypoint on it (the same mechanism as /way). Returns
---- false when the position cannot be used, so the caller falls back to the step itself.
-local function pointArrowAt(mapID, x, y, stepIndex)
-	if not (mapID and x and y and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates) then return false end
-	if C_Map.CanSetUserWaypointOnMap and not C_Map.CanSetUserWaypointOnMap(mapID) then return false end
-	local ok, wasSet = pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(mapID, x, y))
-	if not ok or wasSet == false then return false end
+--- Point the arrow at one action. The pin lives in Arrow.lua and overrides the arrow mode, so the
+--- player's own /way waypoint is left alone. Returns false when the position cannot be used, so the
+--- caller falls back to the step itself.
+local function pointArrowAt(mapID, x, y, stepIndex, title)
+	if not (mapID and x and y and Guide.PinPosition) then return false end
+	if not Guide:PinPosition(mapID, x, y, title or "Pinned step", nil, FOCUS_OWNER) then return false end
 	focus = { mapID = mapID, x = x, y = y, step = stepIndex }
-	Guide.db.profile.arrow.mode = "WAYPOINT"
-	Guide:RetargetArrow()
 	return true
 end
 
 local function pointArrowAtStep()
 	releaseFocus()
-	Guide.db.profile.arrow.mode = "AUTO"
-	Guide:RetargetArrow()
 end
 
 -- Per-step derivation (cached) --------------------------------------------------------------------

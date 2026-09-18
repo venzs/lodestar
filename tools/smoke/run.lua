@@ -1869,10 +1869,16 @@ step
 	rows[1].frame.scripts.OnLeave(rows[1].frame)
 	rows[1].frame.scripts.OnClick(rows[1].frame)
 	local t = G:GetArrowTarget()
-	check(t and t.kind == "waypoint" and t.mapID == 18 and math.abs(t.x - 0.308) < 0.002 and math.abs(t.y - 0.662) < 0.002,
+	check(t and t.kind == "pinned" and t.mapID == 18 and math.abs(t.x - 0.308) < 0.002 and math.abs(t.y - 0.662) < 0.002,
 		"clicking the turn-in row points the arrow at the quest's ender: " .. tostring(t and t.kind) .. " " .. tostring(t and t.x))
+	check(stub.waypoint == nil, "the pin does not touch the player's own /way waypoint")
+	-- a /way pin set by the player survives a row click and the release
+	stub.slash("/way 30 60 mine")
+	rows[1].frame.scripts.OnClick(rows[1].frame)
 	W.headlineButton.scripts.OnClick(W.headlineButton)
-	check(G:GetArrowTarget() and G:GetArrowTarget().kind == "guide" and stub.waypoint == nil, "clicking the headline hands the arrow back to the step")
+	check(stub.waypoint ~= nil, "the player's own waypoint is still there afterwards")
+	stub.slash("/way clear")
+	check(G:GetArrowTarget() and G:GetArrowTarget().kind == "guide", "clicking the headline hands the arrow back to the step")
 
 	-- Objective progress on a .complete row
 	stub.questLog[364] = { title = "The Mindless Ones", complete = false,

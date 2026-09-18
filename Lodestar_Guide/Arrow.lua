@@ -137,6 +137,29 @@ local function waypointTarget()
 		title = note or "Waypoint", subtitle = Guide:MapName(wp.uiMapID) }
 end
 
+-- A position the player pinned by clicking a row in the guide window. It takes precedence over the
+-- mode until it is cleared, so pinning one action of a step never disturbs the player's own /way pin.
+local pinned
+
+--- Point the arrow at one position until ClearPinnedPosition. `owner` is an opaque token the caller
+--- can use to tell whether the pin is still theirs.
+function Guide:PinPosition(mapID, x, y, title, subtitle, owner)
+	if not (mapID and x and y) then return false end
+	pinned = { kind = "pinned", mapID = mapID, x = x, y = y, title = title or "Pinned", subtitle = subtitle, owner = owner }
+	self:RetargetArrow()
+	return true
+end
+
+function Guide:ClearPinnedPosition(owner)
+	if not pinned then return false end
+	if owner ~= nil and pinned.owner ~= owner then return false end
+	pinned = nil
+	self:RetargetArrow()
+	return true
+end
+
+function Guide:GetPinnedPosition() return pinned end
+
 local function questTarget()
 	local it = Guide:SmartTarget(true)
 	if not it then return nil end
@@ -149,6 +172,9 @@ function Guide:RetargetArrow()
 	local t
 	if mode == "OFF" then
 		t = nil
+		pinned = nil
+	elseif pinned then
+		t = { kind = "pinned", mapID = pinned.mapID, x = pinned.x, y = pinned.y, title = pinned.title, subtitle = pinned.subtitle }
 	elseif mode == "GUIDE" then
 		t = guideTarget()
 	elseif mode == "WAYPOINT" then
