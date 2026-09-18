@@ -51,59 +51,59 @@ F.quests[91905]={lvl=60,t="A Sealed Crate"}
 F.quests[91920]={lvl=11,t="Wild Eyes"}
 F.quests[91921]={lvl=11,t="Return to Quinn (Again)"}
 F.quests[92109]={lvl=10,t="My First Alchemy Set"}
-F.quests[92110]={lvl=10,o={{n=3,text="Murloc Eye",type="item"}},t="My First Real Potion"}
+F.quests[92110]={lvl=10,t="My First Real Potion"}
 F.quests[92124]={lvl=2,t="Book Inventory"}
 F.quests[92401]={lvl=22,o={{n=1,text="Investigate the disappearance of Edward Heartweaver in the Ruins of Lordaeron.",type="event"}},t="A Frightened Request",tag="Dungeon"}
 F.quests[92415]={lvl=22,t="Remember That I Love You",tag="Dungeon"}
 F.quests[92421]={lvl=22,t="Light's Justice",tag="Dungeon"}
-F.quests[92422]={lvl=22,o={{n=1,text="slain",type="monster"}},t="The Wrath of Rath'mael",tag="Dungeon"}
+F.quests[92422]={lvl=22,o={{n=1,text="Rath'mael slain",type="monster"}},t="The Wrath of Rath'mael",tag="Dungeon"}
 F.quests[92454]={lvl=1,t="Welcome!"}
-F.quests[92460]={lvl=1,t="Coming of Age"}
-F.quests[92461]={lvl=1,o={{n=8,text="Juvenile Vuldren slain",type="monster"}},t="Harmony in Balance"}
-F.quests[92462]={lvl=2,o={{n=8,text="Pesky Cirrusfly slain",type="monster"}},t="Infestation Investigation"}
-F.quests[92463]={lvl=3,o={{n=1,text="Cirrusfly Queen slain",type="monster"}},t="The Cirrusfly Queen"}
-F.quests[92464]={lvl=3,t="Elemental Unrest"}
-F.quests[92465]={lvl=3,o={{n=7,text="slain",type="monster"},{n=6,text="Roiling Winds destroyed",type="monster"}},t="Agitators"}
+F.quests[92460]={["end"]={npcs={251361}},lvl=1,start={npcs={251362}},t="Coming of Age",xp={1,40}}
+F.quests[92461]={acceptAt={[1]=0,[2]=42.1,[3]=23.5,m=2521},["end"]={npcs={251361}},lvl=1,o={{n=8,text="Juvenile Vuldren slain",type="monster"}},spots={[1]={{[1]=0,[2]=45.3,[3]=24.3,m=2521},{[1]=0,[2]=43.9,[3]=26,m=2521}}},t="Harmony in Balance",xp={2,80}}
+F.quests[92462]={acceptAt={[1]=0,[2]=43.4,[3]=24.7,m=2521},["end"]={npcs={251368}},lvl=2,o={{n=8,text="Pesky Cirrusfly slain",type="monster"}},spots={[1]={{[1]=0,[2]=45.8,[3]=28.1,m=2521},{[1]=0,[2]=44.9,[3]=25.3,m=2521},{[1]=0,[2]=44.4,[3]=27.3,m=2521}}},t="Infestation Investigation",xp={2,170}}
+F.quests[92463]={acceptAt={[1]=0,[2]=43.4,[3]=24.9,m=2521},["end"]={npcs={251368}},lvl=3,o={{n=1,text="Cirrusfly Queen slain",type="monster"}},spots={[1]={{[1]=0,[2]=48.2,[3]=27.5,m=2521}}},t="The Cirrusfly Queen",xp={3,320}}
+F.quests[92464]={["end"]={npcs={249363}},lvl=3,start={npcs={251361}},t="Elemental Unrest",xp={2,25}}
+F.quests[92465]={["end"]={npcs={249363}},lvl=3,o={{n=7,text="Al'Aketh Convert slain",type="monster"},{n=6,text="Roiling Winds destroyed",type="monster"}},spots={[1]={{[1]=0,[2]=46.5,[3]=18.9,m=2521},{[1]=0,[2]=46.9,[3]=20.4,m=2521}},[2]={{[1]=0,[2]=45.9,[3]=19.2,m=2521},{[1]=0,[2]=46.9,[3]=20.9,m=2521},{[1]=0,[2]=46.6,[3]=18.4,m=2521}}},start={npcs={249363}},t="Agitators",xp={3,250}}
 F.quests[92466]={lvl=4,t="Call of Earth"}
 F.quests[92467]={lvl=4,t="Call of Earth"}
 F.quests[92468]={lvl=4,t="Call of Earth"}
-F.quests[92469]={lvl=4,t="Return to Rorian"}
-F.quests[92470]={lvl=5,o={{n=8,text="slain",type="monster"}},t="Foul Matriarch"}
-F.quests[92471]={lvl=4,t="Aetheen of the Gales"}
+F.quests[92469]={acceptAt={[1]=0,[2]=47.2,[3]=21.9,m=2521},["end"]={npcs={251361}},lvl=4,t="Return to Rorian",xp={4,35}}
+F.quests[92470]={acceptAt={[1]=0,[2]=42.7,[3]=23.6,m=2521},lvl=5,o={{n=8,text="Ursera Scavenger slain",type="monster"},{n=1,text="Head of Urs'anah",type="item"}},t="Foul Matriarch"}
+F.quests[92471]={["end"]={npcs={251366}},lvl=4,start={npcs={251361}},t="Aetheen of the Gales",xp={4,35}}
 F.quests[92472]={lvl=5,t="The Next Step"}
-F.quests[92473]={lvl=4,t="Aggressive Encroachment"}
-F.quests[92474]={lvl=2,t="Falling With Style"}
+F.quests[92473]={acceptAt={[1]=0,[2]=42.4,[3]=25.1,m=2521},lvl=4,o={{n=6,text="Scrawny Ursera Claw",type="item"}},spots={[1]={{[1]=0,[2]=41.9,[3]=26.9,m=2521}}},t="Aggressive Encroachment"}
+F.quests[92474]={["end"]={npcs={251361}},lvl=2,o={{n=1,text="Use Walk on Air",type="object"}},spots={[1]={{[1]=0,[2]=43.3,[3]=25.8,m=2521}}},start={npcs={263113}},t="Falling With Style",xp={2,85}}
 F.quests[92479]={lvl=1,t="A Scribbled Letter"}
 F.quests[92480]={lvl=6,t="zzOLD UNUSED Cult Ambush"}
 F.quests[92481]={lvl=2,t="A Student of the Arcane"}
 F.quests[92482]={lvl=2,t="The Way of the Hunter"}
 F.quests[92483]={lvl=2,t="At Home in the Shadows"}
 F.quests[92484]={lvl=2,t="Embracing the Elements"}
-F.quests[92485]={lvl=2,t="A Student of Nature"}
+F.quests[92485]={["end"]={npcs={251373}},lvl=2,o={{n=1,text="Read the Folded Parchment then speak with Xyton Silverwind in Thendal Grove.",type="log"}},start={npcs={251361}},t="A Student of Nature",xp={2,85}}
 F.quests[92514]={lvl=6,o={{n=1,text="Speak with Illaya Amberwind",type="monster"},{n=1,text="Speak with the Innkeeper",type="monster"}},t="Welcome to Shen'dar Village"}
 F.quests[92515]={lvl=6,t="The Problem With Prideclaws"}
-F.quests[92516]={lvl=7,o={{n=8,text="slain",type="monster"},{n=6,text="slain",type="monster"},{n=1,text="slain",type="monster"}},t="Hippogryph Harrassment"}
-F.quests[92517]={lvl=7,o={{n=10,text="slain",type="monster"},{n=1,text="slain",type="monster"}},t="The Criminal Element"}
+F.quests[92516]={lvl=7,o={{n=8,text="Hippogryph Youth slain",type="monster"},{n=6,text="Hippogryph Protector slain",type="monster"},{n=1,text="Hippogryph Matriarch slain",type="monster"}},t="Hippogryph Harrassment"}
+F.quests[92517]={lvl=7,o={{n=10,text="Highlands Bandit slain",type="monster"},{n=1,text="\"Badwind\" Bennic slain",type="monster"}},t="The Criminal Element"}
 F.quests[92528]={lvl=8,o={{n=1,text="Learn about the cultists' plans",type="monster"}},t="Among the Faithful"}
 F.quests[92529]={lvl=8,t="Falaath Village"}
 F.quests[92532]={lvl=2,t="The Warrior's Path"}
-F.quests[92544]={lvl=5,o={{n=6,text="slain",type="monster"},{n=4,text="slain",type="monster"},{n=1,text="slain",type="monster"}},t="Al'Aketh Thugs"}
-F.quests[92550]={lvl=8,o={{n=6,text="slain",type="monster"},{n=4,text="slain",type="monster"}},t="Havoc in the Highlands"}
+F.quests[92544]={lvl=5,o={{n=6,text="Al'Aketh Brute slain",type="monster"},{n=4,text="Al'Aketh Neophyte slain",type="monster"},{n=1,text="Malduko Cloudcrush slain",type="monster"}},t="Al'Aketh Thugs"}
+F.quests[92550]={lvl=8,o={{n=6,text="Al'Aketh Stormcaller slain",type="monster"},{n=4,text="Living Lightning slain",type="monster"}},t="Havoc in the Highlands"}
 F.quests[92551]={lvl=8,t="Stolen Supplies"}
 F.quests[92553]={lvl=6,t="Restocking the Larders"}
 F.quests[92579]={lvl=8,t="To Valanaar"}
 F.quests[92595]={lvl=6,o={{n=1,text="Listen to Illaya",type="monster"}},t="The Windshapers"}
 F.quests[92596]={lvl=6,o={{n=1,text="Listen to Rathiril Sunlance",type="monster"}},t="The High Order"}
 F.quests[92597]={lvl=4,t="Reading the Ley Lines"}
-F.quests[92598]={lvl=4,t="The Gift of Skysight"}
+F.quests[92598]={["end"]={npcs={251487}},lvl=4,o={{n=1,text="Use Skysight near the Elemental Convergence",type="object"}},spots={[1]={{[1]=0,[2]=48.4,[3]=20.4,m=2521}}},start={npcs={251487}},t="The Gift of Skysight",xp={4,180}}
 F.quests[92640]={lvl=11,o={{n=1,text="Speak with Valennia Stormfist",type="monster"}},t="Desperate Times"}
-F.quests[92642]={lvl=11,o={{n=4,text="slain",type="monster"},{n=8,text="slain",type="monster"}},t="Disrupting Logistics"}
+F.quests[92642]={lvl=11,o={{n=4,text="Al'Aketh Healer slain",type="monster"},{n=8,text="Al'Aketh Brawler slain",type="monster"}},t="Disrupting Logistics"}
 F.quests[92643]={lvl=11,o={{n=1,text="Find the secluded house in Shen'dar Highlands",type="monster"}},t="The Turncoat"}
 F.quests[92644]={lvl=11,t="Unfortunate News"}
-F.quests[92645]={lvl=11,o={{n=1,text="slain",type="monster"}},t="Breaking the Breaker"}
+F.quests[92645]={lvl=11,o={{n=1,text="Commander Belguilos slain",type="monster"}},t="Breaking the Breaker"}
 F.quests[92646]={lvl=12,o={{n=1,text="Confront Lorthuna",type="monster"}},t="Confront Lorthuna"}
 F.quests[92679]={lvl=9,o={{n=1,text="Find Aamelia Windfield",type="monster"},{n=1,text="Listen to Alvarion Windfield's Story (Optional)",type="monster"}},t="Blood Tithe"}
-F.quests[92682]={lvl=9,o={{n=5,text="slain",type="monster"}},t="Make Yourself Useful"}
+F.quests[92682]={lvl=9,o={{n=5,text="Hungry Bandit slain",type="monster"}},t="Make Yourself Useful"}
 F.quests[92683]={lvl=9,t="Flutterfly Dust"}
 F.quests[92684]={lvl=9,t="Ornery Ornery Galestriders"}
 F.quests[92685]={lvl=9,t="The Hills Have Eyes"}
@@ -120,7 +120,7 @@ F.quests[92727]={lvl=10,t="The Missing Scholar"}
 F.quests[92741]={lvl=13,t="Unwelcome Visitors"}
 F.quests[92742]={lvl=12,t="Testing the Wells"}
 F.quests[92744]={lvl=12,t="Murloc Gills"}
-F.quests[92745]={lvl=14,o={{n=4,text="slain",type="monster"},{n=6,text="slain",type="monster"}},t="The State of the Mines"}
+F.quests[92745]={lvl=14,o={{n=4,text="Kobold Digger slain",type="monster"},{n=6,text="Riverpaw Miner slain",type="monster"}},t="The State of the Mines"}
 F.quests[92747]={lvl=16,t="Moonbrook Espionage"}
 F.quests[92748]={lvl=16,t="Explosive Consultation"}
 F.quests[92749]={lvl=16,t="A Dynamite Plan"}
@@ -140,7 +140,7 @@ F.quests[92881]={lvl=11,t="The High Elder's Request"}
 F.quests[92909]={lvl=15,t="Harvesting the Harvesters"}
 F.quests[92910]={lvl=15,t="Harvesting the Harvesters"}
 F.quests[92911]={lvl=15,t="Harvesting the Harvesters"}
-F.quests[92947]={lvl=12,o={{n=8,text="slain",type="monster"},{n=6,text="slain",type="monster"},{n=6,text="slain",type="monster"}},t="Making Our Move"}
+F.quests[92947]={lvl=12,o={{n=8,text="Al'Aketh Guardian slain",type="monster"},{n=6,text="Al'Aketh Spiritcaller slain",type="monster"},{n=6,text="Al'Aketh Blademaster slain",type="monster"}},t="Making Our Move"}
 F.quests[93036]={lvl=8,t="Infiltrating the Cult"}
 F.quests[93065]={lvl=12,o={{n=1,text="Find Valennia on the Road",type="monster"}},t="Prepare for Battle"}
 F.quests[93089]={lvl=13,t="What Comes Next"}
@@ -155,7 +155,7 @@ F.quests[93319]={lvl=7,t="Pilfered Windstones"}
 F.quests[93320]={lvl=11,t="Tower Defense"}
 F.quests[93459]={lvl=13,o={{n=5,text="Al'Alketh Cultist's Ear",type="item"}},t="More Al'Aketh Ears"}
 F.quests[93461]={lvl=6,o={{n=1,text="Speak with Rathiril Sunlance",type="monster"},{n=1,text="Speak with the Innkeeper",type="monster"}},t="Welcome to Shen'dar Village"}
-F.quests[93552]={lvl=4,t="Harvesting Windstones"}
+F.quests[93552]={acceptAt={[1]=0,[2]=43.3,[3]=24,m=2521},["end"]={npcs={251363}},lvl=4,o={{n=15,text="Windstone Cluster",type="item"}},spots={[1]={{[1]=0,[2]=46.6,[3]=17.9,m=2521},{[1]=0,[2]=42.9,[3]=28.7,m=2521},{[1]=0,[2]=47.4,[3]=26.5,m=2521},{[1]=0,[2]=49.9,[3]=24.3,m=2521},{[1]=0,[2]=48.3,[3]=19.1,m=2521}}},t="Harvesting Windstones",xp={3,360}}
 F.quests[93735]={lvl=9,t="The Broken Construct"}
 F.quests[93736]={lvl=9,t="Unwelcome Spirits"}
 F.quests[93737]={lvl=9,o={{n=1,text="Listen to what Riaani Nightwind has to say",type="monster"}},t="The Broken Construct"}
@@ -336,7 +336,7 @@ F.quests[94374]={lvl=4,t="Call of Earth"}
 F.quests[94375]={lvl=4,t="Call of Earth"}
 F.quests[94411]={lvl=6,o={{n=6,text="High Order Apprentice defeated",type="monster"}},t="Meddlesome Mages"}
 F.quests[94413]={lvl=6,o={{n=6,text="Windshaper Novice Seer defeated",type="monster"}},t="A Magical Affront"}
-F.quests[94414]={lvl=2,t="The Anchors of Zephras"}
+F.quests[94414]={["end"]={npcs={257554}},lvl=2,o={{n=1,text="View the Anchor Pylon",type="object"}},spots={[1]={{[1]=0,[2]=43.8,[3]=24,m=2521}}},start={npcs={257554}},t="The Anchors of Zephras",xp={2,85}}
 F.quests[94427]={lvl=12,t="A Lesson in Divinity"}
 F.quests[94434]={lvl=12,o={{n=10,text="Linen Cloth",type="item"}},t="A Lesson in Divinity"}
 F.quests[94435]={lvl=12,t="A Lesson in Divinity"}
@@ -699,5 +699,32 @@ F.npcs[416]={c={{[1]=0,[2]=63.1,[3]=52.2,m=1420}},lvl={8,8},n="Tarpit"}
 F.npcs[1860]={c={{[1]=0,[2]=66.3,[3]=25.4,m=1458}},lvl={10,10},n="Sargrave"}
 F.npcs[211022]={c={{[1]=0,[2]=73.8,[3]=33,m=1458}},kind={quest=true},lvl={40,40},n="Owen Thadd"}
 F.npcs[246152]={c={{[1]=0,[2]=60.2,[3]=53.1,m=1420}},lvl={16,16},n="Shari Stilwell"}
+F.npcs[249363]={c={{[1]=0,[2]=47.2,[3]=21.9,m=2521}},kind={quest=true},lvl={5,5},n="Yala Windwatcher"}
+F.npcs[250873]={c={{[1]=0,[2]=43.5,[3]=25,m=2521},{[1]=0,[2]=44.6,[3]=28.2,m=2521},{[1]=0,[2]=47.6,[3]=26.6,m=2521},{[1]=0,[2]=46.8,[3]=21.1,m=2521}},lvl={1,1},n="Juvenile Vuldren"}
+F.npcs[250926]={c={{[1]=0,[2]=41.8,[3]=25.6,m=2521}},lvl={3,4},n="Scrawny Ursera"}
+F.npcs[251143]={c={{[1]=0,[2]=48.5,[3]=20.3,m=2521},{[1]=0,[2]=45.5,[3]=19.1,m=2521}},lvl={2,3},n="Roiling Winds"}
+F.npcs[251160]={c={{[1]=0,[2]=48.9,[3]=21.8,m=2521},{[1]=0,[2]=45.8,[3]=19,m=2521}},lvl={2,3},n="Al'Aketh Convert"}
+F.npcs[251169]={c={{[1]=0,[2]=44.3,[3]=25.7,m=2521},{[1]=0,[2]=47.4,[3]=26.5,m=2521}},lvl={1,1},n="Pesky Cirrusfly"}
+F.npcs[251361]={c={{[1]=0,[2]=42.1,[3]=23.5,m=2521}},kind={quest=true},lvl={20,20},n="Rorian the Dayseeker"}
+F.npcs[251362]={c={{[1]=0,[2]=42.8,[3]=23.3,m=2521}},kind={quest=true},lvl={1,1},n="Ailee Farheart"}
+F.npcs[251363]={c={{[1]=0,[2]=43.4,[3]=24,m=2521}},kind={quest=true},lvl={1,1},n="Dalia the Collector"}
+F.npcs[251364]={c={{[1]=0,[2]=43.4,[3]=23.6,m=2521}},kind={repair=true,vendor=true},lvl={5,5},n="Destin Thriceforged"}
+F.npcs[251366]={c={{[1]=0,[2]=42.7,[3]=23.6,m=2521}},kind={quest=true},lvl={10,10},n="Aetheen of the Gales"}
+F.npcs[251368]={c={{[1]=0,[2]=43.4,[3]=24.8,m=2521}},kind={quest=true},lvl={20,20},n="Elatrell Featherlight"}
+F.npcs[251371]={c={{[1]=0,[2]=43.4,[3]=24.8,m=2521}},lvl={5,5},n="Falorne Fallwind"}
+F.npcs[251373]={c={{[1]=0,[2]=41.7,[3]=23.3,m=2521}},kind={quest=true},lvl={5,5},n="Xyton Silverwind"}
+F.npcs[251402]={c={{[1]=0,[2]=47.4,[3]=26.5,m=2521}},lvl={2,2},n="Cirrusfly Soldier"}
+F.npcs[251404]={c={{[1]=0,[2]=47.8,[3]=27,m=2521}},lvl={3,3},n="Cirrusfly Queen"}
+F.npcs[251437]={c={{[1]=0,[2]=42.9,[3]=28.4,m=2521}},lvl={1,1},n="Fireflies"}
+F.npcs[251487]={c={{[1]=0,[2]=42.7,[3]=24.4,m=2521}},kind={quest=true},lvl={5,5},n="Ventaari Brightwish"}
+F.npcs[251617]={c={{[1]=0,[2]=43.7,[3]=24.1,m=2521}},lvl={1,1},n="Peeps"}
+F.npcs[255979]={c={{[1]=0,[2]=43.1,[3]=25.8,m=2521}},lvl={10,10},n="Thendal Grove Ranger"}
+F.npcs[257551]={c={{[1]=0,[2]=42.4,[3]=25,m=2521}},lvl={10,10},n="Valreaa Valewind"}
+F.npcs[257554]={c={{[1]=0,[2]=43.8,[3]=24.1,m=2521}},kind={quest=true},lvl={10,10},n="Halaan Hawk-Eye"}
+F.npcs[263113]={c={{[1]=0,[2]=43.7,[3]=24.1,m=2521}},kind={quest=true},lvl={10,10},n="Myriaal Mistwake"}
+F.levels[1]=400
+F.levels[2]=900
+F.levels[3]=1400
+F.levels[4]=2100
 F.levels[10]=7600
 F.levels[11]=8800
