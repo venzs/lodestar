@@ -37,13 +37,7 @@ function Lodestar:OnInitialize()
 	self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
 	self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
 
-	self.player = {
-		name = UnitName("player"),
-		realm = GetNormalizedRealmName() or GetRealmName(),
-		class = select(2, UnitClass("player")),
-		faction = UnitFactionGroup("player"),
-	}
-	self.player.fullName = self.player.name .. "-" .. self.player.realm
+	self:RefreshPlayerInfo()
 
 	self:SetupModuleRegistry()
 	self:SetupConfig()
@@ -51,7 +45,23 @@ function Lodestar:OnInitialize()
 	self:SetupSlash()
 end
 
+--- Realm names: GetRealmName() is the display name ("Classic Beta PvP 2"); the normalized form (no
+--- spaces) is what appears in Name-Realm strings from the API. GetNormalizedRealmName can be nil early
+--- in the load, so this runs again at OnEnable.
+function Lodestar:RefreshPlayerInfo()
+	local display = GetRealmName() or "?"
+	local normalized = GetNormalizedRealmName() or (display:gsub("[%s%-]", ""))
+	self.player = self.player or {}
+	self.player.name = UnitName("player")
+	self.player.realm = display
+	self.player.realmNormalized = normalized
+	self.player.class = select(2, UnitClass("player"))
+	self.player.faction = UnitFactionGroup("player")
+	self.player.fullName = self.player.name .. "-" .. normalized
+end
+
 function Lodestar:OnEnable()
+	self:RefreshPlayerInfo()
 	self:InstallErrorCatcher()
 	self:ApplyModuleStates()
 	self:SetupMinimap()

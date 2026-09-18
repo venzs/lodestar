@@ -293,9 +293,10 @@ try("recorder", function()
 	stub.fire("GOSSIP_SHOW")
 	stub.questLog[364] = { title = "The Mindless Ones", complete = false, objectives = { { text = "Mindless Zombie slain: 0/8", finished = false } } }
 	stub.fire("QUEST_ACCEPTED", 364)
-	stub.fire("PLAYER_TARGET_CHANGED")
-	stub.diedGUID = "Creature-0-1-2-3-6-000ABC"
-	stub.fire("COMBAT_LOG_EVENT_UNFILTERED")
+	-- objective ticks up while a Kobold Vermin is targeted -> kill credited to it
+	stub.questLog[364].objectives[1].text = "Mindless Zombie slain: 1/8"
+	stub.fire("QUEST_LOG_UPDATE")
+	stub.questLog[364].objectives[1].text = "Mindless Zombie slain: 8/8"
 	stub.questLog[364].objectives[1].finished = true
 	stub.playerMap.x, stub.playerMap.y = 0.304, 0.689
 	stub.fire("QUEST_LOG_UPDATE")
@@ -314,7 +315,7 @@ try("recorder", function()
 	check(types.accept == 1 and types.complete == 1 and types.turnin == 1 and types.level == 1 and types.hs == 1 and types.train == 1, "recorded all entry types")
 	local text = G:BuildRecordingText(r)
 	check(text:find("#guide Test route", 1, true) and text:find(".accept 364", 1, true) and text:find(".complete 364,1", 1, true) and text:find(".turnin 364", 1, true), "export text has the quest steps")
-	check(text:find("mobs: Kobold Vermin x1", 1, true), "export text has mob levels: " .. tostring(text:match("mobs:[^\n]*")))
+	check(text:find("mobs: Kobold Vermin x8", 1, true), "export text has mob levels: " .. tostring(text:match("mobs:[^\n]*")))
 	check(text:find("%.hs Deathknell") and text:find("%.train"), "export has hs and train")
 	local parsed, perr = G.Parser.Parse(text)
 	check(parsed ~= nil, "exported guide parses back: " .. tostring(perr))

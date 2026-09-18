@@ -9,6 +9,13 @@ local sessionStart
 function Economy:RecordGold()
 	local chars = self.db.global.chars
 	local realm, name = Lodestar.player.realm, Lodestar.player.name
+	-- Early builds keyed by the normalized realm name; fold those entries into the display name.
+	local normalized = Lodestar.player.realmNormalized
+	if normalized and normalized ~= realm and chars[normalized] then
+		chars[realm] = chars[realm] or {}
+		for n, entry in pairs(chars[normalized]) do chars[realm][n] = chars[realm][n] or entry end
+		chars[normalized] = nil
+	end
 	chars[realm] = chars[realm] or {}
 	chars[realm][name] = {
 		money = GetMoney(),

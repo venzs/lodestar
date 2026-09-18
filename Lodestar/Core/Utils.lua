@@ -75,17 +75,21 @@ function Lodestar.ClassColorText(text, classFile)
 	return ("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, text)
 end
 
---- Split "Name-Realm" and fall back to the player's realm.
+local function normalizeRealm(realm)
+	return (tostring(realm or ""):gsub("[%s%-]", ""))
+end
+
+--- Split "Name-Realm" and fall back to the player's realm (normalized form).
 function Lodestar.SplitName(fullName)
 	local name, realm = strsplit("-", fullName or "", 2)
-	if not realm or realm == "" then realm = Lodestar.player and Lodestar.player.realm end
+	if not realm or realm == "" then realm = Lodestar.player and Lodestar.player.realmNormalized end
 	return name, realm
 end
 
 --- Short name for display: drops the realm when it matches ours.
 function Lodestar.ShortName(fullName)
 	local name, realm = Lodestar.SplitName(fullName)
-	if realm == Lodestar.player.realm then return name end
+	if normalizeRealm(realm) == normalizeRealm(Lodestar.player.realmNormalized) then return name end
 	return name .. "-" .. realm
 end
 

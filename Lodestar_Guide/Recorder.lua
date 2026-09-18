@@ -9,14 +9,17 @@
 -- Captured per entry: position (map, x, y), your level, and for quests the quest's level, the NPC
 -- you talked to and the levels of mobs killed while working on objectives — the raw material a
 -- route optimizer needs to judge pickups, mob difficulty and run-backs.
+--
+-- Kill levels come from the current target at the moment an objective counter ticks up; the
+-- combat log is off-limits to addons on this client (registering COMBAT_LOG_EVENT_UNFILTERED is a
+-- forbidden action in 12.x/Forever).
 local Lodestar = _G.Lodestar
 local Guide = Lodestar:GetModule("Guide")
 
 local HUB_YARDS = 20      -- accepts/turn-ins within this distance and time become one step
 local HUB_SECONDS = 180
 
-local objectiveState = {} -- [questID] = { [index] = finished }
-local recentTargets = {}  -- [guid] = { name, level, t }
+local objectiveState = {} -- [questID] = { [index] = { finished = bool, num = fulfilled count } }
 local mobsSinceLastStep = {}
 local lastNpc              -- { name, guid, t }
 local flightStart
@@ -60,11 +63,34 @@ end
 
 -- Event capture --------------------------------------------------------------------------------------
 
+local function objectiveCount(o)
+	local n = tonumber(o.numFulfilled)
+	if n then return n end
+	local a = o.text and o.text:match("(%d+)%s*/%s*%d+")
+	return tonumber(a) or 0
+end
+
 local function snapshotObjectives(questID)
 	local objectives = C_QuestLog.GetQuestObjectives(questID)
 	local state = {}
-	for i, o in ipairs(objectives or {}) do state[i] = o.finished and true or false end
+	for i, o in ipairs(objectives or {}) do state[i] = { finished = o.finished and true or false, num = objectiveCount(o) } end
 	objectiveState[questID] = state
+end
+
+--- Credit the current target (usually the thing that just died) for an objective tick.
+local function noteKill(delta)
+	if not UnitExists("target") or UnitIsPlayer("target") then return end
+	local ok, name, level = pcall(function() return UnitName("target"), UnitLevel("target") end)
+	if not ok or type(name) ~= "string" or (issecretvalue and (issecretvalue(name) or issecretvalue(level))) then return end
+	local lvl = tonumber(level) or 0
+	local m = mobsSinceLastStep[name]
+	if not m then
+		mobsSinceLastStep[name] = { count = delta, min = lvl, max = lvl }
+	else
+		m.count = m.count + delta
+		if lvl < m.min then m.min = lvl end
+		if lvl > m.max then m.max = lvl end
+	end
 end
 
 local function diffObjectives()
@@ -76,7 +102,12 @@ local function diffObjectives()
 			local objectives = C_QuestLog.GetQuestObjectives(qid)
 			if prev and objectives then
 				for idx, o in ipairs(objectives) do
-					if o.finished and prev[idx] == false then
+					local before = prev[idx]
+					local num = objectiveCount(o)
+					if before and num > (before.num or 0) and (o.type == "monster" or o.type == nil) then
+						noteKill(num - before.num)
+					end
+					if o.finished and before and not before.finished then
 						local text = o.text and o.text:gsub(":%s*%d+%s*/%s*%d+%s*$", "") or nil
 						add({ type = "complete", questID = qid, objective = idx, text = text, title = info.title, mobs = mobSummary() })
 					end
@@ -137,32 +168,6 @@ function Guide:RecorderOnEvent(event, ...)
 		add({ type = "zone", name = GetRealZoneText() })
 	elseif event == "MERCHANT_SHOW" then
 		add({ type = "vendor", npc = UnitName("npc") })
-	elseif event == "PLAYER_TARGET_CHANGED" then
-		local guid = UnitGUID("target")
-		if guid and UnitCanAttack and UnitCanAttack("player", "target") and not UnitIsPlayer("target") then
-			recentTargets[guid] = { name = UnitName("target"), level = UnitLevel("target"), t = GetTime() }
-		end
-	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-		-- Undocumented in the generated API docs but present (the deprecated global aliases it).
-		local ns = _G.C_CombatLog
-		local getInfo = (ns and ns.GetCurrentEventInfo) or _G.CombatLogGetCurrentEventInfo
-		if not getInfo then return end
-		local ok, _, subevent, _, _, _, _, _, destGUID = pcall(getInfo)
-		if ok and subevent == "UNIT_DIED" and destGUID then
-			local mob = recentTargets[destGUID]
-			if mob and mob.name then
-				local lvl = tonumber(mob.level) or 0
-				local m = mobsSinceLastStep[mob.name]
-				if not m then
-					mobsSinceLastStep[mob.name] = { count = 1, min = lvl, max = lvl }
-				else
-					m.count = m.count + 1
-					if lvl < m.min then m.min = lvl end
-					if lvl > m.max then m.max = lvl end
-				end
-				recentTargets[destGUID] = nil
-			end
-		end
 	end
 end
 
@@ -350,9 +355,6 @@ function Guide:EnableRecorder()
 		self.recordSlash = true
 		Lodestar:RegisterSlashVerb("record", handleRecord, "record your route as a guide: /lode record start|stop|export")
 	end
-	-- Combat events are registered here (not in the shared list) so they cost nothing unless recording.
-	self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnGameEvent")
-	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", "OnGameEvent")
 	-- Previously exported recordings are available as guides.
 	for _, text in pairs(self.db.char.recordings) do self:RegisterGuide(text, "recording") end
 	if self.db.char.recording then
@@ -361,6 +363,4 @@ function Guide:EnableRecorder()
 end
 
 function Guide:DisableRecorder()
-	self:UnregisterEvent("PLAYER_TARGET_CHANGED")
-	self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end

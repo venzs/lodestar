@@ -486,6 +486,8 @@ ClearCursor = function() end
 GetPlayerFacing = function() return stub.facing or 0 end
 UnitRace = function() return "Undead", "Scourge", 5 end
 UnitCanAttack = function() return true end
+UnitIsDead = function() return true end
+issecretvalue = function() return false end
 GetBindLocation = function() return "Deathknell" end
 CreateVector2D = function(x, y) return { x = x, y = y, GetXY = function(v) return v.x, v.y end } end
 stub.playerMap = { map = 18, x = 0.308, y = 0.662 }
