@@ -137,6 +137,34 @@ local function migrate(local_, share)
 	return moved
 end
 
+-- Load-order probe. WoW populates an addon's SavedVariables AFTER executing its Lua files and
+-- BEFORE firing ADDON_LOADED for it, so sampling both moments says whether the client ever loaded
+-- the file at all or whether something clears it afterwards. Those need opposite fixes and nothing
+-- outside the client can tell them apart.
+local function questCount(t)
+	if type(t) ~= "table" or type(t.quests) ~= "table" then return -1 end
+	local n = 0
+	for _ in pairs(t.quests) do n = n + 1 end
+	return n
+end
+
+local loadProbe = {
+	atFileLoad = type(_G.LodestarShareDB),
+	atFileLoadQuests = questCount(_G.LodestarShareDB),
+}
+do
+	local f = CreateFrame("Frame")
+	f:RegisterEvent("ADDON_LOADED")
+	f:SetScript("OnEvent", function(self, _, addon)
+		if addon == "Lodestar_Guide" then
+			loadProbe.atAddonLoaded = type(_G.LodestarShareDB)
+			loadProbe.atAddonLoadedQuests = questCount(_G.LodestarShareDB)
+			loadProbe.scanAtAddonLoaded = type(_G.LodestarScanDB)
+			self:UnregisterEvent("ADDON_LOADED")
+		end
+	end)
+end
+
 --- What the saved variables actually looked like the moment we first touched them, recorded into
 --- LodestarProbeDB (which belongs to the core addon and is known to persist). A harvest that comes
 --- back empty every session is either not being loaded by the client or not being saved by it, and
@@ -147,14 +175,14 @@ local function noteBind()
 	if bindNoted then return end
 	bindNoted = true
 	local share, scan = _G.LodestarShareDB, _G.LodestarScanDB
-	local function countQuests(t)
-		if type(t) ~= "table" or type(t.quests) ~= "table" then return -1 end
-		local n = 0
-		for _ in pairs(t.quests) do n = n + 1 end
-		return n
-	end
+	local countQuests = questCount
 	local record = {
 		at = date("%Y-%m-%d %H:%M:%S"),
+		atFileLoad = loadProbe.atFileLoad,
+		atFileLoadQuests = loadProbe.atFileLoadQuests,
+		atAddonLoaded = loadProbe.atAddonLoaded or "never fired",
+		atAddonLoadedQuests = loadProbe.atAddonLoadedQuests,
+		scanAtAddonLoaded = loadProbe.scanAtAddonLoaded,
 		shareType = type(share),
 		shareQuests = countQuests(share),
 		scanType = type(scan),
@@ -1276,6 +1304,10 @@ local function handleHarvest(rest)
 		end
 		local b = Guide.lastBind
 		if b then
+			Lodestar:Say("  Load probe: at file load %s(%s), at ADDON_LOADED %s(%s), at bind %s(%s).",
+				tostring(b.atFileLoad), tostring(b.atFileLoadQuests),
+				tostring(b.atAddonLoaded), tostring(b.atAddonLoadedQuests),
+				tostring(b.shareType), tostring(b.shareQuests))
 			if b.shareQuests and b.shareQuests >= 0 then
 				Lodestar:Say("  At login the saved file held %d quest(s); census cursor %s, trails %s.",
 					b.shareQuests, b.scanHadCursor and "present" or "absent", b.scanHadTrails and "present" or "absent")
