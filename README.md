@@ -106,6 +106,18 @@ Lodestar itself (`LodestarScanDB`, see `Lodestar_Guide/Harvest.lua`). Export a S
 `lua5.1 tools/pfquest/sv_to_json.lua <WTF/.../SavedVariables/Lodestar_Guide.lua> > data/beta/scan-<date>.json`, then
 `python3 tools/pfquest/merge_scan.py` regenerates the overlay from every export in `data/beta/`.
 
+## Contributing data
+
+Forever's new quests are not in any public database and the client gives addons no quest positions, so
+Lodestar learns the world from people playing it: quest givers talked to, objectives finished, flight
+points unlocked. `docs/CONTRIBUTING-DATA.md` is the page to hand a tester — in short, they play, type
+`/reload`, run `tools\collect-harvest.cmd` and send the file it puts on their Desktop. Merge the
+exports with `tools/pfquest/merge_scan.py` to regenerate `Lodestar_Guide/Data/Forever.lua`.
+
+Players running Lodestar in the same guild or party also trade newly-learned positions directly over
+the addon channel, which needs no files — dormant while a realm restricts addon messages (as the beta
+does) and self-starting when that lifts.
+
 ## License
 
 MIT for Lodestar. Bundled libraries keep their own licenses (see `LICENSE`).
