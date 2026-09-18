@@ -79,7 +79,7 @@ Lodestar_Leveling/   module addons depend on Lodestar and register with Lodestar
 Lodestar_Economy/
 Lodestar_UI/
 Lodestar_Guild/
-Lodestar_Guide/      guide engine, arrow, trails, harvest, Data/ (Vanilla.lua from pfQuest, Forever.lua from the beta harvest)
+Lodestar_Guide/      guide engine, arrow, trails, harvest, Data/ (Vanilla.lua from pfQuest, ATT.lua from All The Things, Forever.lua from the beta harvest)
 Lodestar_Guides_*/   guide packs (text routes)
 Lodestar_Character/  character-sheet stats
 tools/               dev tooling (not shipped): smoke harness, API extractor, pfquest import, router, trails seeds
@@ -100,6 +100,20 @@ Wago / WoWInterface once the API-key secrets are set).
 `Lodestar_Guide/Data/LICENSE-pfQuest.txt`), itself built from [VMaNGOS](https://github.com/vmangos). It gives the
 arrow and the router quest givers, turn-in NPCs, objective mobs/objects, quest-item drop sources and their positions
 for every Vanilla quest ID. Regenerate with `tools/pfquest/fetch.sh && python3 tools/pfquest/import.py`.
+
+`Lodestar_Guide/Data/ATT.lua` is generated from the Camelot (Forever) database of
+[All The Things](https://github.com/ATTWoWAddon/AllTheThings) (MIT, Copyright (c) 2026 AllTheThings WoW Addon; the
+notice is in `Lodestar_Guide/Data/LICENSE-ATT.txt`). It supplies quest-giver coordinates, objective providers and
+the `sourceQuests` prerequisite graph for Forever, which is what lets a route be ordered by what a quest actually
+needs first. It is merged *under* the harvest overlay (`Data.lua: MergeATTData`): ATT covers the old world densely
+and Forever's new zones thinly, Lodestar's own harvest is the reverse, and anything a player recorded first-hand
+wins over it. Regenerate with:
+
+```
+lua5.1 tools/att/att_to_json.lua <AllTheThings>/db/Camelot/*.lua <AllTheThings>/db/Camelot/Categories/*.lua \
+    > data/att/att-camelot.json
+python3 tools/att/import_att.py data/att/att-camelot.json
+```
 
 `Lodestar_Guide/Data/Forever.lua` is the Forever overlay: quests, NPCs, positions and XP harvested on the beta by
 Lodestar itself (`LodestarScanDB`, see `Lodestar_Guide/Harvest.lua`). Export a SavedVariables file with

@@ -2156,6 +2156,19 @@ try("forever overlay", function()
 	check(G.ForeverData and G.VanillaData.quests[99142] and G.VanillaData.quests[99142].t == "Tomb Weed", "Forever quest merged into the data")
 	check(G.VanillaData.quests[99142].forever == true and G.VanillaData.quests[356].xp ~= nil, "overlay adds xp to a Vanilla quest and flags Forever ones")
 	check(G.VanillaData.npcs[246152] and G.VanillaData.npcs[246152].n == "Shari Stilwell", "Forever-only NPC merged")
+	-- All The Things overlay: fills the world in under the harvest. Precedence matters -- ATT only
+	-- fills gaps, and anything a player recorded first-hand still wins.
+	check(G.ATTData and next(G.ATTData.quests) ~= nil, "ATT overlay loaded")
+	check(G.VanillaData.attMerged == true, "ATT merged into the data")
+	local att908 = G.VanillaData.quests[908]
+	check(att908 and att908.start and att908.att == true, "a quest only ATT places gets its giver from ATT")
+	check(att908.acceptAt and att908.acceptAt.m, "... and a position with a uiMapID")
+	-- 3901 is harvested first-hand (Forever overlay); the harvest flag must survive the ATT pass
+	check(G.VanillaData.quests[99142] and G.VanillaData.quests[99142].forever == true,
+		"a harvested quest keeps its first-hand marking after the ATT merge")
+	local prereq = 0
+	for _, q in pairs(G.ATTData.quests) do if q.prev then prereq = prereq + 1 end end
+	check(prereq > 500, "ATT contributes the quest prerequisite graph, got " .. prereq)
 	stub.questLog[99142] = { title = "Tomb Weed", complete = true, objectives = { { text = "Tomb Weed: 5/5", finished = true } } }
 	local mapID, _, _, how = G:DataQuestPosition(99142, true)
 	check(mapID == 18 and how and how:find("Holland", 1, true), "turn-in for a Forever quest resolves to its harvested ender: " .. tostring(how))

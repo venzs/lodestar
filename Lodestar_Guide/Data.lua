@@ -356,6 +356,40 @@ end
 --- Merge the Forever overlay (Data/Forever.lua, harvested on the beta) into the Vanilla tables once.
 --- Overlay quests add/replace fields (title, level, objectives, start/end, spots, xp); overlay NPCs and
 --- objects add entries or append positions; NPCs with `trains` join Data/Trainers.lua's lists.
+--- Merge the All The Things overlay into the Vanilla tables. Runs BEFORE MergeForeverData, so
+--- anything a player harvested first-hand overwrites ATT rather than the other way round: ATT is
+--- dense on the old world and thin on Forever's new zones, and the harvest is the reverse.
+function Guide:MergeATTData()
+	local A, V = self.ATTData, self.VanillaData
+	if not (A and V) or V.attMerged then return end
+	V.attMerged = true
+	for id, aq in pairs(A.quests or {}) do
+		local q = V.quests[id]
+		if not q then
+			q = {}
+			V.quests[id] = q
+		end
+		-- Only fill gaps: a Vanilla entry that already knows where a quest starts is not replaced.
+		for k, v in pairs(aq) do
+			if q[k] == nil then q[k] = v end
+		end
+		q.att = true
+	end
+	for _, storeName in ipairs({ "npcs", "objs" }) do
+		for id, ae in pairs(A[storeName] or {}) do
+			local e = V[storeName][id]
+			if not e then
+				e = {}
+				V[storeName][id] = e
+			end
+			if ae.c then
+				e.c = e.c or {}
+				for _, c in ipairs(ae.c) do tinsert(e.c, c) end
+			end
+		end
+	end
+end
+
 function Guide:MergeForeverData()
 	local F, V = self.ForeverData, self.VanillaData
 	if not (F and V) or V.foreverMerged then return end
@@ -392,6 +426,7 @@ function Guide:MergeForeverData()
 end
 
 function Guide:EnableData()
+	self:MergeATTData()
 	self:MergeForeverData()
 	if not self.dataSlash then
 		self.dataSlash = true
