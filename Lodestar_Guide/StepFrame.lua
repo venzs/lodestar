@@ -101,30 +101,94 @@ local function createFrame()
 	frame.divider:SetPoint("TOPLEFT", frame.meta, "BOTTOMLEFT", 0, -5)
 	frame.divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, 0)
 
-	for i = 1, 6 do
-		local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-		fs:SetWidth(WIDTH - 20)
+	for i = 1, 8 do
+		local row = CreateFrame("Button", nil, frame)
+		row:SetSize(WIDTH - 20, 14)
+		if i == 1 then
+			row:SetPoint("TOPLEFT", frame.divider, "BOTTOMLEFT", 0, -5)
+		else
+			row:SetPoint("TOPLEFT", upcomingLines[i - 1], "BOTTOMLEFT", 0, -2)
+		end
+		row.hl = row:CreateTexture(nil, "HIGHLIGHT")
+		row.hl:SetAllPoints()
+		row.hl:SetColorTexture(1, 1, 1, 0.08)
+		local fs = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		fs:SetAllPoints()
 		fs:SetJustifyH("LEFT")
 		fs:SetWordWrap(false)
 		fs:SetTextColor(0.55, 0.55, 0.55)
-		if i == 1 then
-			fs:SetPoint("TOPLEFT", frame.divider, "BOTTOMLEFT", 0, -5)
-		else
-			fs:SetPoint("TOPLEFT", upcomingLines[i - 1], "BOTTOMLEFT", 0, -2)
-		end
-		upcomingLines[i] = fs
+		row.text = fs
+		row.SetText = function(self, t) self.text:SetText(t) end
+		row:SetScript("OnClick", function(self)
+			if self.item then
+				Guide:PinSmartItem(self.item)
+			elseif self.stepIndex then
+				Guide:SetStep(self.stepIndex)
+				Guide:EvaluateStep()
+			end
+		end)
+		row:SetScript("OnEnter", function(self)
+			if not (self.item or self.stepIndex) then return end
+			GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+			if self.item then
+				GameTooltip:AddLine(self.item.title, 1, 1, 1)
+				GameTooltip:AddLine(self.item.subtitle or "", 0.8, 0.8, 0.8)
+				GameTooltip:AddLine("|cffaaaaaaClick: point the arrow at this|r")
+			else
+				GameTooltip:AddLine("|cffaaaaaaClick: jump to this step|r")
+			end
+			GameTooltip:Show()
+		end)
+		row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		upcomingLines[i] = row
 	end
+end
+
+local KIND_LABEL = { turnin = "|cff7fff7fTurn in|r", objective = "|cffffffffDo|r", available = "|cffffd700Pick up|r", hub = "|cffaaaaaaHub|r" }
+
+--- Smart mode: the "next up" list built from the quest log and the map.
+local function refreshSmart()
+	local items = Guide:CollectSmartItems()
+	local pinnedItem = Guide:GetPinnedSmartItem()
+	frame.title:SetText("Lodestar  |cffaaaaaasmart mode|r")
+	local top = items[1]
+	local pinnedShown
+	if pinnedItem then
+		for _, it in ipairs(items) do if it.kind == pinnedItem.kind and it.questID == pinnedItem.questID and it.x == pinnedItem.x then pinnedShown = it end end
+	end
+	local lead = pinnedShown or top
+	if lead then
+		frame.step:SetText(("%s %s"):format(KIND_LABEL[lead.kind] or "", lead.title))
+		frame.meta:SetText(("%s%s"):format(lead.subtitle or "", lead.dist and ("  ·  " .. math.floor(lead.dist) .. " yd") or ""))
+	else
+		frame.step:SetText("Nothing to do here yet. Pick up quests at the nearest hub, or /lode record start and play.")
+		frame.meta:SetText("")
+	end
+	local shown = 0
+	for i = 1, 8 do
+		local row = upcomingLines[i]
+		local it = items[i + (lead == top and 1 or 0)]
+		if it == pinnedShown then it = items[i + 1] end
+		row.item, row.stepIndex = nil, nil
+		if it and i <= 8 then
+			row.item = it
+			row:SetText(("%s %s%s"):format(KIND_LABEL[it.kind] or "", it.title, it.dist and ("  |cff666666" .. math.floor(it.dist) .. " yd|r") or ""))
+			row:Show()
+			shown = shown + 1
+		else
+			row:SetText("")
+			row:Hide()
+		end
+	end
+	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + 10 + shown * 16 + 10
+	frame:SetHeight(math.max(70, height))
 end
 
 function Guide:RefreshStepFrame()
 	if not frame or not frame:IsShown() then return end
 	local guide, step = self.current, self:CurrentStep()
 	if not guide or not step then
-		frame.title:SetText("Lodestar Guide")
-		frame.step:SetText(#self.guides > 0 and "No guide loaded. Right-click to pick one." or "No guides installed.\nInstall a Lodestar guide pack, or /lode record start to make your own.")
-		frame.meta:SetText("")
-		for i = 1, 6 do upcomingLines[i]:SetText("") end
-		frame:SetHeight(90)
+		refreshSmart()
 		return
 	end
 	frame.title:SetText(("%s  |cffaaaaaa%d/%d|r"):format(guide.name, step.index, #guide.steps))
@@ -138,16 +202,22 @@ function Guide:RefreshStepFrame()
 
 	local n = self.db.profile.steps.upcoming or 3
 	local shown = 0
-	for i = 1, 6 do
-		local next = guide.steps[step.index + i]
-		if i <= n and next then
-			upcomingLines[i]:SetText(("%d. %s"):format(next.index, self:StepText(next)))
+	for i = 1, 8 do
+		local row = upcomingLines[i]
+		local nextStep = guide.steps[step.index + i]
+		row.item = nil
+		if i <= n and nextStep then
+			row.stepIndex = nextStep.index
+			row:SetText(("%d. %s"):format(nextStep.index, self:StepText(nextStep)))
+			row:Show()
 			shown = shown + 1
 		else
-			upcomingLines[i]:SetText("")
+			row.stepIndex = nil
+			row:SetText("")
+			row:Hide()
 		end
 	end
-	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + 10 + shown * 14 + 10
+	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + 10 + shown * 16 + 10
 	frame:SetHeight(math.max(70, height))
 end
 
@@ -179,6 +249,7 @@ function Guide:ShowGuideMenu()
 				function() return self.current and self.current.name == g.name end,
 				function() self:LoadGuide(g.name) end)
 		end
+		root:CreateRadio("Smart mode (no guide)", function() return self.current == nil end, function() self:UnloadGuide() end)
 		root:CreateDivider()
 		root:CreateButton("Next step", function() self:NextStep() end)
 		root:CreateButton("Previous step", function() self:PrevStep() end)

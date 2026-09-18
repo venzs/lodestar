@@ -81,7 +81,8 @@ function Guide:PickGuide()
 	local pf = self:PlayerFilters()
 	local best, bestScore
 	for _, g in ipairs(self.guides) do
-		if guideApplies(g, pf, true) then
+		local outleveled = g.maxLevel and pf.level > g.maxLevel
+		if guideApplies(g, pf, true) and not outleveled then
 			local covers = g.minLevel and g.maxLevel and pf.level >= g.minLevel and pf.level <= g.maxLevel
 			local specificity = (g.races and 2 or 0) + (g.classes and 2 or 0) + (g.faction ~= "Both" and 1 or 0)
 			local score
@@ -120,6 +121,16 @@ function Guide:LoadGuide(name, stepIndex)
 	self:RefreshStepFrame()
 	self:ArrowOnEvent("LODESTAR_STEP_CHANGED")
 	return true
+end
+
+--- Leave guided mode; the window and arrow fall back to smart mode.
+function Guide:UnloadGuide()
+	self.current = nil
+	self.stepIndex = nil
+	self.stepFlags = {}
+	self.db.char.currentGuide = nil
+	self:RefreshStepFrame()
+	self:ArrowOnEvent("LODESTAR_STEP_CHANGED")
 end
 
 function Guide:CurrentStep()
@@ -165,8 +176,9 @@ function Guide:FinishGuide()
 		Lodestar:Msg("Finished %s — loading %s.", guide.name, guide.next)
 		self:LoadGuide(guide.next, 1)
 	else
-		Lodestar:Msg("Finished %s. %s", guide.name, guide.next and ("Next guide '" .. guide.next .. "' is not installed.") or "No next guide set.")
-		self:RefreshStepFrame()
+		Lodestar:Msg("Finished %s. %s Switching to smart mode: the window now lists your nearest turn-ins, objectives and quest givers.",
+			guide.name, guide.next and ("Next guide '" .. guide.next .. "' is not installed.") or "")
+		self:UnloadGuide()
 	end
 end
 
@@ -357,9 +369,14 @@ local function handleGuideSlash(rest)
 		if Guide.current then Guide.db.char.progress[Guide.current.name] = 1 Guide:LoadGuide(Guide.current.name, 1) end
 	elseif verb == "auto" then
 		local g = Guide:PickGuide()
-		if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character.") end
+		if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character; using smart mode.") Guide:UnloadGuide() end
+	elseif verb == "smart" or verb == "unload" then
+		Guide:UnloadGuide()
+		Lodestar:Say("Smart mode: nearest turn-ins, objectives and quest givers.")
+	elseif verb == "nextup" or verb == "up" then
+		Guide:PrintNextUp()
 	else
-		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | auto]")
+		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | auto | smart | nextup]")
 	end
 end
 
@@ -372,11 +389,14 @@ function Guide:EnableEngine()
 	self:ScheduleTimer(function()
 		if self.current then return end
 		local saved = self.db.char.currentGuide
-		if saved and self.guideByName[saved] then
+		local savedGuide = saved and self.guideByName[saved]
+		if savedGuide and not (savedGuide.maxLevel and UnitLevel("player") > savedGuide.maxLevel) then
 			self:LoadGuide(saved)
 		elseif self.db.profile.steps.autoPickGuide then
 			local g = self:PickGuide()
-			if g then self:LoadGuide(g.name) end
+			if g then self:LoadGuide(g.name) else self:RefreshStepFrame() end
+		else
+			self:RefreshStepFrame()
 		end
 	end, 3)
 	arrivalTicker = self:ScheduleRepeatingTimer(function()

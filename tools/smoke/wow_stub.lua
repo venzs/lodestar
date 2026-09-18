@@ -514,6 +514,8 @@ C_CombatLog = { GetCurrentEventInfo = function() return 0, "UNIT_DIED", false, n
 ScriptErrorsFrame = { errorData = {}, GetCount = function(self) return #self.errorData end, GetErrorData = function(self, i) return self.errorData[i] end }
 C_RestrictedActions = { IsAddOnRestrictionActive = function() return false end }
 Enum.AddOnRestrictionType = { Combat = 2, Chat = 1 }
+C_QuestLine = { RequestQuestLinesForMap = function() end, GetAvailableQuestLines = function() return { { questID = 999, questName = "A Fresh Start", questLineName = "Deathknell", x = 0.52, y = 0.85 } } end }
+C_AreaPoiInfo = { GetQuestHubsForMap = function() return { { areaPoiID = 1, name = "Brill", description = "Quest hub", position = { GetXY = function() return 0.6, 0.5 end } } } end }
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

@@ -103,30 +103,9 @@ local function waypointTarget()
 end
 
 local function questTarget()
-	local best, bestScore
-	local n = C_QuestLog.GetNumQuestLogEntries()
-	for i = 1, n do
-		local info = C_QuestLog.GetInfo(i)
-		if info and not info.isHeader and not info.isHidden and info.questID then
-			local qid = info.questID
-			local ok, mapID, x, y = pcall(C_QuestLog.GetNextWaypoint, qid)
-			if ok and mapID and x and y then
-				local dist = Guide:VectorTo(mapID, x, y)
-				if dist then
-					local complete = C_QuestLog.IsComplete(qid)
-					local score = complete and dist * 0.6 or dist -- prefer turn-ins slightly
-					if not bestScore or score < bestScore then
-						bestScore = score
-						local okText, wpText = pcall(C_QuestLog.GetNextWaypointText, qid)
-						best = { kind = "quest", mapID = mapID, x = x, y = y, questID = qid,
-							title = info.title or ("Quest " .. qid),
-							subtitle = (okText and wpText and wpText ~= "" and wpText) or (complete and "Turn in" or "Objective") }
-					end
-				end
-			end
-		end
-	end
-	return best
+	local it = Guide:SmartTarget(true)
+	if not it then return nil end
+	return { kind = "quest", mapID = it.mapID, x = it.x, y = it.y, questID = it.questID, title = it.title, subtitle = it.subtitle, smartKind = it.kind }
 end
 
 --- Pick the arrow target according to the mode.
@@ -323,7 +302,8 @@ function Guide:EnableArrow()
 end
 
 local ARROW_EVENTS = { QUEST_LOG_UPDATE = true, QUEST_ACCEPTED = true, QUEST_TURNED_IN = true, QUEST_REMOVED = true,
-	USER_WAYPOINT_UPDATED = true, ZONE_CHANGED_NEW_AREA = true, PLAYER_ENTERING_WORLD = true, LODESTAR_STEP_CHANGED = true }
+	USER_WAYPOINT_UPDATED = true, ZONE_CHANGED_NEW_AREA = true, PLAYER_ENTERING_WORLD = true, LODESTAR_STEP_CHANGED = true,
+	QUESTLINE_UPDATE = true, AREA_POIS_UPDATED = true }
 
 --- Called by Guide:OnGameEvent for every game event the module listens to.
 function Guide:ArrowOnEvent(event)

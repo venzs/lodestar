@@ -129,6 +129,21 @@ function Lodestar:RunProbe()
 		local pos = safe(C_Map.GetPlayerMapPosition, mapID, "player")
 		probe.checks.playerMapPosition = (type(pos) == "table" and pos.GetXY) and { pos:GetXY() } or tostring(pos)
 	end
+	if mapID and C_QuestLine and C_QuestLine.GetAvailableQuestLines then
+		local lines = safe(C_QuestLine.GetAvailableQuestLines, mapID)
+		probe.checks.questLinesOnMap = type(lines) == "table" and #lines or lines
+	end
+	if mapID and C_AreaPoiInfo and C_AreaPoiInfo.GetQuestHubsForMap then
+		local hubs = safe(C_AreaPoiInfo.GetQuestHubsForMap, mapID)
+		probe.checks.questHubsOnMap = type(hubs) == "table" and #hubs or hubs
+		if type(hubs) == "table" and hubs[1] then probe.checks.firstHub = { name = hubs[1].name, description = hubs[1].description } end
+	end
+	if C_QuestLog.GetAllCompletedQuestIDs then
+		local done = safe(C_QuestLog.GetAllCompletedQuestIDs)
+		probe.checks.completedQuests = type(done) == "table" and #done or done
+	end
+	probe.checks.playerFacing = GetPlayerFacing and safe(GetPlayerFacing) or nil
+	probe.checks.questLogEntries = C_QuestLog.GetNumQuestLogEntries and safe(C_QuestLog.GetNumQuestLogEntries) or nil
 	if C_MerchantFrame and C_MerchantFrame.IsSellAllJunkEnabled then probe.checks.sellAllJunkEnabled = safe(C_MerchantFrame.IsSellAllJunkEnabled) end
 	if C_AuctionHouse and C_AuctionHouse.SupportsCopperValues then probe.checks.ahSupportsCopper = safe(C_AuctionHouse.SupportsCopperValues) end
 	if C_ChatInfo.AreOutgoingAddonChatMessagesRestricted then probe.checks.addonMsgRestricted = safe(C_ChatInfo.AreOutgoingAddonChatMessagesRestricted) end
