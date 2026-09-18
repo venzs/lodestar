@@ -444,6 +444,261 @@ try("guild lockdown + guild change", function()
 	stub.advance(3)
 end)
 
+-- Comm fallback
+-- The Forever beta restricts outgoing addon messages realm-wide: nothing is sent or queued, the
+-- heartbeat stays off, the board is roster-only and /lode lfg drafts a guild chat line for the player.
+try("comm fallback", function()
+	local G = Lodestar:GetModule("Guild")
+	check(Lodestar:CanSendComm() and Lodestar.commAvailable == true, "comms available by default")
+	check(G.heartbeat ~= nil, "heartbeat running while comms are available")
+	stub.commRestricted = true
+	check(not Lodestar:CanSendComm(), "restricted realm: CanSendComm false")
+	local before = #stub.sent
+	check(Lodestar:SendComm({ t = "V" }, "GUILD") == false and #stub.sent == before, "SendComm refuses without queueing")
+	Lodestar:BroadcastVersion()
+	check(#stub.sent == before, "BroadcastVersion is a silent no-op")
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, true)
+	check(Lodestar.commAvailable == false, "core noticed the restriction")
+	check(G.heartbeat == nil, "heartbeat stopped when comms went away")
+	stub.advance(301) -- a full heartbeat interval
+	check(#stub.sent == before, "nothing sent while restricted")
+	G:RestartHeartbeat()
+	check(G.heartbeat == nil, "changing the interval does not start the heartbeat while restricted")
+	G:Broadcast(true) G:Query()
+	check(#stub.sent == before, "explicit broadcast/query send nothing while restricted")
+	-- /lode lfg: drafted into the chat box with the /g prefix, never sent
+	stub.openChat = nil
+	stub.slash("/lode lfg Deadmines tank")
+	check(stub.openChat == "/g LFG: Deadmines tank", "lfg drafted into the chat box: " .. tostring(stub.openChat))
+	check(#stub.sent == before, "lfg sent nothing")
+	check(G.db.char.lfgNote == "Deadmines tank", "note kept for when comms return")
+	check((stub.chat[#stub.chat] or ""):find("press Enter", 1, true), "user told to send it themselves")
+	-- board: roster only, notice shown, summary without the Lodestar count
+	stub.slash("/lode guild")
+	check(LodestarGuildBoard.shown, "board opens while restricted")
+	check(LodestarGuildBoard.notice.shown == true, "restriction notice shown")
+	check(LodestarGuildBoard.notice.text == "Addon messages are restricted on this realm — showing the guild roster only", "notice wording")
+	check(LodestarGuildBoard.summary.text and not LodestarGuildBoard.summary.text:find("running Lodestar", 1, true), "summary drops the Lodestar count: " .. tostring(LodestarGuildBoard.summary.text))
+	check((LodestarGuildBoard.hint.text or ""):find("drafts a guild chat line", 1, true), "hint explains the lfg fallback")
+	local rows = G:CollectRows()
+	local fromRoster = false
+	for _, r in ipairs(rows) do if r.rank then fromRoster = true end end
+	check(#rows >= 1 and fromRoster, "roster rows still listed")
+	stub.slash("/lode guild")
+	-- minimap tooltip line
+	local lines = {}
+	local tt = { AddDoubleLine = function(_, l, r) lines[l] = r end, AddLine = function() end }
+	for _, fn in ipairs(Lodestar.tooltipProviders) do fn(tt) end
+	check(lines["Guild board"] and lines["Guild board"]:find("restricted", 1, true), "minimap tooltip says roster only: " .. tostring(lines["Guild board"]))
+	check(lines["Guildmates with Lodestar"] == nil, "presence count not shown while restricted")
+	-- comms come back (a launch realm without the restriction): announce + query, heartbeat on
+	stub.commRestricted = false
+	before = #stub.sent
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, false)
+	check(Lodestar.commAvailable == true, "core noticed comms are back")
+	check(G.heartbeat ~= nil, "heartbeat restarted")
+	stub.advance(3)
+	check(#stub.sent == before + 2, "announced and queried when comms came back, sent " .. (#stub.sent - before))
+	local kinds = {}
+	for i = before + 1, #stub.sent do
+		local s = stub.sent[i]
+		if s.dist == "GUILD" then kinds[s.msg:match("%^St%^S(%a)") or "?"] = s.msg end
+	end
+	check(kinds.P and kinds.Q, "presence and query both went to the guild")
+	check(kinds.P and kinds.P:find("Deadmines", 1, true) ~= nil, "the kept note rides along in the presence") -- AceSerializer escapes the space
+	-- same event again with no change: no second announce
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, false)
+	stub.advance(3)
+	check(#stub.sent == before + 2, "unchanged state does not re-announce")
+	-- lfg broadcasts again instead of drafting
+	before = #stub.sent
+	stub.openChat = nil
+	stub.slash("/lode lfg clear")
+	check(stub.openChat == nil and #stub.sent == before + 1 and G.db.char.lfgNote == nil, "lfg clear broadcasts again once comms are available")
+	stub.slash("/lode guild")
+	check(LodestarGuildBoard.notice.shown == false, "notice hidden once comms are back")
+	check((LodestarGuildBoard.summary.text or ""):find("running Lodestar", 1, true), "summary shows the Lodestar count again")
+	stub.slash("/lode guild")
+	lines = {}
+	for _, fn in ipairs(Lodestar.tooltipProviders) do fn(tt) end
+	check(lines["Guildmates with Lodestar"] ~= nil and lines["Guild board"] == nil, "minimap tooltip back to the presence count")
+end)
+
+-- Status strip
+-- Second line under the XP readout: bags / durability / rested / resting / watched buffs, with the
+-- bag-space and repair nags throttled to one chat line per five minutes each.
+try("status strip", function()
+	local Lv = Lodestar:GetModule("Leveling")
+	stub.level, stub.xp, stub.xpMax, stub.rested = 13, 100, 12000, 500
+	Lv:UpdateXPFrame()
+	Lv:RefreshStrip()
+	check(LodestarXPFrame.strip.shown == true, "strip line shown by default")
+	local text = LodestarXPFrame.strip.text or ""
+	check(text:find("bags |cffffffff3|r free", 1, true) ~= nil, "bags part: " .. text)
+	check(text:find("dur |cffffffff62%|r", 1, true) ~= nil, "durability part is the lowest slot: " .. text)
+	check(text:find("rested |cff6b9eff4%|r", 1, true) ~= nil, "rested part as % of level: " .. text)
+	check(text:find("Resting", 1, true) ~= nil, "resting state shown")
+	check(text:find("|cff7fff7fWell Fed|r", 1, true) ~= nil, "watched buff shown")
+	local state = Lv:GetStripState()
+	check(state.bags == 3 and math.floor(state.durability) == 62 and state.resting and state.buffs[1] == "Well Fed", "strip state exposed")
+	-- events coalesce into one refresh per second; other units' auras are ignored
+	stub.auras = {}
+	stub.fire("UNIT_AURA", "player")
+	stub.fire("UNIT_AURA", "player")
+	check((LodestarXPFrame.strip.text or ""):find("Well Fed", 1, true) ~= nil, "no refresh before the throttle interval")
+	stub.advance(1)
+	check((LodestarXPFrame.strip.text or ""):find("Well Fed", 1, true) == nil, "buff gone after the throttled refresh")
+	stub.auras = { "Well Fed" }
+	stub.fire("UNIT_AURA", "target")
+	stub.advance(1)
+	check((LodestarXPFrame.strip.text or ""):find("Well Fed", 1, true) == nil, "another unit's UNIT_AURA does not refresh")
+	-- bag nag: once, throttled, again after five minutes, red when full
+	local bagNags = countChat("Bags: only")
+	stub.bagFree[0] = 2
+	stub.fire("BAG_UPDATE_DELAYED")
+	stub.advance(1)
+	check(countChat("Bags: only 2 slots free") == bagNags + 1, "bag nag printed at 2 free")
+	check((LodestarXPFrame.strip.text or ""):find("bags |cffff9933" , 1, true) ~= nil, "bags part orange: " .. tostring(LodestarXPFrame.strip.text))
+	stub.fire("BAG_UPDATE_DELAYED") stub.advance(1)
+	check(countChat("Bags: only") == bagNags + 1, "bag nag throttled")
+	stub.advance(300)
+	stub.fire("BAG_UPDATE_DELAYED") stub.advance(1)
+	check(countChat("Bags: only") == bagNags + 2, "bag nag repeats after 5 minutes")
+	stub.bagFree[0] = 0
+	stub.fire("BAG_UPDATE_DELAYED") stub.advance(1)
+	check((LodestarXPFrame.strip.text or ""):find("bags |cffff4040" , 1, true) ~= nil, "full bags red")
+	-- durability nag
+	local durNags = countChat("Durability at")
+	stub.durability[1] = { 15, 100 }
+	stub.fire("UPDATE_INVENTORY_DURABILITY") stub.advance(1)
+	check(countChat("Durability at 15%%") == durNags + 1, "durability nag printed at 15%")
+	check((LodestarXPFrame.strip.text or ""):find("dur |cffff9933" , 1, true) ~= nil, "durability part orange")
+	stub.durability[1] = { 5, 100 }
+	stub.fire("UPDATE_INVENTORY_DURABILITY") stub.advance(1)
+	check(countChat("Durability at") == durNags + 1, "durability nag throttled")
+	check((LodestarXPFrame.strip.text or ""):find("dur |cffff4040", 1, true) ~= nil, "durability red at 5%")
+	-- both toggles off: nothing printed even after the interval
+	Lv.db.profile.xp.strip.nagBags = false
+	Lv.db.profile.xp.strip.nagDurability = false
+	stub.advance(300)
+	stub.fire("BAG_UPDATE_DELAYED") stub.fire("UPDATE_INVENTORY_DURABILITY") stub.advance(1)
+	check(countChat("Bags: only") == bagNags + 2 and countChat("Durability at") == durNags + 1, "nags off: nothing printed")
+	Lv.db.profile.xp.strip.nagBags = true
+	Lv.db.profile.xp.strip.nagDurability = true
+	-- rested / resting events reach the strip too
+	stub.rested = 0
+	stub.fire("UPDATE_EXHAUSTION") stub.advance(1)
+	check((LodestarXPFrame.strip.text or ""):find("rested ", 1, true) == nil, "rested part dropped at 0")
+	IsResting = function() return false end
+	stub.fire("PLAYER_UPDATE_RESTING") stub.advance(1)
+	check((LodestarXPFrame.strip.text or ""):find("Resting", 1, true) == nil, "resting part dropped when not resting")
+	IsResting = function() return true end
+	stub.rested = 500
+	-- configurable buff list, case-insensitive, in the configured order
+	Lv.db.profile.xp.strip.buffs = "sharpened blade, WELL FED"
+	stub.auras = { "Well Fed", "Sharpened Blade", "Blessing of Might" }
+	Lv:RefreshStrip()
+	text = LodestarXPFrame.strip.text or ""
+	check(text:find("sharpened blade|r  |cff666666·|r  |cff7fff7fWELL FED", 1, true) ~= nil and text:find("Blessing", 1, true) == nil, "buff list configurable and ordered: " .. text)
+	-- index walk when AuraUtil is missing
+	local au = AuraUtil
+	AuraUtil = false -- absent (false keeps the stub's unknown-global tally clean)
+	Lv:RefreshStrip()
+	check((LodestarXPFrame.strip.text or ""):find("WELL FED", 1, true) ~= nil, "buff found through C_UnitAuras.GetAuraDataByIndex")
+	AuraUtil = au
+	Lv.db.profile.xp.strip.buffs = "Well Fed"
+	-- strip off: single line again, nags still run
+	Lv.db.profile.xp.strip.show = false
+	Lv:UpdateXPFrame()
+	check(LodestarXPFrame.strip.shown == false, "strip hidden by option")
+	Lv.db.profile.xp.strip.show = true
+	Lv:UpdateXPFrame()
+	-- restore
+	stub.bagFree[0] = 3
+	stub.durability[1] = { 62, 100 }
+	stub.auras = { "Well Fed" }
+	Lv:RefreshStrip()
+end)
+
+-- Turn-ins to ding
+-- Reward XP of quests ready to turn in, summed through SetSelectedQuest + GetQuestLogRewardXP,
+-- with "(ding!)" once the sum covers the rest of the level.
+try("turn-ins to ding", function()
+	local Lv = Lodestar:GetModule("Leveling")
+	local savedLog = stub.questLog
+	stub.level, stub.xp, stub.xpMax = 13, 100, 12000
+	stub.questLog = {
+		[501] = { title = "Done A", complete = true, objectives = {}, xp = 800 },
+		[502] = { title = "Done B", complete = true, objectives = {}, xp = 440 },
+		[503] = { title = "Not yet", complete = false, objectives = {}, xp = 5000 },
+	}
+	stub.selectedQuest = 503
+	local scanned = false
+	local realSet = C_QuestLog.SetSelectedQuest
+	C_QuestLog.SetSelectedQuest = function(id) scanned = true stub.selectedQuest = id end
+	stub.fire("QUEST_LOG_UPDATE")
+	stub.fire("QUEST_LOG_UPDATE")
+	check(not scanned, "scan waits for the 1 s throttle")
+	stub.advance(1)
+	C_QuestLog.SetSelectedQuest = realSet
+	local xp, count = Lv:GetTurnInXP()
+	check(scanned and xp == 1240 and count == 2, "two ready quests summed: " .. tostring(xp) .. " xp / " .. tostring(count))
+	check(stub.selectedQuest == 503, "previous quest selection restored, got " .. tostring(stub.selectedQuest))
+	-- same set of ready quests: no re-selection (a SetSelectedQuest -> QUEST_LOG_UPDATE echo must not loop)
+	local selections = 0
+	C_QuestLog.SetSelectedQuest = function(id) selections = selections + 1 stub.selectedQuest = id end
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
+	check(selections == 0 and select(1, Lv:GetTurnInXP()) == 1240, "unchanged ready set served from the cache")
+	stub.questLog[504] = { title = "Done C", complete = true, objectives = {}, xp = 100 }
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
+	check(selections == 4 and select(1, Lv:GetTurnInXP()) == 1340, "new ready quest rescans (3 selections + restore), got " .. selections .. " / " .. tostring(Lv:GetTurnInXP()))
+	stub.questLog[504] = nil
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
+	C_QuestLog.SetSelectedQuest = realSet
+	local text = Lv:TurnInText()
+	check(text and text:find("|cffffffff1240|r xp (10% of level)", 1, true) ~= nil, "percent-of-level wording: " .. tostring(text))
+	check((LodestarXPFrame.text.text or ""):find("turn-ins: |cffffffff1240|r xp", 1, true) ~= nil, "XP line carries the suffix: " .. tostring(LodestarXPFrame.text.text))
+	stub.xp = 11000 -- 1000 to go, 1240 waiting
+	Lv:RefreshXPText()
+	text = Lv:TurnInText()
+	check(text and text:find("1240|r xp |cffffff00(ding!)|r", 1, true) ~= nil, "ding wording when the sum covers the level: " .. tostring(text))
+	check((LodestarXPFrame.text.text or ""):find("(ding!)", 1, true) ~= nil, "XP line shows the ding")
+	-- option off: line clean, minimap tooltip still has it
+	Lv.db.profile.xp.showTurnIns = false
+	Lv:RefreshXPText()
+	check((LodestarXPFrame.text.text or ""):find("turn-ins", 1, true) == nil, "suffix hidden by option")
+	local lines = {}
+	local tt = { AddDoubleLine = function(_, l, r) lines[l] = r end, AddLine = function() end }
+	for _, fn in ipairs(Lodestar.tooltipProviders) do fn(tt) end
+	check(lines["Turn-ins ready"] and lines["Turn-ins ready"]:find("(ding!)", 1, true) ~= nil, "minimap tooltip always lists turn-ins: " .. tostring(lines["Turn-ins ready"]))
+	Lv.db.profile.xp.showTurnIns = true
+	-- frame tooltip: turn-ins and strip lines
+	lines = {}
+	GameTooltip.AddDoubleLine = function(_, l, r) lines[l] = r end
+	LodestarXPFrame.scripts.OnEnter(LodestarXPFrame)
+	GameTooltip.AddDoubleLine = nil
+	check(lines["Ready to turn in (2)"] ~= nil and lines["Ready to turn in (2)"]:find("ding", 1, true) ~= nil, "frame tooltip lists ready quests")
+	check(lines["Bag slots free"] == "3" and lines["Lowest durability"] == "62%" and lines["Buffs"] == "Well Fed", "frame tooltip has the strip lines")
+	stub.slash("/lode xp")
+	check((stub.chat[#stub.chat] or ""):find("2 quests ready to turn in", 1, true) ~= nil, "/lode xp reports the turn-ins")
+	-- missing GetQuestLogRewardXP: nothing counted, no error
+	local realReward = GetQuestLogRewardXP
+	GetQuestLogRewardXP = false -- absent (false rather than nil keeps the stub's unknown-global tally clean)
+	Lv:RefreshTurnIns()
+	check(select(2, Lv:GetTurnInXP()) == 0, "no reward API: nothing counted")
+	GetQuestLogRewardXP = realReward
+	-- empty log
+	stub.questLog = {}
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
+	check(Lv:TurnInText() == nil and select(2, Lv:GetTurnInXP()) == 0, "empty log: no turn-in text")
+	lines = {}
+	for _, fn in ipairs(Lodestar.tooltipProviders) do fn(tt) end
+	check(lines["Turn-ins ready"] == "none", "minimap tooltip says none")
+	stub.questLog = savedLog
+	stub.xp = 100
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
+end)
+
 -- Module toggling and profile change
 try("toggle module", function()
 	Lodestar:SetModuleEnabled("UI", false)

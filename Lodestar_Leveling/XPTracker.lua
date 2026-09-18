@@ -1,12 +1,20 @@
--- Lodestar_Leveling: XP/hour, time-to-level and session stats.
+-- Lodestar_Leveling: XP/hour, time-to-level, session stats, and the XP waiting in completed quests
+-- ("turn-ins to ding"). The status strip (StatusStrip.lua) renders as the frame's second line.
 local Lodestar = _G.Lodestar
 local Leveling = Lodestar:GetModule("Leveling")
 
 local FormatNumberShort, FormatDuration = Lodestar.FormatNumberShort, Lodestar.FormatDuration
 
+local LINE_HEIGHT = 22          -- one-line frame height
+local STRIP_HEIGHT = 14         -- extra height for the strip line (same small font as the XP line)
+local TURNIN_DELAY = 1          -- QUEST_LOG_UPDATE bursts collapse into one scan per second
+local SEP = "  |cff666666·|r  "
+
 local session -- see ResetXPSession
 local samples = {} -- { t = GetTime(), xp = gained } for the rolling window
 local frame
+local turnIns = { xp = 0, count = 0, sig = nil } -- reward XP of quests ready to turn in, refreshed on QUEST_LOG_UPDATE
+local turnInTimer
 
 --- Mirrors GameRulesUtil.GetEffectiveMaxLevelForPlayer: the expansion cap clamped by the realm/phase cap
 --- (GetMaxPlayerLevel), which is how a capped beta or a Classic-style pre-patch reports its max level.
@@ -80,6 +88,78 @@ function Leveling:GetXPRates()
 	return rolling, average, ttl
 end
 
+-- Turn-ins to ding -------------------------------------------------------------------
+
+--- Sum the reward XP of every quest in the log that is ready to turn in. GetQuestLogRewardXP is an
+--- undocumented global on this client that reads the selected quest (Blizzard's QuestInfo pattern),
+--- so each quest is selected in turn and the previous selection put back afterwards; the questID is
+--- also passed for clients whose version takes it directly.
+---
+--- The reward XP is only re-read when the set of ready quests (or the player's level, which scales
+--- quest XP in Classic rules) changes: selecting quests is not free, and if SetSelectedQuest itself
+--- raised QUEST_LOG_UPDATE an unconditional rescan would feed back into itself every second.
+--- Returns total, count, signature.
+local function scanTurnIns(force)
+	local ql = C_QuestLog
+	if not (ql and ql.GetNumQuestLogEntries and ql.GetInfo) then return 0, 0, nil end
+	local ready = ql.ReadyForTurnIn or ql.IsComplete
+	local rewardXP = _G.GetQuestLogRewardXP
+	if not ready or type(rewardXP) ~= "function" then return 0, 0, nil end
+	local ids = {}
+	for i = 1, ql.GetNumQuestLogEntries() or 0 do
+		local info = ql.GetInfo(i)
+		local questID = info and not info.isHeader and info.questID
+		if questID and ready(questID) then tinsert(ids, questID) end
+	end
+	table.sort(ids)
+	local sig = tostring(UnitLevel("player")) .. ":" .. table.concat(ids, ",")
+	if not force and sig == turnIns.sig then return turnIns.xp, turnIns.count, sig end
+	local total = 0
+	local previous = ql.GetSelectedQuest and ql.GetSelectedQuest()
+	for _, questID in ipairs(ids) do
+		if ql.SetSelectedQuest then ql.SetSelectedQuest(questID) end
+		local xp = rewardXP(questID)
+		if type(xp) == "number" and xp > 0 then total = total + xp end
+	end
+	if #ids > 0 and ql.SetSelectedQuest and type(previous) == "number" then pcall(ql.SetSelectedQuest, previous) end
+	return total, #ids, sig
+end
+
+--- Cached result of the last scan: total reward XP, number of quests ready to turn in.
+function Leveling:GetTurnInXP()
+	return turnIns.xp, turnIns.count
+end
+
+function Leveling:RefreshTurnIns(force)
+	local ok, xp, count, sig = pcall(scanTurnIns, force)
+	if ok then
+		turnIns.xp, turnIns.count, turnIns.sig = xp, count, sig
+	else
+		Lodestar:Debug("turn-in scan: %s", tostring(xp))
+	end
+	self:RefreshXPText()
+end
+
+function Leveling:QUEST_LOG_UPDATE()
+	if turnInTimer then return end
+	turnInTimer = self:ScheduleTimer(function()
+		turnInTimer = nil
+		self:RefreshTurnIns()
+	end, TURNIN_DELAY)
+end
+
+--- "1,240 xp (ding!)" when the ready quests cover the rest of the level, else "1,240 xp (31% of level)".
+--- nil when nothing is ready.
+function Leveling:TurnInText()
+	local xp, count = turnIns.xp, turnIns.count
+	if count == 0 then return nil end
+	local cur, xpMax = UnitXP("player"), UnitXPMax("player")
+	if xpMax > 0 and xp >= xpMax - cur then
+		return ("|cffffffff%s|r xp |cffffff00(ding!)|r"):format(BreakUpLargeNumbers(xp))
+	end
+	return ("|cffffffff%s|r xp (%.0f%% of level)"):format(BreakUpLargeNumbers(xp), xpMax > 0 and xp / xpMax * 100 or 0)
+end
+
 -- Events --------------------------------------------------------------------------
 
 function Leveling:PLAYER_XP_UPDATE(_, unit)
@@ -125,6 +205,7 @@ end
 --- alone so the following PLAYER_XP_UPDATE can compute the carry-over from the previous level's max.
 function Leveling:OnLevelUpXP(level)
 	self:UpdateXPFrame(level)
+	self:QUEST_LOG_UPDATE() -- quest XP scales with level under Classic rules: re-read it
 end
 
 -- Frame ---------------------------------------------------------------------------
@@ -145,10 +226,15 @@ local function fillTooltip(tooltip)
 	if rested and rested > 0 then
 		tooltip:AddDoubleLine("Rested", ("%s (%.0f%%)"):format(BreakUpLargeNumbers(rested), xpMax > 0 and rested / xpMax * 100 or 0), 1, 1, 1, 0.4, 0.6, 1)
 	end
+	local turnInText = Leveling:TurnInText()
+	local _, turnInCount = Leveling:GetTurnInXP()
+	tooltip:AddDoubleLine(("Ready to turn in (%d)"):format(turnInCount), turnInText or "—", 1, 1, 1, 1, 1, 1)
 	tooltip:AddLine(" ")
 	tooltip:AddDoubleLine("XP/hour (last " .. (Leveling.db.profile.xp.windowMinutes) .. "m)", FormatNumberShort(rolling), 1, 1, 1, 1, 1, 1)
 	tooltip:AddDoubleLine("XP/hour (session)", FormatNumberShort(average), 1, 1, 1, 1, 1, 1)
 	tooltip:AddDoubleLine("Time to level", ttl and FormatDuration(ttl) or "—", 1, 1, 1, 1, 1, 1)
+	tooltip:AddLine(" ")
+	Leveling:AddStripTooltipLines(tooltip)
 	if session then
 		tooltip:AddLine(" ")
 		tooltip:AddDoubleLine("Session", FormatDuration(elapsed), 1, 1, 1, 1, 1, 1)
@@ -184,6 +270,12 @@ local function createFrame()
 	frame.text:SetPoint("CENTER")
 	frame.text:SetJustifyH("CENTER")
 
+	-- Second line: the status strip, same font, hidden unless the option is on.
+	frame.strip = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	frame.strip:SetPoint("TOP", frame.text, "BOTTOM", 0, -2)
+	frame.strip:SetJustifyH("CENTER")
+	frame.strip:Hide()
+
 	frame:SetScript("OnDragStart", function(self)
 		if not Leveling.db.profile.xp.locked then self:StartMoving() end
 	end)
@@ -202,6 +294,20 @@ local function createFrame()
 	frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
+--- Lay the XP line out for one or two lines: centred alone, or pushed to the top with the strip below.
+local function layoutFrame(showStrip)
+	frame.text:ClearAllPoints()
+	if showStrip then
+		frame.text:SetPoint("TOP", frame, "TOP", 0, -5)
+		frame.strip:Show()
+		frame:SetHeight(LINE_HEIGHT + STRIP_HEIGHT)
+	else
+		frame.text:SetPoint("CENTER")
+		frame.strip:Hide()
+		frame:SetHeight(LINE_HEIGHT)
+	end
+end
+
 function Leveling:RefreshXPText()
 	if not frame or not frame:IsShown() then return end
 	local rolling, average, ttl = self:GetXPRates()
@@ -218,8 +324,17 @@ function Leveling:RefreshXPText()
 			tinsert(parts, ("|cff6b9eff%s|r rested"):format(FormatNumberShort(rested)))
 		end
 	end
-	frame.text:SetText(table.concat(parts, "  |cff666666·|r  "))
-	frame:SetWidth(math.max(120, frame.text:GetStringWidth() + 24))
+	if self.db.profile.xp.showTurnIns then
+		local turnIn = self:TurnInText()
+		if turnIn then tinsert(parts, "turn-ins: " .. turnIn) end
+	end
+	frame.text:SetText(table.concat(parts, SEP))
+	local width = frame.text:GetStringWidth()
+	if frame.strip:IsShown() then
+		frame.strip:SetText(self:BuildStripText())
+		width = math.max(width, frame.strip:GetStringWidth())
+	end
+	frame:SetWidth(math.max(120, width + 24))
 end
 
 --- `level` is optional (PLAYER_LEVEL_UP payload); otherwise the unit's current level is used.
@@ -235,8 +350,15 @@ function Leveling:UpdateXPFrame(level)
 	frame:SetScale(db.scale or 1)
 	frame:EnableMouse(true)
 	frame:SetBackdropBorderColor(db.locked and 0.4 or 0.3, db.locked and 0.4 or 0.75, db.locked and 0.4 or 1, 0.8)
+	layoutFrame(db.strip and db.strip.show)
 	frame:Show()
 	self:RefreshXPText()
+end
+
+--- UPDATE_EXHAUSTION: the XP line shows rested XP directly; the strip shows it as a share of the level.
+function Leveling:OnExhaustionUpdate()
+	self:RefreshXPText()
+	self:QueueStripRefresh()
 end
 
 -- Lifecycle ------------------------------------------------------------------------
@@ -246,8 +368,10 @@ function Leveling:EnableXPTracker()
 	self:ResetXPSession()
 	self:RegisterEvent("PLAYER_XP_UPDATE")
 	self:RegisterEvent("QUEST_TURNED_IN")
-	self:RegisterEvent("UPDATE_EXHAUSTION", "RefreshXPText")
+	self:RegisterEvent("UPDATE_EXHAUSTION", "OnExhaustionUpdate")
+	self:RegisterEvent("QUEST_LOG_UPDATE")
 	self.xpTicker = self:ScheduleRepeatingTimer("RefreshXPText", 5)
+	self:RefreshTurnIns()
 	self:UpdateXPFrame()
 
 	-- Module toggles are live, so OnEnable can run more than once per session: register once.
@@ -260,6 +384,7 @@ function Leveling:EnableXPTracker()
 		local rate = rolling > 0 and rolling or average
 		tooltip:AddDoubleLine("XP/hour", FormatNumberShort(rate), 1, 0.82, 0, 1, 1, 1)
 		tooltip:AddDoubleLine("Time to level", ttl and FormatDuration(ttl) or "—", 1, 0.82, 0, 1, 1, 1)
+		tooltip:AddDoubleLine("Turn-ins ready", self:TurnInText() or "none", 1, 0.82, 0, 1, 1, 1)
 	end)
 
 	Lodestar:RegisterSlashVerb("xp", function(rest)
@@ -272,6 +397,11 @@ function Leveling:EnableXPTracker()
 		Lodestar:Say("XP/hour %s (session avg %s) · time to level %s · %s xp this session in %s",
 			FormatNumberShort(rolling), FormatNumberShort(average), ttl and FormatDuration(ttl) or "—",
 			BreakUpLargeNumbers(session and session.xp or 0), FormatDuration(session and (GetTime() - session.start) or 0))
+		local turnIn = self:TurnInText()
+		if turnIn then
+			local _, count = self:GetTurnInXP()
+			Lodestar:Say("%d quest%s ready to turn in: %s", count, count == 1 and "" or "s", turnIn)
+		end
 	end, "XP session summary, or /lode xp reset")
 end
 
@@ -279,6 +409,8 @@ function Leveling:DisableXPTracker()
 	self:UnregisterEvent("PLAYER_XP_UPDATE")
 	self:UnregisterEvent("QUEST_TURNED_IN")
 	self:UnregisterEvent("UPDATE_EXHAUSTION")
+	self:UnregisterEvent("QUEST_LOG_UPDATE")
 	if self.xpTicker then self:CancelTimer(self.xpTicker) self.xpTicker = nil end
+	if turnInTimer then self:CancelTimer(turnInTimer) turnInTimer = nil end
 	if frame then frame:Hide() end
 end

@@ -707,6 +707,26 @@ Enum.TooltipDataType.Object = 4
 Enum.TooltipDataLineType = { QuestObjective = 8, QuestTitle = 17 }
 ShoppingTooltip1 = stub.newFrame("GameTooltip", "ShoppingTooltip1")
 ShoppingTooltip2 = stub.newFrame("GameTooltip", "ShoppingTooltip2")
+-- Comm fallback / status strip / turn-ins ---------------------------------------------------------
+C_ChatInfo.AreOutgoingAddonChatMessagesRestricted = function() return stub.commRestricted or false end
+stub.bagFree = { [0] = 3 }          -- [bag] = free slots (general-purpose bags; family 0)
+stub.durability = { [1] = { 62, 100 }, [5] = { 90, 100 } } -- [slot] = { current, max }
+stub.auras = { "Well Fed" }         -- player HELPFUL aura names in slot order
+C_Container.GetContainerNumFreeSlots = function(bag) return stub.bagFree[bag] or 0, 0 end
+GetInventoryItemDurability = function(slot) local d = stub.durability[slot] if d then return d[1], d[2] end return nil end
+C_UnitAuras = { GetAuraDataByIndex = function(unit, i, filter) local name = stub.auras[i] if name then return { name = name, spellId = 1000 + i } end return nil end }
+AuraUtil = { ForEachAura = function(unit, filter, maxCount, fn, usePacked)
+	for i, name in ipairs(stub.auras) do
+		local done
+		if usePacked then done = fn({ name = name, spellId = 1000 + i }) else done = fn(name, 134, 1, nil, 0, 0, "player", false, false, 1000 + i) end
+		if done then return end
+	end
+end }
+stub.selectedQuest = 0
+C_QuestLog.ReadyForTurnIn = function(id) local q = stub.questLog[id] return q and q.complete == true or false end
+C_QuestLog.SetSelectedQuest = function(id) stub.selectedQuest = id end
+C_QuestLog.GetSelectedQuest = function() return stub.selectedQuest end
+GetQuestLogRewardXP = function(id) local q = stub.questLog[id or stub.selectedQuest] return q and q.xp or 0 end
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

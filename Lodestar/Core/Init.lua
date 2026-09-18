@@ -70,6 +70,8 @@ end
 
 function Lodestar:PLAYER_ENTERING_WORLD(_, isLogin, isReload)
 	if isLogin or isReload then
+		-- The realm's addon-message restriction may only be reported once we are in the world.
+		self:CheckCommAvailability()
 		self:ScheduleTimer("BroadcastVersion", 8)
 	end
 end

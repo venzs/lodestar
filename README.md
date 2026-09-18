@@ -5,10 +5,10 @@ A suite of addons for **World of Warcraft: Forever**. One core, four modules, in
 | Addon | What it does |
 |---|---|
 | **Lodestar** (required) | Settings panel, module toggles, minimap button, guild/party comms, `/lode` |
-| **Lodestar_Leveling** | XP/hour + time-to-level readout, quest auto-accept/turn-in, `/way` waypoints, time-per-level stats |
+| **Lodestar_Leveling** | XP/hour + time-to-level readout with the XP waiting in completed quests ("turn-ins to ding") and a status strip (bag slots, durability, rested %, Well Fed) with bag-space and repair nags; quest auto-accept/turn-in, `/way` waypoints, time-per-level stats |
 | **Lodestar_Economy** | Auto-sell greys, auto-repair, account-wide gold ledger, vendor + auction prices in tooltips |
 | **Lodestar_UI** | Item/spell/NPC IDs and target-of-target in tooltips, map + minimap coordinates, clickable chat links, timestamps, copy-chat, fast loot |
-| **Lodestar_Guild** | Live guild board: who is online, where, what level, who wants a group (`/lode guild`, `/lode lfg`) |
+| **Lodestar_Guild** | Live guild board: who is online, where, what level, who wants a group (`/lode guild`, `/lode lfg`). On realms that restrict addon messages (the Forever beta) it shows the guild roster and `/lode lfg` drafts a guild chat line for you to send |
 | **Lodestar_Guide** | Navigation arrow (points at the guide step, your `/way` pin, or the nearest quest objective/turn-in), step-by-step guide window, and a route recorder that turns your playthrough into a guide (`/lode record`) |
 | **Lodestar_Guides_Horde** | Guide data pack (routes in the text format below). Alliance pack to follow. |
 | **Lodestar_Character** | The character-sheet stats Blizzard hides, rendered inside the standard stats pane: melee/ranged/spell hit with miss tables vs +0..+3, crit and haste split, spell power per school, MP5/HP5, attack speed and DPS, weapon skills, enemy miss/crit/crush, block value, armor reduction, item level, durability, XP/rested, talent and Legacy points, PvP rank |
