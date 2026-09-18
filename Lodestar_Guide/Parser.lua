@@ -22,6 +22,13 @@
 --     .fly Brill [>>text]                      completes when a flight is taken
 --     .vendor / .repair / .text >>Free text    informational; click Next to continue
 --     .class Paladin     .race Undead          skip this step for other classes/races
+--     .train Shan Stillwell [>>text]           optional trainer name, shown in the step text
+--     .buy 2320,2 [>>text]                     completes when you carry that many of the item
+--     .profession Skinning,Herbalism [>>text]  completes when the character knows those professions
+--     .camp / .cook [>>text]                   Forever camp and cooking buffs; click Next to continue
+--     .optional [>>reason]                     completionist-only step (skipped in speed-run mode)
+--     .item 6948[,itemID]                      skip the step unless you carry the item(s)
+--     .path 30.8,66.2;31.0,65.5;...           a trail of percent points for the map (step.path)
 --   -- comment lines start with -- or ;
 local Lodestar = _G.Lodestar
 local Guide = Lodestar:GetModule("Guide")
@@ -32,6 +39,12 @@ Guide.Parser = Parser
 local ACTION_TYPES = {
 	accept = true, turnin = true, complete = true, xp = true, level = true, zone = true, train = true,
 	hs = true, fly = true, vendor = true, repair = true, text = true, ["goto"] = true, class = true, race = true, link = true,
+	buy = true, optional = true, path = true, profession = true, camp = true, cook = true, item = true,
+}
+
+local DEFAULT_TEXT = {
+	camp = "Set up camp / use a campfire",
+	cook = "Cook food for the XP buff",
 }
 
 local function splitList(s)
@@ -67,6 +80,30 @@ local function parseGoto(args)
 	if not x or not y then return nil, "goto coordinates must be numbers" end
 	local map = tonumber(parts[1]) or parts[1]
 	return { map = map, x = x, y = y, radius = tonumber(parts[4]) }
+end
+
+local function parsePath(args)
+	-- "30.8,66.2;31.0,65.5;..." (percent coordinates on the step's map)
+	local path = {}
+	for pair in (args or ""):gmatch("[^;]+") do
+		local x, y = pair:match("^%s*(-?[%d%.]+)%s*,%s*(-?[%d%.]+)%s*$")
+		x, y = tonumber(x), tonumber(y)
+		if not x or not y then return nil, "path points must be x,y pairs separated by ;" end
+		tinsert(path, { x = x, y = y })
+	end
+	if #path == 0 then return nil, "path needs at least one x,y point" end
+	return path
+end
+
+local function parseIDs(args, what)
+	local ids = {}
+	for _, id in ipairs(splitList(args)) do
+		local n = tonumber(id)
+		if not n then return nil, what .. ": bad id " .. id end
+		tinsert(ids, n)
+	end
+	if #ids == 0 then return nil, what .. " needs an id" end
+	return ids
 end
 
 --- Parse guide text. Returns guide table or nil, error.
@@ -127,6 +164,28 @@ function Parser.Parse(text)
 				step.races = toSet(splitList(args))
 			elseif directive == "link" then
 				step.link = args
+			elseif directive == "optional" then
+				step.optional = true
+				step.optionalReason = label or (args ~= "" and args or nil)
+			elseif directive == "path" then
+				local p, err = parsePath(args)
+				if not p then return fail(err) end
+				step.path = p
+			elseif directive == "item" then
+				local ids, err = parseIDs(args, "item")
+				if not ids then return fail(err) end
+				step.requireItems = ids
+			elseif directive == "buy" then
+				local parts = splitList(args)
+				local itemID = tonumber(parts[1])
+				if not itemID then return fail("buy needs an item id") end
+				local count = tonumber(parts[2])
+				if parts[2] and not count then return fail("buy: bad count " .. parts[2]) end
+				tinsert(step.actions, { type = "buy", itemID = itemID, count = count or 1, text = label })
+			elseif directive == "profession" then
+				local names = splitList(args)
+				if #names == 0 then return fail("profession needs a name") end
+				tinsert(step.actions, { type = "profession", names = names, text = label })
 			elseif directive == "accept" then
 				local ids = splitList(args)
 				if #ids == 0 then return fail("accept needs a quest id") end
@@ -155,9 +214,9 @@ function Parser.Parse(text)
 			elseif directive == "zone" then
 				if args == "" then return fail("zone needs a name") end
 				tinsert(step.actions, { type = "zone", zone = args, text = label })
-			elseif directive == "hs" or directive == "fly" then
+			elseif directive == "hs" or directive == "fly" or directive == "train" then
 				tinsert(step.actions, { type = directive, name = args ~= "" and args or nil, text = label })
-			else -- train, vendor, repair, text
+			else -- vendor, repair, text, camp, cook
 				tinsert(step.actions, { type = directive, text = label or (args ~= "" and args or nil) })
 			end
 		else
@@ -175,8 +234,13 @@ function Parser.Parse(text)
 	return guide
 end
 
---- Human text for an action; questName(id) and objectiveText(id, index) are optional lookups.
-function Parser.ActionText(action, questName, objectiveText)
+local function joinNames(names)
+	if #names <= 1 then return names[1] or "" end
+	return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+end
+
+--- Human text for an action; questName(id), objectiveText(id, index) and itemName(id) are optional lookups.
+function Parser.ActionText(action, questName, objectiveText, itemName)
 	if action.text then return action.text end
 	local t = action.type
 	local qn = action.questID and (questName and questName(action.questID)) or (action.questID and ("quest #" .. action.questID))
@@ -188,19 +252,25 @@ function Parser.ActionText(action, questName, objectiveText)
 	end
 	if t == "level" then return "Reach level " .. action.level end
 	if t == "zone" then return "Go to " .. action.zone end
-	if t == "train" then return "Train new skills" end
+	if t == "train" then return "Train new skills" .. (action.name and (" at " .. action.name) or "") end
 	if t == "hs" then return "Set your hearthstone" .. (action.name and (" at " .. action.name) or "") end
 	if t == "fly" then return "Fly to " .. (action.name or "the next flight point") end
 	if t == "vendor" then return "Sell junk and restock at a vendor" end
 	if t == "repair" then return "Repair" end
+	if t == "buy" then
+		local name = (itemName and itemName(action.itemID)) or ("item #" .. action.itemID)
+		return "Buy " .. ((action.count or 1) > 1 and (action.count .. "x ") or "") .. name
+	end
+	if t == "profession" then return "Train " .. joinNames(action.names or {}) end
+	if DEFAULT_TEXT[t] then return DEFAULT_TEXT[t] end
 	return action.text or "Continue"
 end
 
 --- Full display text for a step.
-function Parser.StepText(step, questName, objectiveText, mapName)
+function Parser.StepText(step, questName, objectiveText, mapName, itemName)
 	if step.label then return step.label end
 	local parts = {}
-	for _, a in ipairs(step.actions) do tinsert(parts, Parser.ActionText(a, questName, objectiveText)) end
+	for _, a in ipairs(step.actions) do tinsert(parts, Parser.ActionText(a, questName, objectiveText, itemName)) end
 	if #parts == 0 and step.go then
 		local where = step.go.text or (mapName and mapName(step.go.map)) or tostring(step.go.map)
 		return ("Go to %.1f, %.1f in %s"):format(step.go.x, step.go.y, where)
@@ -208,10 +278,17 @@ function Parser.StepText(step, questName, objectiveText, mapName)
 	return table.concat(parts, " · ")
 end
 
---- Does this step apply to the player? classFile/raceName are lower-case.
-function Parser.StepApplies(step, classFile, raceName)
+--- Does this step apply to the player? classFile/raceName are lower-case. `completionist` shows
+--- .optional steps; hasItem(itemID) (optional) decides .item filters.
+function Parser.StepApplies(step, classFile, raceName, completionist, hasItem)
 	if step.classes and not step.classes[classFile] then return false end
 	if step.races and not step.races[raceName] then return false end
+	if step.optional and not completionist then return false end
+	if step.requireItems and hasItem then
+		for _, id in ipairs(step.requireItems) do
+			if not hasItem(id) then return false end
+		end
+	end
 	return true
 end
 

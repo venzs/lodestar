@@ -4,6 +4,10 @@
 -- the classic Brill loops: west (Darkhounds, zombies, Garren's Haunt), north-west (Scarlet camp,
 -- murlocs, Agamand Mills), then south and east (Scarlet Crusade, Balnir, Venomweb Vale), with an
 -- Undercity trip for the Prodigal Lich chain at the end. Forever-only quests are not in here yet.
+--
+-- Speed run vs completionist: steps marked .optional (the Calvin duel, Rear Guard Patrol, The Family
+-- Crypt, Captain Melrache, the Prodigal Lich / Gunther's Retreat chain, professions, camp and cooking)
+-- are skipped unless "Completionist" is on (right-click the guide window, or /lode guide completionist).
 local Guide = _G.Lodestar:GetModule("Guide")
 
 Guide:RegisterGuide([[
@@ -60,6 +64,12 @@ step
   .hs Brill >>Set your hearthstone at the Brill inn
 
 step
+  .goto Tirisfal Glades,61.7,52.0
+  .optional >>Forever camp and cooking buffs — skip on a speed run
+  .camp >>Set up camp at the inn's fire before heading out (Forever camp buff)
+  .cook >>Cook the meat you have looted for the well-fed XP buff
+
+step
   .goto Tirisfal Glades,57.4,48.8
   .turnin 5481 >>Turn in Gordo's Task to Junior Apothecary Holland (north end of Brill)
   .accept 5482 >>Accept Doom Weed
@@ -72,10 +82,46 @@ step
   .goto Tirisfal Glades,61.3,50.8
   .accept 358 >>Accept Graverobbers from Magistrate Sevren in the town hall
 
+-- Class trainers in Brill (the guide window also flags "New spells available" on its own)
+
 step
-  .goto Tirisfal Glades,61.3,50.8
-  .train >>Visit your class trainer in Brill if you have new skills, and sell junk
-  .vendor
+  .goto Tirisfal Glades,61.9,52.5
+  .class Warrior
+  .train Austil de Mon >>Train new skills at Austil de Mon, the warrior trainer by the inn
+
+step
+  .goto Tirisfal Glades,61.8,52.0
+  .class Rogue
+  .train Marion Call >>Train new skills at Marion Call, the rogue trainer at the inn
+
+step
+  .goto Tirisfal Glades,61.6,52.2
+  .class Priest
+  .train Dark Cleric Beryl >>Train new skills at Dark Cleric Beryl, the priest trainer at the inn
+
+step
+  .goto Tirisfal Glades,62.0,52.5
+  .class Mage
+  .train Cain Firesong >>Train new skills at Cain Firesong, the mage trainer by the inn
+
+step
+  .goto Tirisfal Glades,61.6,52.4
+  .class Warlock
+  .train Rupert Boch >>Train new skills at Rupert Boch, the warlock trainer at the inn
+
+step
+  .goto Tirisfal Glades,61.7,52.3
+  .class Paladin
+  .train Shan Stillwell >>Train new skills at Shan Stillwell, the paladin trainer in Brill (new on Forever — look around the inn)
+
+step
+  .goto Tirisfal Glades,61.0,52.4
+  .vendor >>Sell junk to Abigail Shiel (trade supplies) next to the inn
+
+step
+  .goto Tirisfal Glades,61.0,52.4
+  .optional >>Professions cost time early; a speed run skips them
+  .profession Skinning,Herbalism >>Optional: learn Skinning and Herbalism. The trainers are in the Undercity (Killian Hagey in the Rogues' Quarter, Martha Alliestar in the Apothecarium) — click Next to pick them up on the Undercity trip later
 
 -- West loop: Darkhounds, zombies, Garren's Haunt ------------------------------------------------
 
@@ -127,7 +173,11 @@ step
   .goto Tirisfal Glades,61.3,50.8
   .turnin 358 >>Turn in Graverobbers to Magistrate Sevren
   .accept 359 >>Accept Forsaken Duties
-  .accept 405 >>Accept The Prodigal Lich (for the Undercity trip later)
+
+step
+  .goto Tirisfal Glades,61.3,50.8
+  .optional >>Starts the Undercity / Gunther's Retreat chain at the end of the guide
+  .accept 405 >>Accept The Prodigal Lich from Magistrate Sevren (for the Undercity trip later)
 
 step
   .goto Tirisfal Glades,61.7,52.3
@@ -148,14 +198,16 @@ step
 
 step
   .goto Tirisfal Glades,51.4,49.5
-  .complete 375,2 >>Loot 5 Duskbat Pelts from Greater Duskbats west of Brill (lvl 6-7); buy Coarse Thread from a vendor for the other part
+  .complete 375,2 >>Loot 5 Duskbat Pelts from Greater Duskbats west of Brill (lvl 6-7); the Coarse Thread comes from a vendor in Brill later
 
 step
   .goto Tirisfal Glades,38.2,56.8
+  .optional >>A duel for a few silver and little XP — skip on a speed run
   .accept 590 >>Accept A Rogue's Deal from Calvin Montague
 
 step
   .goto Tirisfal Glades,38.2,56.8
+  .optional >>A duel for a few silver and little XP — skip on a speed run
   .complete 590 >>Beat Calvin Montague in a duel (lvl 5)
   .turnin 590 >>Turn in A Rogue's Deal to Calvin
 
@@ -232,7 +284,11 @@ step
   .goto Tirisfal Glades,65.5,60.3
   .turnin 359 >>Turn in Forsaken Duties to Deathguard Linnea on the road south-east of Brill
   .accept 360 >>Accept Return to the Magistrate
-  .accept 356 >>Accept Rear Guard Patrol
+
+step
+  .goto Tirisfal Glades,65.5,60.3
+  .optional >>20 kills at Balnir Farmstead for one turn-in — decent XP, but off the fast line
+  .accept 356 >>Accept Rear Guard Patrol from Deathguard Linnea
 
 step
   .goto Tirisfal Glades,70.2,53.7
@@ -240,6 +296,7 @@ step
 
 step
   .goto Tirisfal Glades,76.1,61.1
+  .optional >>Rear Guard Patrol
   .complete 356,1 >>Kill 10 Bleeding Horrors at the Balnir Farmstead (lvl 9-10)
   .complete 356,2 >>Kill 10 Wandering Spirits (lvl 10-11)
 
@@ -254,6 +311,7 @@ step
 
 step
   .goto Tirisfal Glades,65.5,60.3
+  .optional >>Rear Guard Patrol
   .turnin 356 >>Turn in Rear Guard Patrol to Deathguard Linnea
 
 -- Brill: fourth visit ---------------------------------------------------------------------------
@@ -281,8 +339,12 @@ step
   .turnin 492 >>Turn in A New Plague to the Captured Mountaineer in the cage
 
 step
+  .goto Tirisfal Glades,61.0,52.4
+  .buy 2320,1 >>Buy Coarse Thread from Abigail Shiel, the trade supplier by the inn (for The Chill of Death)
+
+step
   .goto Tirisfal Glades,61.9,52.7
-  .turnin 375 >>Turn in The Chill of Death to Gretchen Dedmar (buy Coarse Thread from the tailoring supplier first)
+  .turnin 375 >>Turn in The Chill of Death to Gretchen Dedmar
 
 -- East again: Scarlet Friars and Captain Vachon --------------------------------------------------
 
@@ -297,49 +359,68 @@ step
 step
   .goto Tirisfal Glades,60.6,51.8
   .turnin 371 >>Turn in At War With The Scarlet Crusade to Executor Zygand (hearth to Brill)
-  .accept 372 >>Accept At War With The Scarlet Crusade (part 4) — Captain Melrache, lvl 12, for later
 
--- Undercity and Gunther's Retreat: the Prodigal Lich ------------------------------------------------
+step
+  .goto Tirisfal Glades,60.6,51.8
+  .optional >>Captain Melrache (lvl 12) sits in the far north-east; do it on the way to the Monastery or with a group
+  .accept 372 >>Accept At War With The Scarlet Crusade (part 4) from Executor Zygand — Captain Melrache, for later
+
+-- Undercity and Gunther's Retreat: the Prodigal Lich (completionist) --------------------------------
+-- Two Undercity round trips and an island loop for four turn-ins; a speed run skips the whole chain.
 
 step
   .goto Tirisfal Glades,65.7,68.8
+  .optional >>Undercity trip: the Prodigal Lich chain
   .turnin 405 >>Turn in The Prodigal Lich to Bethor Iceshard in the Undercity (Magic Quarter)
   .accept 357 >>Accept The Lich's Identity
 
 step
   .goto Tirisfal Glades,65.7,68.8
+  .optional >>Undercity trip
   .train >>Train at your class trainer in the Undercity while you are here
 
 step
+  .goto Undercity,70.2,59.2
+  .optional >>Undercity trip: professions
+  .profession Skinning,Herbalism >>Learn Skinning from Killian Hagey (Rogues' Quarter) and Herbalism from Martha Alliestar (Apothecarium) while you are in the Undercity
+
+step
   .goto Tirisfal Glades,68.0,42.1
+  .optional >>Gunther's Retreat chain
   .complete 357,1 >>Pick up The Lich's Spellbook from Gunther's Books on the island north-east of Brill (Gunther's Retreat)
 
 step
   .goto Tirisfal Glades,65.7,68.8
+  .optional >>Gunther's Retreat chain
   .turnin 357 >>Turn in The Lich's Identity to Bethor Iceshard
   .accept 366 >>Accept Return the Book
 
 step
   .goto Tirisfal Glades,68.2,41.9
+  .optional >>Gunther's Retreat chain
   .turnin 366 >>Turn in Return the Book to Gunther Arcanus at Gunther's Retreat
   .accept 409 >>Accept Proving Allegiance
 
 step
   .goto Tirisfal Glades,68.2,42.0
+  .optional >>Gunther's Retreat chain
   .accept 431 >>Take a Candle of Beckoning from the Crate of Candles next to Gunther
 
 step
   .goto Tirisfal Glades,66.6,44.9
+  .optional >>Gunther's Retreat chain
   .accept 410 >>Use the candle at Lillith's Dinner Table in the house south-west of the tower
   .complete 409 >>Kill Lillith Nefara when she appears (lvl 12)
 
 step
   .goto Tirisfal Glades,68.2,41.9
+  .optional >>Gunther's Retreat chain
   .turnin 409 >>Turn in Proving Allegiance to Gunther Arcanus
   .accept 411 >>Accept The Prodigal Lich Returns
 
 step
   .goto Tirisfal Glades,65.7,68.8
+  .optional >>Gunther's Retreat chain
   .turnin 411 >>Turn in The Prodigal Lich Returns to Bethor Iceshard in the Undercity
 
 step
@@ -349,7 +430,8 @@ step
 
 step
   .goto Tirisfal Glades,61.3,50.8
-  .accept 408 >>Accept The Family Crypt from Magistrate Sevren — a level 13 quest for Agamand's crypt; do it now with a partner or come back at 12
+  .optional >>A level 13 elite-area quest (Captain Dargol in the Agamand crypt); needs a partner or level 12+
+  .accept 408 >>Accept The Family Crypt from Magistrate Sevren — do it now with a partner or come back at 12
 
 step
   .zone Silverpine Forest >>Head south-west out of Brill along the road into Silverpine Forest (The Sepulcher)

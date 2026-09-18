@@ -47,20 +47,27 @@ local function distanceTo(c)
 	return dist, w[4]
 end
 
---- Nearest coordinate among a list of entities: mapID, x, y (0..1), name, dist.
+--- Nearest coordinate among a list of entities: mapID, x, y (0..1), name, dist, id.
 local function nearest(store, ids)
-	local best, bestDist, bestName, bestMap
+	local best, bestDist, bestName, bestMap, bestID
 	for _, id in ipairs(ids or {}) do
 		local e = store[id]
 		if e and e.c then
 			for _, c in ipairs(e.c) do
 				local dist, mapID = distanceTo(c)
-				if dist and (not bestDist or dist < bestDist) then best, bestDist, bestName, bestMap = c, dist, e.n, mapID end
+				if dist and (not bestDist or dist < bestDist) then best, bestDist, bestName, bestMap, bestID = c, dist, e.n, mapID, id end
 			end
 		end
 	end
 	if not best then return nil end
-	return bestMap, best[2] / 100, best[3] / 100, bestName, bestDist
+	return bestMap, best[2] / 100, best[3] / 100, bestName, bestDist, bestID
+end
+
+--- Nearest of the given NPC ids (Data/Trainers.lua lists, for one): mapID, x, y (0..1), name, dist, npcID.
+function Guide:DataNearestNPC(ids)
+	local d = data()
+	if not d then return nil end
+	return nearest(d.npcs, ids)
 end
 
 local function itemSourceIDs(itemIDs)
@@ -180,9 +187,11 @@ function Guide:DataAvailableItems(items, mapID)
 							seen[qid] = true
 							local pmap, x, y, name, dist = nearest(store, { id })
 							if pmap then
+								-- canTake already applied the class mask, so a class-flagged quest here is for this class.
+								local classQuest = q.class and q.class ~= 0 or false
 								tinsert(found, { kind = "available", questID = qid, mapID = pmap, x = x, y = y, dist = dist, source = "data",
-									title = q.t or ("Quest " .. qid), level = q.lvl,
-									subtitle = "Pick up from " .. (name or (isObject and "object" or "NPC")) .. (q.lvl and (" · lvl " .. q.lvl) or "") })
+									title = q.t or ("Quest " .. qid), level = q.lvl, classQuest = classQuest,
+									subtitle = (classQuest and "Class quest · " or "") .. "Pick up from " .. (name or (isObject and "object" or "NPC")) .. (q.lvl and (" · lvl " .. q.lvl) or "") })
 							end
 						end
 					end

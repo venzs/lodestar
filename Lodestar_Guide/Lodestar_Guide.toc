@@ -13,6 +13,7 @@
 
 Guide.lua
 Data\Vanilla.lua
+Data\Trainers.lua
 Parser.lua
 Arrow.lua
 Data.lua
@@ -21,3 +22,5 @@ Smart.lua
 Engine.lua
 StepFrame.lua
 Recorder.lua
+Trails.lua
+Data\Trails_Seed.lua

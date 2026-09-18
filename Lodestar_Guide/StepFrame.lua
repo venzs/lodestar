@@ -78,6 +78,15 @@ local function createFrame()
 	frame.meta:SetJustifyH("LEFT")
 	frame.meta:SetTextColor(0.7, 0.7, 0.7)
 
+	-- Banner: "New spells available — <trainer> is 120 yd away" (guided mode; smart mode lists it instead).
+	frame.banner = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	frame.banner:SetPoint("TOPLEFT", frame.meta, "BOTTOMLEFT", 0, 0)
+	frame.banner:SetWidth(WIDTH - 20)
+	frame.banner:SetJustifyH("LEFT")
+	frame.banner:SetWordWrap(true)
+	frame.banner:SetTextColor(1, 0.84, 0)
+	frame.banner:SetHeight(1)
+
 	-- Clicking the step text points the arrow at it.
 	local click = CreateFrame("Button", nil, frame)
 	click:SetPoint("TOPLEFT", frame.step, "TOPLEFT", -2, 2)
@@ -92,7 +101,10 @@ local function createFrame()
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT")
 		GameTooltip:AddLine(Guide.current.name)
 		for _, a in ipairs(step.actions) do
-			GameTooltip:AddLine("• " .. Guide.Parser.ActionText(a, function(id) return C_QuestLog.GetTitleForQuestID(id) or ("quest #" .. id) end), 1, 1, 1, true)
+			GameTooltip:AddLine("• " .. Guide:ActionText(a), 1, 1, 1, true)
+		end
+		if step.optional then
+			GameTooltip:AddLine("Optional" .. (step.optionalReason and (" — " .. step.optionalReason) or "") .. " (completionist mode)", 0.7, 0.7, 0.7, true)
 		end
 		if step.go then
 			GameTooltip:AddLine(("%s %.1f, %.1f"):format(Guide:MapName(step.go.map), step.go.x, step.go.y), 0.7, 0.7, 0.7)
@@ -106,7 +118,7 @@ local function createFrame()
 	frame.divider = frame:CreateTexture(nil, "ARTWORK")
 	frame.divider:SetColorTexture(1, 1, 1, 0.12)
 	frame.divider:SetHeight(1)
-	frame.divider:SetPoint("TOPLEFT", frame.meta, "BOTTOMLEFT", 0, -5)
+	frame.divider:SetPoint("TOPLEFT", frame.banner, "BOTTOMLEFT", 0, -5)
 	frame.divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, 0)
 
 	for i = 1, 8 do
@@ -152,7 +164,21 @@ local function createFrame()
 	end
 end
 
-local KIND_LABEL = { turnin = "|cff7fff7fTurn in|r", objective = "|cffffffffDo|r", available = "|cffffd700Pick up|r", hub = "|cffaaaaaaHub|r" }
+local KIND_LABEL = { turnin = "|cff7fff7fTurn in|r", objective = "|cffffffffDo|r", available = "|cffffd700Pick up|r", hub = "|cffaaaaaaHub|r", train = "|cff4fc3f7Train|r" }
+local OPTIONAL_TAG = " |cff888888(optional)|r"
+
+--- Set the banner text (or clear it) and return the height it takes.
+local function setBanner(text)
+	if text then
+		frame.banner:SetText(text)
+		local h = (frame.banner:GetStringHeight() or 12) + 4
+		frame.banner:SetHeight(h)
+		return h
+	end
+	frame.banner:SetText("")
+	frame.banner:SetHeight(1)
+	return 1
+end
 
 --- Smart mode: the "next up" list built from the quest log and the map.
 local function refreshSmart()
@@ -192,8 +218,16 @@ local function refreshSmart()
 		row:SetText("")
 		row:Hide()
 	end
-	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + 10 + shown * 16 + 10
+	local bannerH = setBanner(nil)
+	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + bannerH + 10 + shown * 16 + 10
 	frame:SetHeight(math.max(70, height))
+end
+
+--- Guided mode banner: the class trainer suggestion, when there is one.
+local function trainerBanner()
+	local t = Guide:TrainerSuggestion()
+	if not t then return nil end
+	return ("|cffffd700New spells available|r — %s is %d yd away"):format(t.name or "your class trainer", math.floor(t.dist or 0))
 end
 
 function Guide:RefreshStepFrame()
@@ -204,7 +238,7 @@ function Guide:RefreshStepFrame()
 		return
 	end
 	frame.title:SetText(("%s  |cffaaaaaa%d/%d%s|r"):format(guide.name, step.index, #guide.steps, self.finished and " · done" or ""))
-	frame.step:SetText(self:StepText(step))
+	frame.step:SetText(self:StepText(step) .. (step.optional and OPTIONAL_TAG or ""))
 	local meta = {}
 	if self.finished then tinsert(meta, "|cff7fff7fGuide finished|r — > for smart mode, right-click for other guides") end
 	if step.go then tinsert(meta, ("%s %.1f, %.1f"):format(self:MapName(step.go.map), step.go.x, step.go.y)) end
@@ -212,16 +246,26 @@ function Guide:RefreshStepFrame()
 	local target = self:GetArrowTarget()
 	if dist and target and target.kind == "guide" then tinsert(meta, ("%d yd"):format(dist)) end
 	frame.meta:SetText(table.concat(meta, "  ·  "))
+	local bannerH = setBanner(trainerBanner())
 
+	-- Upcoming: the next steps that apply to this character (other classes' and, in speed-run mode,
+	-- optional steps are left out, as the engine will skip them).
 	local n = self.db.profile.steps.upcoming or 3
+	local pf = self:PlayerFilters()
+	local upcoming = {}
+	for idx = step.index + 1, #guide.steps do
+		if #upcoming >= n then break end
+		local s = guide.steps[idx]
+		if self:StepApplies(s, pf) then tinsert(upcoming, s) end
+	end
 	local shown = 0
 	for i = 1, 8 do
 		local row = upcomingLines[i]
-		local nextStep = guide.steps[step.index + i]
+		local nextStep = upcoming[i]
 		row.item = nil
-		if i <= n and nextStep then
+		if nextStep then
 			row.stepIndex = nextStep.index
-			row:SetText(("%d. %s"):format(nextStep.index, self:StepText(nextStep)))
+			row:SetText(("%d. %s%s"):format(nextStep.index, self:StepText(nextStep), nextStep.optional and OPTIONAL_TAG or ""))
 			row:Show()
 			shown = shown + 1
 		else
@@ -230,7 +274,7 @@ function Guide:RefreshStepFrame()
 			row:Hide()
 		end
 	end
-	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + 10 + shown * 16 + 10
+	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + bannerH + 10 + shown * 16 + 10
 	frame:SetHeight(math.max(70, height))
 end
 
@@ -282,6 +326,8 @@ function Guide:ShowGuideMenu()
 			function() self.db.profile.steps.locked = not self.db.profile.steps.locked self:UpdateStepFrame() end)
 		root:CreateCheckbox("Auto-advance", function() return self.db.profile.steps.autoAdvance end,
 			function() self.db.profile.steps.autoAdvance = not self.db.profile.steps.autoAdvance end)
+		root:CreateCheckbox("Completionist (do optional quests)", function() return self.db.profile.steps.completionist end,
+			function() self:SetCompletionist(not self.db.profile.steps.completionist) end)
 		root:CreateButton("Hide window", function() self.db.profile.steps.show = false self:UpdateStepFrame() end)
 		root:CreateButton("Settings", function() self:OpenSettings() end)
 	end)

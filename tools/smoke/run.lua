@@ -44,6 +44,8 @@ end
 
 local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild", "Lodestar_Guide", "Lodestar_Guides_Horde" }
 for _, a in ipairs(addons) do loadToc(a) end
+-- Data/Trainers.lua belongs in the Guide TOC after Data/Vanilla.lua; load it here while that line is pending.
+if not _G.Lodestar:GetModule("Guide").TrainerData then loadLua("Lodestar_Guide/Data/Trainers.lua") end
 
 stub.loggedIn = true
 stub.fire("PLAYER_LOGIN")
@@ -877,6 +879,262 @@ try("trails", function()
 	stub.slash("/way clear")
 	stub.slash("/lode arrow auto")
 	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = savedMap, savedX, savedY
+end)
+-- Guide DSL: buy / optional / path / profession / camp / cook / item / train <name>
+try("dsl parse", function()
+	local P = G.Parser
+	local g, err = P.Parse([[
+#guide Test: DSL
+#levels 1-60
+step
+  .goto 18,61.0,52.4
+  .buy 2320,2 >>Buy two Coarse Thread
+step
+  .buy 2320
+step
+  .optional >>Skip on a speed run
+  .path 30.8,66.2;31.0,65.5;32.7,65.6
+  .accept 590
+step
+  .profession Skinning,Herbalism
+step
+  .camp
+  .cook
+step
+  .train Shan Stillwell
+  .class Paladin
+step
+  .item 6948
+  .complete 6395
+step
+  .optional
+  .camp >>Camp by the inn
+]])
+	check(g, "dsl guide parsed: " .. tostring(err))
+	if not g then return end
+	local s = g.steps
+	check(s[1].actions[1].type == "buy" and s[1].actions[1].itemID == 2320 and s[1].actions[1].count == 2 and s[1].actions[1].text == "Buy two Coarse Thread", "buy with count and text")
+	check(s[2].actions[1].type == "buy" and s[2].actions[1].count == 1, "buy defaults to one")
+	check(P.StepText(s[2]) == "Buy item #2320", "buy text before the item name loads: " .. P.StepText(s[2]))
+	check(P.StepText(s[2], nil, nil, nil, function(id) return "Coarse Thread" end) == "Buy Coarse Thread", "buy text with the item name")
+	check(P.StepText(s[1], nil, nil, nil, function(id) return "Coarse Thread" end) == "Buy two Coarse Thread", "buy keeps >> text")
+	check(s[3].optional == true and s[3].optionalReason == "Skip on a speed run", "optional with reason")
+	check(s[3].path and #s[3].path == 3 and s[3].path[2].x == 31.0 and s[3].path[3].y == 65.6, "path points parsed")
+	check(s[3].actions[1].type == "accept" and s[3].actions[1].questID == 590, "optional step keeps its actions")
+	check(s[4].actions[1].type == "profession" and s[4].actions[1].names[2] == "Herbalism", "profession names parsed")
+	check(P.StepText(s[4]) == "Train Skinning and Herbalism", "profession text: " .. P.StepText(s[4]))
+	check(s[5].actions[1].type == "camp" and s[5].actions[2].type == "cook", "camp and cook parsed")
+	check(P.StepText(s[5]) == "Set up camp / use a campfire · Cook food for the XP buff", "camp/cook default text: " .. P.StepText(s[5]))
+	check(s[6].actions[1].type == "train" and s[6].actions[1].name == "Shan Stillwell" and s[6].classes.paladin, "train with a trainer name")
+	check(P.StepText(s[6]) == "Train new skills at Shan Stillwell", "train text names the trainer: " .. P.StepText(s[6]))
+	check(s[7].requireItems and s[7].requireItems[1] == 6948, "item filter parsed")
+	check(s[8].optional and s[8].optionalReason == nil and s[8].actions[1].text == "Camp by the inn", "bare optional")
+	check(P.StepApplies(s[3], "warrior", "undead", false) == false and P.StepApplies(s[3], "warrior", "undead", true) == true, "Parser.StepApplies honours completionist")
+	check(P.StepApplies(s[7], "warrior", "undead", false, function() return false end) == false and P.StepApplies(s[7], "warrior", "undead", false, function() return true end), "Parser.StepApplies honours item filters")
+	local bad, berr = P.Parse("#guide X\nstep\n  .buy")
+	check(bad == nil and berr and berr:find("buy needs an item id"), "buy without an id rejected: " .. tostring(berr))
+	bad, berr = P.Parse("#guide X\nstep\n  .path 1;2")
+	check(bad == nil and berr and berr:find("path points"), "bad path rejected: " .. tostring(berr))
+	bad, berr = P.Parse("#guide X\nstep\n  .profession")
+	check(bad == nil and berr and berr:find("profession needs"), "profession without a name rejected")
+	-- the shipped Horde guide uses the new directives and still parses
+	local tirisfal = G.guideByName["Horde/Undead 5-12: Tirisfal Glades"]
+	local kinds = {}
+	for _, st in ipairs(tirisfal.steps) do
+		if st.optional then kinds.optional = (kinds.optional or 0) + 1 end
+		for _, a in ipairs(st.actions) do kinds[a.type] = (kinds[a.type] or 0) + 1 end
+	end
+	check((kinds.optional or 0) >= 14 and kinds.buy == 1 and kinds.profession == 2 and kinds.camp == 1 and kinds.cook == 1 and kinds.train >= 7, "Tirisfal guide carries buy/optional/profession/camp/cook/train steps: " .. tostring(kinds.optional))
+end)
+try("dsl engine", function()
+	stub.level = 10
+	stub.itemCounts = {}
+	stub.professions = {}
+	G.db.profile.steps.completionist = false
+	local g = G:RegisterGuide([[
+#guide Test: DSL engine
+#levels 1-60
+step
+  .buy 2320,2 >>Buy two Coarse Thread
+step
+  .optional >>Skip on a speed run
+  .camp
+step
+  .profession Skinning
+step
+  .item 777
+  .text >>Use the thing you looted
+step
+  .cook
+step
+  .text >>Done
+]], "smoke")
+	check(g ~= nil, "engine guide registered")
+	G.db.char.progress["Test: DSL engine"] = nil
+	G:LoadGuide("Test: DSL engine", 1)
+	check(G.stepIndex == 1, "buy step waits while the bag is empty, at " .. tostring(G.stepIndex))
+	check(G:StepText(G:CurrentStep()) == "Buy two Coarse Thread", "buy step text")
+	stub.itemCounts[2320] = 1
+	stub.fire("BAG_UPDATE_DELAYED")
+	stub.advance(1)
+	check(G.stepIndex == 1, "one of two is not enough")
+	stub.itemCounts[2320] = 2
+	stub.fire("BAG_UPDATE_DELAYED")
+	stub.advance(1)
+	-- speed run: the optional camp step (2) is skipped; the profession step (3) waits
+	check(G.stepIndex == 3, "buy complete, optional step skipped in speed-run mode, at " .. tostring(G.stepIndex))
+	check(not G:IsActionComplete({ type = "profession", names = { "Skinning" } }, nil), "profession not known yet")
+	stub.professions = { "Skinning" }
+	stub.fire("SKILL_LINES_CHANGED")
+	stub.advance(1)
+	-- .item 777 filter: no item -> step 4 skipped; cook (5) is manual
+	check(G.stepIndex == 5, "profession learned, item-gated step skipped, at cook step: " .. tostring(G.stepIndex))
+	check(G:StepText(G:CurrentStep()) == "Cook food for the XP buff", "cook default text")
+	G:NextStep()
+	check(G.stepIndex == 6, "cook is manual (Next)")
+	-- with the item, the .item step applies
+	stub.itemCounts[777] = 1
+	G:SetStep(4, true) G:EvaluateStep()
+	check(G.stepIndex == 4, "item-gated step shown once the item is in the bag, at " .. tostring(G.stepIndex))
+	stub.itemCounts[777] = nil
+	-- completionist: the optional step is shown and tagged
+	G:SetCompletionist(true)
+	check(G.db.profile.steps.completionist == true, "completionist on")
+	G:SetStep(2, true) G:EvaluateStep()
+	check(G.stepIndex == 2, "optional step shown in completionist mode, at " .. tostring(G.stepIndex))
+	G:RefreshStepFrame()
+	check(LodestarGuideFrame.step.text and LodestarGuideFrame.step.text:find("(optional)", 1, true), "window tags the optional step: " .. tostring(LodestarGuideFrame.step.text))
+	G:SetCompletionist(false)
+	G:SetStep(1, true) G:EvaluateStep()
+	check(G.stepIndex == 6, "speed run skips the optional step again (buy, profession done; item step gated), at " .. tostring(G.stepIndex))
+	-- upcoming rows leave out steps that do not apply (optional in speed-run mode, item-gated without the item)
+	local function upcomingTexts()
+		local texts = {}
+		for _, f in ipairs(stub.frames) do
+			if f.parent == LodestarGuideFrame and f.kind == "Button" and f.hl and f.shown and f.text.text ~= "" then tinsert(texts, f.text.text) end
+		end
+		return texts
+	end
+	G.db.profile.steps.upcoming = 3
+	G:SetStep(1, true)
+	G:RefreshStepFrame()
+	local rows = upcomingTexts()
+	check(#rows == 3 and rows[1]:find("^3%. Train Skinning") and rows[2]:find("^5%. Cook") and rows[3]:find("^6%. Done"), "speed-run upcoming rows skip optional and item-gated steps: " .. table.concat(rows, " | "))
+	G:SetCompletionist(true)
+	G:SetStep(1, true)
+	G:RefreshStepFrame()
+	rows = upcomingTexts()
+	check(#rows == 3 and rows[1]:find("^2%. Set up camp") and rows[1]:find("(optional)", 1, true) and rows[2]:find("^3%."), "completionist upcoming rows include the tagged optional step: " .. table.concat(rows, " | "))
+	G:SetCompletionist(false)
+	stub.slash("/lode guide completionist on")
+	check(G.db.profile.steps.completionist == true, "/lode guide completionist on")
+	stub.slash("/lode guide completionist off")
+	check(G.db.profile.steps.completionist == false, "/lode guide completionist off")
+	stub.slash("/lode guide completionist")
+	check(G.db.profile.steps.completionist == true, "/lode guide completionist toggles")
+	G:SetCompletionist(false)
+end)
+try("dsl menu", function()
+	-- the right-click menu carries a Completionist checkbox that flips the profile flag
+	local realMenu = MenuUtil.CreateContextMenu
+	local boxes = {}
+	MenuUtil.CreateContextMenu = function(_, gen)
+		local root = { CreateTitle = function() end, CreateDivider = function() end, CreateButton = function() end, CreateRadio = function() end,
+			CreateCheckbox = function(_, label, isSelected, toggle) boxes[label] = { isSelected = isSelected, toggle = toggle } end }
+		gen(nil, root)
+	end
+	G:ShowGuideMenu()
+	MenuUtil.CreateContextMenu = realMenu
+	local box = boxes["Completionist (do optional quests)"]
+	check(box ~= nil, "guide menu has the completionist checkbox")
+	if not box then return end
+	check(box.isSelected() == false, "checkbox reflects speed-run mode")
+	box.toggle()
+	check(G.db.profile.steps.completionist == true and box.isSelected() == true, "checkbox toggles completionist on")
+	box.toggle()
+	check(G.db.profile.steps.completionist == false, "checkbox toggles completionist off")
+end)
+try("class trainers", function()
+	check(G.TrainerData and G.TrainerData.WARRIOR and G.TrainerData.PALADIN and G.TrainerData.DRUID, "trainer data loaded for the classes")
+	local n = 0
+	for _ in pairs(G.TrainerData) do n = n + 1 end
+	check(n == 9, "nine classes in the trainer data, got " .. n)
+	for cls, ids in pairs(G.TrainerData) do
+		for _, id in ipairs(ids) do
+			check(G.VanillaData.npcs[id] ~= nil, cls .. " trainer #" .. id .. " exists in the Vanilla data")
+		end
+	end
+	check(G.SpellLevels.WARRIOR[4] and G.SpellLevels.WARRIOR[30] and not G.SpellLevels.WARRIOR[5], "spell levels: even levels 4-30")
+	local mapID, _, _, name, dist, npcID = G:DataNearestNPC({ 2119 })
+	check(mapID == 18 and name == "Dannal Stern" and npcID == 2119 and dist and dist < 300, "DataNearestNPC finds Dannal Stern near Deathknell: " .. tostring(dist))
+	-- suggestion: a level 3 warrior has nothing to train; at 4 the Deathknell trainer is suggested
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.308, 0.662
+	G.db.char.lastTrainedLevel = nil
+	stub.level = 3
+	check(G:TrainerSuggestion(true) == nil, "no trainer suggestion at level 3")
+	stub.level = 4
+	local t = G:TrainerSuggestion(true)
+	check(t and t.npcID == 2119 and t.name == "Dannal Stern" and t.level == 4 and t.mapID == 18, "level 4 warrior: Dannal Stern suggested: " .. tostring(t and t.name))
+	check(t and t.dist and t.dist > 100 and t.dist < 300, "trainer distance in range: " .. tostring(t and t.dist))
+	-- guided mode banner
+	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
+	G:RefreshStepFrame()
+	check(LodestarGuideFrame.banner.text and LodestarGuideFrame.banner.text:find("Dannal Stern", 1, true) and LodestarGuideFrame.banner.text:find("New spells", 1, true), "window banner names the trainer: " .. tostring(LodestarGuideFrame.banner.text))
+	-- smart mode list item
+	stub.slash("/lode guide smart")
+	local items = G:CollectSmartItems(true)
+	local trainItem
+	for _, it in ipairs(items) do if it.kind == "train" then trainItem = it end end
+	check(trainItem and trainItem.npcID == 2119 and trainItem.title:find("Dannal Stern", 1, true), "smart mode lists the trainer: " .. tostring(trainItem and trainItem.title))
+	G:RefreshStepFrame()
+	-- recompute is throttled to 5 s
+	stub.level = 3
+	check(G:TrainerSuggestion() ~= nil, "cached suggestion within 5 s")
+	stub.advance(6)
+	check(G:TrainerSuggestion() == nil, "recomputed after 5 s")
+	stub.level = 4
+	-- a class trainer visit at level 4 clears the suggestion; the harvest entry is tagged with the class
+	stub.tradeskillTrainer = false
+	stub.fire("TRAINER_SHOW") stub.fire("TRAINER_CLOSED")
+	check(G.db.char.lastTrainedLevel == 4, "lastTrainedLevel recorded from the trainer window: " .. tostring(G.db.char.lastTrainedLevel))
+	check(G:HarvestDB().npcs[6] and G:HarvestDB().npcs[6].trains == "WARRIOR" and G:HarvestDB().npcs[6].kind.trainer, "harvested trainer tagged with the class")
+	check(G:TrainerSuggestion(true) == nil, "no suggestion right after training")
+	stub.level = 5
+	check(G:TrainerSuggestion(true) == nil, "level 5 has no new spells")
+	stub.level = 6
+	t = G:TrainerSuggestion(true)
+	check(t and t.npcID == 6 and t.dist == 0, "level 6: the harvested trainer standing here wins by distance: " .. tostring(t and t.npcID))
+	-- a tradeskill trainer window does not count as class training
+	stub.tradeskillTrainer = true
+	stub.fire("TRAINER_SHOW") stub.fire("TRAINER_CLOSED")
+	stub.tradeskillTrainer = false
+	check(G.db.char.lastTrainedLevel == 4, "profession trainer visit leaves lastTrainedLevel alone")
+	G:HarvestDB().npcs[6].trains = nil G:HarvestDB().npcs[6].kind.trainer = nil
+	t = G:TrainerSuggestion(true)
+	check(t and t.npcID == 2119, "back to the data trainer once the harvest entry is untagged")
+	-- far away: nothing within 300 yd
+	stub.playerMap.x, stub.playerMap.y = 0.60, 0.50
+	check(G:TrainerSuggestion(true) == nil, "no suggestion when the nearest trainer is out of range")
+	stub.playerMap.x, stub.playerMap.y = 0.308, 0.662
+	stub.slash("/lode guide train")
+	stub.fire("TRAINER_SHOW") stub.fire("TRAINER_CLOSED")
+	stub.slash("/lode guide train")
+	G:HarvestDB().npcs[6].trains = nil G:HarvestDB().npcs[6].kind.trainer = nil
+	-- class quests are tagged in the pick-up list (Simple Scroll is a warrior quest after The Mindless Ones)
+	stub.level = 3
+	stub.flagged = { [363] = true, [364] = true }
+	stub.questLog = {}
+	local found = {}
+	G:DataAvailableItems(found, 18)
+	local scroll, rogueScroll
+	for _, it in ipairs(found) do
+		if it.title == "Simple Scroll" then scroll = it end
+		if it.title == "Encrypted Scroll" then rogueScroll = it end
+	end
+	check(scroll and scroll.classQuest == true and scroll.subtitle:find("^Class quest · Pick up from Shadow Priest Sarvis"), "warrior class quest tagged: " .. tostring(scroll and scroll.subtitle))
+	check(rogueScroll == nil, "other classes' scrolls still hidden by the class mask")
+	stub.level = 10
+	stub.slash("/lode guide auto")
 end)
 try("guide menus", function() G:ShowGuideMenu() G:ShowArrowMenu() end)
 try("guide options", function()

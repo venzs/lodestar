@@ -572,6 +572,14 @@ C_Texture = { GetAtlasInfo = function(name) if name == "Navigation-Tracked-Arrow
 -- Trails APIs -------------------------------------------------------------------------------------
 C_Map.GetMapWorldSize = function() return 10000, 10000 end -- matches the fake GetWorldPosFromMapPos scale above
 UnitIsDeadOrGhost = function() return stub.dead or false end
+-- Guide DSL: items, professions, trainers -------------------------------------------------------
+stub.itemCounts = {}                 -- [itemID] = count in bags (+bank)
+stub.professions = {}                -- { "Skinning", "Herbalism" } in the two primary slots
+C_Item.GetItemCount = function(id) return stub.itemCounts[id] or 0 end
+C_Item.RequestLoadItemDataByID = function() end
+GetProfessions = function() return stub.professions[1] and 1 or nil, stub.professions[2] and 2 or nil, nil, nil, nil, nil end
+GetProfessionInfo = function(index) local n = stub.professions[index] if n then return n, 134, 1, 75, 0, 0, 0, 0 end end
+IsTradeskillTrainer = function() return stub.tradeskillTrainer or false end
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1
