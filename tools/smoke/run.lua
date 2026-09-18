@@ -1017,6 +1017,20 @@ try("smart mode", function()
 	local stillThere = false
 	for _, it in ipairs(again.plan) do if (it.title or ""):find("Cluster A") then stillThere = true end end
 	check(stillThere and again.area and again.area.sticky, "the area stays chosen while it still has work")
+	-- The window shows the plan as a numbered walk under an area header, not kind buckets.
+	G:RefreshStepFrame()
+	local seen, ordinals = {}, 0
+	for _, r in ipairs(LodestarGuideFrame.actionRows or {}) do
+		if r.shown then
+			local main = (r.main and r.main.text) or ""
+			local glyph = (r.glyph and r.glyph.text) or ""
+			seen[#seen + 1] = main
+            if glyph:find("%d%.") then ordinals = ordinals + 1 end
+		end
+	end
+	local joined = table.concat(seen, " | ")
+	check(joined:find("This area", 1, true) or joined:find("Next area", 1, true), "window heads the plan with its area: " .. joined)
+	check(ordinals >= 2, "plan rows are numbered as a walk, got " .. ordinals)
 	G:ResetSmartPlan()
 	stub.questLog = {}
 	stub.questLog[3901] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "x: 0/8", finished = false } }, wp = { map = 18, x = 0.33, y = 0.66 } }

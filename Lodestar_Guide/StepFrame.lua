@@ -996,7 +996,9 @@ local function refreshSmart()
 	if focus then releaseFocus() end
 	frame.title:SetText("Lodestar  " .. GREY .. "smart mode|r")
 
+	local planned = Guide:SmartPlan()
 	local items = Guide:CollectSmartItems()
+	local plan, elsewhere = planned.plan, planned.elsewhere
 	local pinnedItem = Guide:GetPinnedSmartItem()
 	local lead
 	if pinnedItem then
@@ -1004,7 +1006,7 @@ local function refreshSmart()
 			if it.kind == pinnedItem.kind and it.questID == pinnedItem.questID and it.x == pinnedItem.x then lead = it end
 		end
 	end
-	lead = lead or items[1]
+	lead = lead or plan[1] or items[1]
 
 	if lead then
 		frame.headline:SetText(("%s%s|r %s"):format(KIND_COLOR[lead.kind] or WHITE, KIND_LABEL[lead.kind] or "Next", trim(lead.title or "", chars * 2)))
@@ -1018,22 +1020,73 @@ local function refreshSmart()
 		frame.location:SetText("")
 	end
 
-	-- group the rest by kind, keeping the distance order inside each group
-	local grouped = {}
-	for _, it in ipairs(items) do
-		if it ~= lead then
-			grouped[it.kind] = grouped[it.kind] or {}
-			tinsert(grouped[it.kind], it)
-		end
-	end
+	-- The plan is shown in the order it should be walked, not bucketed by kind: the point of smart
+	-- mode is to read like a route. Everything outside the current area follows under "Then",
+	-- grouped by kind, so it stays a preview rather than competing with the plan.
 	local used, rowsHeight = 0, 0
 	local function row()
 		used = used + 1
 		return actionRows[used]
 	end
+
+	local function itemRow(item, ordinal)
+		if used >= MAX_ACTION_ROWS then return end
+		local kind = item.kind
+		local main
+		if kind == "available" and item.questID then
+			-- "what are we picking up": the quest level, coloured by how hard it is for this character
+			main = questLabel(item.questID, item.level or questLevel(item.questID), chars, item.title)
+		else
+			main = ((kind == "available") and GOLD or WHITE) .. trim(item.title or "", chars) .. "|r"
+		end
+		local subtitle = item.subtitle and (item.subtitle:gsub("%s*·%s*lvl%s*%d+%s*$", "")) or nil
+		local chip = (KIND_COLOR[kind] or GREY) .. (KIND_LABEL[kind] or kind) .. "|r"
+		local ok, h = pcall(fillRow, row(), {
+			glyph = ordinal and (DIM .. ordinal .. ".|r") or "",
+			chip = chip,
+			main = main,
+			right = item.dist and (GREY .. math.floor(item.dist) .. " yd|r") or (item.noPosition and (DIM .. "?|r") or nil),
+			detail = subtitle and trim(subtitle, math.floor(chars * 1.4)) or nil,
+			tip = { { item.title or "", 1, 1, 1 }, { item.subtitle or "", 0.8, 0.8, 0.8, true },
+				{ GREY .. "Click: point the arrow at this · Right-click: menu|r" } },
+			onClick = function() Guide:PinSmartItem(item) end,
+		})
+		if ok then rowsHeight = rowsHeight + (h or 0) else hideRow(actionRows[used]) end
+	end
+
+	if #plan > 0 then
+		local area = planned.area
+		local far = plan[1] and plan[1].dist and plan[1].dist > 150
+		local label = far and ("Next area  " .. DIM .. "(" .. #plan .. ")|r")
+			or ("This area  " .. DIM .. "(" .. #plan .. ")|r")
+		rowsHeight = rowsHeight + fillRow(row(), { headerRow = true, main = BLUE .. label })
+		local n = 0
+		for _, it in ipairs(plan) do
+			if it ~= lead or not pinnedItem then
+				n = n + 1
+				itemRow(it, n)
+			end
+		end
+		if area and area.n then end -- area details are already in the header
+	end
+
+	-- group whatever is left by kind, keeping the distance order inside each group
+	local grouped = {}
+	for _, it in ipairs(elsewhere) do
+		if it ~= lead then
+			grouped[it.kind] = grouped[it.kind] or {}
+			tinsert(grouped[it.kind], it)
+		end
+	end
+	local headedLater = false
 	for _, kind in ipairs(KIND_ORDER) do
 		local list = grouped[kind]
 		if list and #list > 0 and used < MAX_ACTION_ROWS - 1 then
+			if not headedLater then
+				headedLater = true
+				rowsHeight = rowsHeight + fillRow(row(), { headerRow = true, main = GREY .. "Then|r" })
+			end
+			if used >= MAX_ACTION_ROWS then break end
 			rowsHeight = rowsHeight + fillRow(row(), { headerRow = true, main = (KIND_COLOR[kind] or GREY) .. (KIND_LABEL[kind] or kind) .. "|r" })
 			for _, it in ipairs(list) do
 				if used >= MAX_ACTION_ROWS then break end
