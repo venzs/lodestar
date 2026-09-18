@@ -1203,6 +1203,139 @@ try("guide options", function()
 	end
 	walk(opts.args.Guide)
 end)
+try("quest tips", function()
+	local UNIT, ITEM, OBJECT = Enum.TooltipDataType.Unit, Enum.TooltipDataType.Item, Enum.TooltipDataType.Object
+	check(stub.tooltipCalls[OBJECT] and #stub.tooltipCalls[OBJECT] >= 1, "object tooltip post-call registered")
+	local lines = {}
+	GameTooltip.AddLine = function(_, text) tinsert(lines, text) end
+	local function tip(kind, tooltipData)
+		wipe(lines)
+		for _, fn in ipairs(stub.tooltipCalls[kind]) do fn(GameTooltip, tooltipData) end
+		return table.concat(lines, "\n")
+	end
+	local skeleton, sarvis, duskbat = { guid = "Creature-0-1-2-3-1890-000ABC" }, { guid = "Creature-0-1-2-3-1569-000ABC" }, { guid = "Creature-0-1-2-3-1512-000ABC" }
+	local savedLog, savedFlagged, savedLevel = stub.questLog, stub.flagged, stub.level
+	local H = G:HarvestDB()
+	wipe(H.npcs)
+	local T = G.db.profile.questTips
+	stub.level = 3
+	stub.flagged = { [363] = true, [364] = true }
+	stub.questLog = { [3901] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "Rattlecage Skeleton slain: 3/8", finished = false } } } }
+	stub.fire("QUEST_LOG_UPDATE")
+	-- objective mob: quest title + the client's objective text with progress
+	local text = tip(UNIT, skeleton)
+	check(text:find("|cffffd700Rattling the Rattlecages|r  Rattlecage Skeleton slain: 3/8", 1, true) ~= nil, "objective mob shows the quest and progress: " .. text)
+	-- cache: served as-is for 2 s, rebuilt after that and on quest log events
+	stub.questLog[3901].objectives[1].text = "Rattlecage Skeleton slain: 4/8"
+	check(tip(UNIT, skeleton):find("3/8", 1, true) ~= nil, "cached lines served within 2 s")
+	stub.advance(2.5)
+	check(tip(UNIT, skeleton):find("4/8", 1, true) ~= nil, "cache expired after 2 s")
+	stub.questLog[3901].objectives[1].text = "Rattlecage Skeleton slain: 5/8"
+	stub.fire("QUEST_LOG_UPDATE")
+	check(tip(UNIT, skeleton):find("5/8", 1, true) ~= nil, "quest log event drops the cache")
+	-- objective index: the data says objective 1, the client lists the mob second -> matched by name
+	stub.questLog[3901].objectives = { { text = "Something else: 1/1", finished = true }, { text = "Rattlecage Skeleton slain: 6/8", finished = false } }
+	stub.fire("QUEST_LOG_UPDATE")
+	check(tip(UNIT, skeleton):find("|r  Rattlecage Skeleton slain: 6/8", 1, true) ~= nil, "objective matched by name when the index disagrees")
+	-- finished objective -> green line
+	stub.questLog[3901].objectives = { { text = "Rattlecage Skeleton slain: 8/8", finished = true } }
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, skeleton)
+	check(text:find("|cff7fff7fRattling the Rattlecages  Rattlecage Skeleton slain: 8/8|r", 1, true) ~= nil, "finished objective is green: " .. text)
+	-- Blizzard already prints the quest on this unit (QuestTitle line) -> not repeated
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, { guid = skeleton.guid, lines = { { type = Enum.TooltipDataLineType.QuestTitle, leftText = "Rattling the Rattlecages" }, { type = Enum.TooltipDataLineType.QuestObjective, leftText = "Rattlecage Skeleton slain: 8/8" } } })
+	check(not text:find("Rattling", 1, true), "quest Blizzard already lists is not repeated: " .. text)
+	-- quest ender: "Turn in later" while unfinished, "Turn in" once complete
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, sarvis)
+	check(text:find("|cff9d9d9dTurn in later: Rattling the Rattlecages|r", 1, true) ~= nil, "ender of an unfinished quest: " .. text)
+	stub.questLog[3901].complete = true
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, sarvis)
+	check(text:find("|cff7fff7fTurn in: Rattling the Rattlecages|r", 1, true) ~= nil, "ender of a complete quest: " .. text)
+	check(not text:find("Starts: Rattling", 1, true), "a quest in the log is not offered again")
+	-- quest giver: level 3, 364 flagged, 3901 not in the log -> Sarvis starts it (and the warrior's class quest)
+	stub.questLog = {}
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, sarvis)
+	check(text:find("|cffffd700Starts: Rattling the Rattlecages (lvl 3)|r", 1, true) ~= nil, "quest giver lists the quests you can take: " .. text)
+	check(text:find("Starts: Simple Scroll", 1, true) ~= nil and not text:find("Encrypted Scroll", 1, true), "class mask applied to the offered quests")
+	check(not text:find("Turn in", 1, true), "empty log: only Starts lines")
+	-- harvest: a quest the data does not know is offered as (new); roles from the NPC kinds
+	H.npcs[1569] = { name = "Shadow Priest Sarvis", gives = { [77778] = true, [3901] = true }, kind = { vendor = true, repair = true, quest = true } }
+	H.quests[77778] = { t = "A Forever Quest", lvl = 4 }
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, sarvis)
+	check(text:find("|cffffd700Starts: A Forever Quest (lvl 4) (new)|r", 1, true) ~= nil, "harvest-only quest offered as (new): " .. text)
+	check(select(2, text:gsub("Rattling the Rattlecages", "")) == 1, "harvested quest also in the data listed once")
+	check(text:find("Vendor · Repair", 1, true) ~= nil, "role line from the harvest kinds")
+	T.showLevel = false
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, sarvis)
+	check(text:find("Starts: Rattling the Rattlecages|r", 1, true) ~= nil and not text:find("(lvl ", 1, true), "showLevel off drops the level: " .. text)
+	T.showLevel = true
+	H.npcs[1569] = nil H.quests[77778] = nil
+	-- items: Duskbat Wing (3264) is an objective of The Damned (376); Duskbats drop it
+	stub.questLog = { [376] = { title = "The Damned", complete = false, objectives = { { text = "Duskbat Wing: 2/6", finished = false }, { text = "Scavenger Paw: 0/6", finished = false } } } }
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(ITEM, { id = 3264 })
+	check(text:find("|cffffd700The Damned|r — 2/6", 1, true) ~= nil, "quest item shows its quest and count: " .. text)
+	text = tip(UNIT, duskbat)
+	check(text:find("|cffffd700The Damned|r  Duskbat Wing: 2/6", 1, true) ~= nil and not text:find("Scavenger Paw", 1, true), "drop source shows the item objective only: " .. text)
+	text = tip(ITEM, { id = 4851 })
+	check(text:find("|cffffd700Starts a quest: Attack on Camp Narache (lvl 4)|r", 1, true) ~= nil, "quest-starting item: " .. text)
+	stub.questLog[376].complete = true stub.questLog[376].objectives[1] = { text = "Duskbat Wing: 6/6", finished = true }
+	stub.fire("QUEST_LOG_UPDATE")
+	check(tip(ITEM, { id = 3264 }):find("|cff7fff7fThe Damned — 6/6|r", 1, true) ~= nil, "collected quest item stays marked, in green")
+	check(tip(UNIT, duskbat) == "", "objective mob of a complete quest shows nothing")
+	-- objects: Marla's Grave (178090) is objective 2 of Marla's Last Wish (6395); the barrel (269) starts a quest
+	stub.questLog = { [6395] = { title = "Marla's Last Wish", complete = false, objectives = { { text = "Samuel's Remains: 1/1", finished = true }, { text = "Bring the remains to Marla's Grave: 0/1", finished = false } } } }
+	stub.flagged[310] = true
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(OBJECT, { guid = "GameObject-0-1-2-3-178090-000ABC" })
+	check(text:find("|cffffd700Marla's Last Wish|r  Bring the remains to Marla's Grave: 0/1", 1, true) ~= nil, "object objective by index: " .. text)
+	stub.questLog[6395].objectives = { { text = "Visit the grave: 0/1", finished = false } }
+	stub.fire("QUEST_LOG_UPDATE")
+	check(tip(OBJECT, { guid = "GameObject-0-1-2-3-178090-000ABC" }):find("|r  Visit the grave: 0/1", 1, true) ~= nil, "index out of range falls back to the first unfinished objective")
+	text = tip(OBJECT, { guid = "GameObject-0-1-2-3-269-000ABC" })
+	check(text:find("|cffffd700Starts: Guarded Thunderbrew Barrel (lvl 1)|r", 1, true) ~= nil, "quest-starting object: " .. text)
+	check(tip(OBJECT, duskbat) == "" and tip(UNIT, { guid = "GameObject-0-1-2-3-178090-000ABC" }) == "", "unit and object handlers only take their own GUID type")
+	check(tip(UNIT, { guid = "Player-1-000001" }) == "", "players ignored")
+	-- toggles and lifecycle
+	T.units = false
+	check(tip(UNIT, { guid = "GameObject-0-1-2-3-269-000ABC" }) == "" and tip(UNIT, sarvis) == "", "units toggle off suppresses unit lines")
+	T.units = true
+	T.items = false
+	check(tip(ITEM, { id = 4851 }) == "", "items toggle off suppresses item lines")
+	T.items = true
+	T.objects = false
+	check(tip(OBJECT, { guid = "GameObject-0-1-2-3-269-000ABC" }) == "", "objects toggle off suppresses object lines")
+	T.objects = true
+	G:DisableQuestTips()
+	check(tip(UNIT, sarvis) == "", "disabled: no lines")
+	G:EnableQuestTips()
+	check(tip(UNIT, sarvis) ~= "", "re-enabled: lines again")
+	check(#stub.tooltipCalls[UNIT] == 2 and #stub.tooltipCalls[OBJECT] == 1, "post-calls registered once across enable/disable")
+	-- ours run after Lodestar_UI's (registered a tick later although Guide enables first): the last unit post-call is the one that adds quest lines
+	wipe(lines)
+	stub.tooltipCalls[UNIT][#stub.tooltipCalls[UNIT]](GameTooltip, sarvis)
+	check(#lines > 0, "quest lines come from the last registered unit post-call (after the UI module's)")
+	-- ItemRefTooltip gets item lines; other tooltips are left alone
+	local other = stub.newFrame("GameTooltip", "SomeOtherTooltip")
+	other.AddLine = GameTooltip.AddLine
+	wipe(lines)
+	for _, fn in ipairs(stub.tooltipCalls[ITEM]) do fn(other, { id = 4851 }) end
+	check(#lines == 0, "unrelated tooltips are not decorated")
+	ItemRefTooltip.AddLine = GameTooltip.AddLine
+	wipe(lines)
+	for _, fn in ipairs(stub.tooltipCalls[ITEM]) do fn(ItemRefTooltip, { id = 4851 }) end
+	check(#lines == 1, "ItemRefTooltip (chat links) gets item lines")
+	ItemRefTooltip.AddLine = nil
+	GameTooltip.AddLine = nil
+	stub.questLog, stub.flagged, stub.level = savedLog, savedFlagged, savedLevel
+	stub.fire("QUEST_LOG_UPDATE")
+end)
 
 -- Lodestar_Character
 try("character", function()

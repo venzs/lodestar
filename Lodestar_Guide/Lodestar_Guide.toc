@@ -18,6 +18,7 @@ Parser.lua
 Arrow.lua
 MapLine.lua
 Data.lua
+QuestTips.lua
 Harvest.lua
 Smart.lua
 Engine.lua
