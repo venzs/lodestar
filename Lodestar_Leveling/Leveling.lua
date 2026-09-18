@@ -42,11 +42,25 @@ Leveling.defaults = {
 			announce = true,
 			syncPlayed = true,
 		},
+		camp = {
+			enabled = true,
+			warnExpiring = true,
+			warnMinutes = 5,     -- warn when a watched buff has this long left
+			warnFood = true,
+			foodLow = 5,         -- warn at this many food/drink items or fewer
+			showStock = true,    -- food count on the status strip
+		},
+		professions = {
+			enabled = true,
+			nagCap = true,       -- say so when a profession hits its tier cap
+			showOnStrip = true,  -- show professions at or near their cap on the strip
+		},
 	},
 	char = {
 		levels = {},     -- [level] = { at = epoch, played = seconds }
 		played = 0,      -- total /played seconds (synced when possible)
 		playedAt = 0,    -- epoch when 'played' was last accurate
+		professions = {},-- [name] = { rank, maxRank, first, gained, at }
 	},
 }
 
@@ -121,6 +135,68 @@ Leveling.options = {
 		desc = "A chat line at most once every five minutes; the strip turns orange (red at 10%).",
 		get = function() return Leveling.db.profile.xp.strip.nagDurability end,
 		set = function(_, v) Leveling.db.profile.xp.strip.nagDurability = v end,
+	},
+
+	campHeader = { type = "header", order = 18, name = "Camp" },
+	campDesc = {
+		type = "description", order = 18.1, fontSize = "medium",
+		name = "How long your buffs have left and how much food and drink is in the bags -- the two things that decide whether you can stay out. |cffffff7f/lode camp|r prints the lot.\n",
+	},
+	campEnabled = {
+		type = "toggle", order = 18.2, name = "Track camp state",
+		get = function() return Leveling.db.profile.camp.enabled end,
+		set = function(_, v) Leveling.db.profile.camp.enabled = v; Leveling:RefreshStrip() end,
+	},
+	campWarnExpiring = {
+		type = "toggle", order = 18.3, name = "Warn before a watched buff drops",
+		desc = "Uses the same buff list as the status strip. One line when it gets close, one more in the last minute.",
+		get = function() return Leveling.db.profile.camp.warnExpiring end,
+		set = function(_, v) Leveling.db.profile.camp.warnExpiring = v end,
+	},
+	campWarnMinutes = {
+		type = "range", order = 18.4, name = "Warn this many minutes ahead",
+		min = 1, max = 30, step = 1,
+		get = function() return Leveling.db.profile.camp.warnMinutes end,
+		set = function(_, v) Leveling.db.profile.camp.warnMinutes = v end,
+	},
+	campWarnFood = {
+		type = "toggle", order = 18.5, name = "Warn when food and drink run low",
+		get = function() return Leveling.db.profile.camp.warnFood end,
+		set = function(_, v) Leveling.db.profile.camp.warnFood = v end,
+	},
+	campFoodLow = {
+		type = "range", order = 18.6, name = "Low at this many items",
+		min = 1, max = 40, step = 1,
+		get = function() return Leveling.db.profile.camp.foodLow end,
+		set = function(_, v) Leveling.db.profile.camp.foodLow = v; Leveling:RefreshStrip() end,
+	},
+	campShowStock = {
+		type = "toggle", order = 18.7, name = "Show the food count on the strip",
+		get = function() return Leveling.db.profile.camp.showStock end,
+		set = function(_, v) Leveling.db.profile.camp.showStock = v; Leveling:RefreshStrip() end,
+	},
+
+	profHeader = { type = "header", order = 19, name = "Professions" },
+	profDesc = {
+		type = "description", order = 19.1, fontSize = "medium",
+		name = "Classic tradeskills stop dead at 75, 150, 225 and 300 until a trainer raises the cap, and nothing in the default UI says when you get there. |cffffff7f/lode prof|r lists every profession and what it has gained.\n",
+	},
+	profEnabled = {
+		type = "toggle", order = 19.2, name = "Track professions",
+		get = function() return Leveling.db.profile.professions.enabled end,
+		set = function(_, v) Leveling.db.profile.professions.enabled = v; Leveling:RefreshStrip() end,
+	},
+	profNagCap = {
+		type = "toggle", order = 19.3, name = "Say so when a profession hits its cap",
+		desc = "At most once every ten minutes per profession, with the next tier and the level it needs.",
+		get = function() return Leveling.db.profile.professions.nagCap end,
+		set = function(_, v) Leveling.db.profile.professions.nagCap = v end,
+	},
+	profOnStrip = {
+		type = "toggle", order = 19.4, name = "Show capped professions on the strip",
+		desc = "Only ones at or within ten points of the cap -- a skill at 43/75 is not news.",
+		get = function() return Leveling.db.profile.professions.showOnStrip end,
+		set = function(_, v) Leveling.db.profile.professions.showOnStrip = v; Leveling:RefreshStrip() end,
 	},
 
 	questHeader = { type = "header", order = 20, name = "Quest automation" },
@@ -209,6 +285,8 @@ function Leveling:OnEnable()
 	self:EnableQuestAutomation()
 	self:EnableWaypoints()
 	self:EnableLevelStats()
+	self:EnableProfessions()
+	self:EnableCamp()
 end
 
 function Leveling:PLAYER_LEVEL_UP(_, level)
@@ -223,6 +301,8 @@ function Leveling:OnDisable()
 	self:DisableQuestAutomation()
 	self:DisableWaypoints()
 	self:DisableLevelStats()
+	self:DisableProfessions()
+	self:DisableCamp()
 end
 
 function Leveling:OnProfileChanged()

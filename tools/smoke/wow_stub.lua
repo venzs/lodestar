@@ -205,11 +205,21 @@ stub.bags = {
 C_Container = {
 	GetContainerNumSlots = function(bag) return bag == 0 and 16 or 0 end,
 	GetContainerItemInfo = function(bag, slot) return stub.bags[bag] and stub.bags[bag][slot] end,
+	GetContainerItemID = function(bag, slot)
+		local e = stub.bags[bag] and stub.bags[bag][slot]
+		return e and e.itemID or nil
+	end,
 	UseContainerItem = function(bag, slot) stub.sold = (stub.sold or 0) + 1 stub.bags[bag][slot] = nil end,
 }
 C_Item = {
 	GetItemInfo = function(link) return "Broken Fang", link, 0, 1, 1, "Junk", "Junk", 5, "", 134, 25 end,
-	GetItemInfoInstant = function() return 1234, "Junk", "Junk", "", 134, 15, 0 end,
+	-- stub.itemClasses[id] = { classID, subclassID } overrides the default Junk answer; everything
+	-- else keeps the shape Merchant.lua and the Character panel already rely on.
+	GetItemInfoInstant = function(id)
+		local c = stub.itemClasses and stub.itemClasses[id]
+		if c then return id, "Consumable", "Food & Drink", "", 134, c[1], c[2] end
+		return 1234, "Junk", "Junk", "", 134, 15, 0
+	end,
 	GetItemNameByID = function(id) return "Item" .. id end,
 	GetDetailedItemLevelInfo = function() return 10 end,
 }
@@ -613,11 +623,25 @@ stub.itemCounts = {}                 -- [itemID] = count in bags (+bank)
 stub.professions = {}                -- { "Skinning", "Herbalism" } in the two primary slots
 C_Item.GetItemCount = function(id) return stub.itemCounts[id] or 0 end
 C_Item.RequestLoadItemDataByID = function() end
-GetProfessions = function() return stub.professions[1] and 1 or nil, stub.professions[2] and 2 or nil, nil, nil, nil, nil end
-GetProfessionInfo = function(index) local n = stub.professions[index] if n then return n, 134, 1, 75, 0, 0, 0, 0 end end
+--- stub.professions[slot] is a name or { name = , rank = , maxRank = }. Slots 1-2 are the primary
+--- professions and 3-6 are archaeology / fishing / cooking / first aid, matching GetProfessions().
+GetProfessions = function()
+	local out = {}
+	for i = 1, 6 do out[i] = stub.professions[i] and i or nil end
+	return out[1], out[2], out[3], out[4], out[5], out[6]
+end
+GetProfessionInfo = function(index)
+	local e = stub.professions[index]
+	if not e then return nil end
+	if type(e) == "table" then
+		return e.name, 134, e.rank or 1, e.maxRank or 75, 0, 0, e.skillLine or (100 + index), e.modifier or 0
+	end
+	return e, 134, 1, 75, 0, 0, 100 + index, 0
+end
 IsTradeskillTrainer = function() return stub.tradeskillTrainer or false end
 -- Lodestar_Character: stat APIs and Blizzard's camelot stats-pane tables ----------------------------------
-Enum.ItemClass = { Weapon = 2, Armor = 4 }
+Enum.ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 }
+Enum.ItemConsumableSubclass = { Generic = 0, Potion = 1, Elixir = 2, Flasksphials = 3, Scroll = 4, Fooddrink = 5, ItemenhancementTemporary = 6, Bandage = 7, Other = 8 }
 Enum.ItemWeaponSubclass = { Axe1H = 0, Axe2H = 1, Bows = 2, Guns = 3, Mace1H = 4, Mace2H = 5, Polearm = 6, Sword1H = 7, Sword2H = 8, Obsolete3 = 9, Staff = 10, Bearclaw = 11, Catclaw = 12, Unarmed = 13, Generic = 14, Dagger = 15, Thrown = 16, Crossbow = 18, Wand = 19, Fishingpole = 20 }
 Enum.Damageclass = { Physical = 0, Holy = 1, Fire = 2, Nature = 3, Frost = 4, Shadow = 5, Arcane = 6 }
 Enum.PowerType = { Mana = 0, Rage = 1, Focus = 2, Energy = 3 }
@@ -752,11 +776,26 @@ stub.durability = { [1] = { 62, 100 }, [5] = { 90, 100 } } -- [slot] = { current
 stub.auras = { "Well Fed" }         -- player HELPFUL aura names in slot order
 C_Container.GetContainerNumFreeSlots = function(bag) return stub.bagFree[bag] or 0, 0 end
 GetInventoryItemDurability = function(slot) local d = stub.durability[slot] if d then return d[1], d[2] end return nil end
-C_UnitAuras = { GetAuraDataByIndex = function(unit, i, filter) local name = stub.auras[i] if name then return { name = name, spellId = 1000 + i } end return nil end }
+--- An aura entry is either a plain name or { name = , expirationTime = , applications = }. The
+--- table form is what lets the camp tests drive buff-expiry warnings; expirationTime is on the
+--- GetTime() clock, and 0 means "no duration" exactly as the real client reports it.
+local function auraAt(i)
+	local e = stub.auras[i]
+	if not e then return nil end
+	if type(e) == "table" then
+		return { name = e.name, spellId = e.spellId or (1000 + i),
+			expirationTime = e.expirationTime, duration = e.duration, applications = e.applications }
+	end
+	return { name = e, spellId = 1000 + i }
+end
+stub.auraAt = auraAt
+C_UnitAuras = { GetAuraDataByIndex = function(unit, i, filter) return auraAt(i) end }
 AuraUtil = { ForEachAura = function(unit, filter, maxCount, fn, usePacked)
-	for i, name in ipairs(stub.auras) do
+	for i = 1, #stub.auras do
+		local a = auraAt(i)
 		local done
-		if usePacked then done = fn({ name = name, spellId = 1000 + i }) else done = fn(name, 134, 1, nil, 0, 0, "player", false, false, 1000 + i) end
+		if usePacked then done = fn(a)
+		else done = fn(a.name, 134, a.applications or 1, nil, a.duration or 0, a.expirationTime or 0, "player", false, false, a.spellId) end
 		if done then return end
 	end
 end }

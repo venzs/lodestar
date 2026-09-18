@@ -166,7 +166,16 @@ function Leveling:BuildStripText()
 		tinsert(parts, BLUE .. "Resting|r")
 	end
 	for _, name in ipairs(state.buffs or {}) do
-		tinsert(parts, GREEN .. name .. "|r")
+		-- Camp knows how long each one has left; without it this stays a bare name, as before.
+		local left = self.BuffRemaining and self:BuffRemaining(name)
+		local text = left and self.FormatRemaining and self:FormatRemaining(left)
+		tinsert(parts, GREEN .. name .. (text and (" " .. text) or "") .. "|r")
+	end
+	for _, extra in ipairs((self.CampStripParts and self:CampStripParts()) or {}) do
+		tinsert(parts, extra)
+	end
+	for _, extra in ipairs((self.ProfessionStripParts and self:ProfessionStripParts()) or {}) do
+		tinsert(parts, extra)
 	end
 	return table.concat(parts, SEP)
 end
@@ -183,6 +192,8 @@ function Leveling:AddStripTooltipLines(tooltip)
 	if #buffs > 0 then
 		tooltip:AddDoubleLine("Buffs", table.concat(buffs, ", "), 1, 1, 1, 0.5, 1, 0.5)
 	end
+	if self.AddCampTooltipLines then self:AddCampTooltipLines(tooltip) end
+	if self.AddProfessionTooltipLines then self:AddProfessionTooltipLines(tooltip) end
 end
 
 -- Refresh + events -----------------------------------------------------------------
@@ -195,6 +206,10 @@ function Leveling:RefreshStrip()
 	local ok, err = pcall(collect, cfg)
 	if not ok then Lodestar:Debug("status strip: %s", tostring(err)) end
 	checkNags(cfg)
+	-- Camp and professions ride on the same throttled refresh rather than each running its own
+	-- timer: every source they read changes on events this frame already listens for.
+	if self.RefreshCamp then self:RefreshCamp() end
+	if self.RefreshProfessions then self:RefreshProfessions() end
 	self:RefreshXPText()
 end
 

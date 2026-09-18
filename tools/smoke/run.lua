@@ -658,6 +658,172 @@ try("status strip", function()
 	Lv:RefreshStrip()
 end)
 
+-- Camp: buff timers, food and drink, and the warnings that ride on them.
+-- The point of a timer warning is to arrive while there is still time to do something about it, so
+-- the thresholds are checked at the boundaries rather than somewhere comfortably inside them.
+try("camp", function()
+	local Lv = Lodestar:GetModule("Leveling")
+	local said = {}
+	local realMsg = Lodestar.Msg
+	Lodestar.Msg = function(_, fmt, ...) said[#said + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+
+	Lv.db.profile.xp.strip.buffs = "Well Fed"
+	Lv.db.profile.camp.warnMinutes = 5
+	Lv.db.profile.camp.foodLow = 5
+
+	-- A buff with plenty of time left says nothing and shows its remaining time on the strip.
+	local now = GetTime()
+	stub.auras = { { name = "Well Fed", expirationTime = now + 1500, duration = 1800 } }
+	stub.bags[0][3] = { itemID = 4540, stackCount = 12, quality = 1 }
+	stub.itemClasses = { [4540] = { 0, 5 } }
+	Lv:RefreshStrip()
+	check(#said == 0, "a buff with 25 minutes left says nothing: " .. table.concat(said, " | "))
+	check(math.floor(Lv:BuffRemaining("Well Fed") / 60) == 25, "remaining time read from expirationTime: " .. tostring(Lv:BuffRemaining("Well Fed")))
+	local text = LodestarXPFrame.strip.text or ""
+	check(text:find("Well Fed 25m", 1, true) ~= nil, "strip shows how long the buff has left: " .. text)
+	check(text:find("food |cffffffff12|r", 1, true) ~= nil, "strip counts food and drink in the bags: " .. text)
+
+	-- Inside the warning window: one line, and only one however many refreshes run.
+	stub.auras = { { name = "Well Fed", expirationTime = now + 240, duration = 1800 } }
+	said = {}
+	Lv:RefreshStrip()
+	Lv:RefreshStrip()
+	check(#said == 1 and said[1]:find("4 minutes left", 1, true) ~= nil, "one warning when the buff is inside the window: " .. table.concat(said, " | "))
+
+	-- The last minute gets its own, louder line even though the first already fired.
+	stub.auras = { { name = "Well Fed", expirationTime = now + 30, duration = 1800 } }
+	said = {}
+	Lv:RefreshStrip()
+	check(#said == 1 and said[1]:find("30 seconds", 1, true) ~= nil, "a second warning in the last minute: " .. table.concat(said, " | "))
+
+	-- A buff with no duration is not "about to expire" -- expirationTime 0 means endless, and
+	-- treating it as a number is how a permanent buff warns forever.
+	stub.auras = { { name = "Well Fed", expirationTime = 0 } }
+	said = {}
+	Lv:RefreshStrip()
+	check(#said == 0, "an endless buff never warns: " .. table.concat(said, " | "))
+	check(Lv:BuffRemaining("Well Fed") == nil, "no remaining time for an endless buff")
+	check((LodestarXPFrame.strip.text or ""):find("|cff7fff7fWell Fed|r", 1, true) ~= nil, "endless buff shown without a timer")
+
+	-- Food running low warns; running out warns differently.
+	stub.bags[0][3] = { itemID = 4540, stackCount = 4, quality = 1 }
+	said = {}
+	Lv:RefreshStrip()
+	check(#said == 1 and said[1]:find("Food and drink: 4 left", 1, true) ~= nil, "low food warns: " .. table.concat(said, " | "))
+	stub.bags[0][3] = nil
+	said = {}
+	Lv:RefreshStrip()
+	check(#said == 1 and said[1]:find("No food or drink", 1, true) ~= nil,
+		"running out gets its own line even though 'running low' fired a moment ago: " .. table.concat(said, " | "))
+
+	-- Items that are not food are not counted, whatever else is in the bag. Zero still shows --
+	-- "food 0" in red is the warning, not an empty space where the count used to be.
+	stub.itemClasses = {}
+	stub.bags[0][3] = { itemID = 4540, stackCount = 12, quality = 1 }
+	Lv:RefreshStrip()
+	check(Lv:CampProvisions() == 0, "a non-consumable in the bag is not counted as food: " .. tostring(Lv:CampProvisions()))
+	check((LodestarXPFrame.strip.text or ""):find("food |cffff4040" .. "0|r", 1, true) ~= nil, "zero food shows red: " .. (LodestarXPFrame.strip.text or ""))
+
+	-- Warnings and the strip both go quiet when camp tracking is off.
+	stub.itemClasses = { [4540] = { 0, 5 } }
+	stub.bags[0][3] = { itemID = 4540, stackCount = 1, quality = 1 }
+	Lv.db.profile.camp.enabled = false
+	said = {}
+	Lv:RefreshStrip()
+	check(#said == 0 and (LodestarXPFrame.strip.text or ""):find("food ", 1, true) == nil, "camp off is silent")
+	Lv.db.profile.camp.enabled = true
+
+	Lodestar.Msg = realMsg
+	stub.bags[0][3] = nil
+	stub.itemClasses = {}
+	stub.auras = { "Well Fed" }
+	Lv:RefreshStrip()
+end)
+
+-- Professions: rank, cap and the nag that only fires at the cap.
+try("professions", function()
+	local Lv = Lodestar:GetModule("Leveling")
+	local said = {}
+	local realMsg = Lodestar.Msg
+	Lodestar.Msg = function(_, fmt, ...) said[#said + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+
+	stub.professions = { { name = "Skinning", rank = 43, maxRank = 75 }, { name = "Herbalism", rank = 68, maxRank = 75 } }
+	stub.professions[5] = { name = "Cooking", rank = 75, maxRank = 75 }
+	Lv:RefreshProfessions()
+	local list = Lv:Professions()
+	check(#list == 3, "all three slots scanned: " .. #list)
+	check(list[1].name == "Skinning" and list[1].rank == 43 and list[1].toCap == 32, "rank and distance to the cap")
+	check(list[3].capped and list[3].secondary, "a secondary profession at its cap is flagged")
+	check(#said == 1 and said[1]:find("Cooking is capped at 75", 1, true) ~= nil, "only the capped one nags: " .. table.concat(said, " | "))
+	check(said[1]:find("Journeyman", 1, true) ~= nil, "the nag names the tier that raises the cap: " .. said[1])
+
+	-- Same cap, second refresh: the nag is rate-limited, not repeated per event.
+	said = {}
+	Lv:RefreshProfessions()
+	check(#said == 0, "the cap nag does not repeat: " .. table.concat(said, " | "))
+
+	-- The strip shows what is at or near the cap and stays quiet about the rest.
+	local parts = Lv:ProfessionStripParts()
+	check(#parts == 2, "strip shows the two professions at or near the cap, not Skinning: " .. #parts)
+	check(table.concat(parts, " "):find("Cooking 75/75", 1, true) ~= nil, "capped profession on the strip")
+	check(table.concat(parts, " "):find("Skinning", 1, true) == nil, "43/75 is not news")
+
+	-- Points gained are remembered per character across refreshes.
+	stub.professions[1] = { name = "Skinning", rank = 50, maxRank = 75 }
+	Lv:RefreshProfessions()
+	check(Lv.db.char.professions.Skinning.gained == 7, "skill-ups accumulate: " .. tostring(Lv.db.char.professions.Skinning.gained))
+
+	-- A cap this client does not use gets no invented next tier.
+	stub.professions = { { name = "Blacksmithing", rank = 112, maxRank = 112 } }
+	said = {}
+	Lv:RefreshProfessions()
+	check(#said == 1 and said[1]:find("Journeyman", 1, true) == nil and said[1]:find("Expert", 1, true) == nil,
+		"an unknown cap names no tier: " .. table.concat(said, " | "))
+
+	-- Off means off.
+	Lv.db.profile.professions.enabled = false
+	Lv:RefreshProfessions()
+	check(#Lv:Professions() == 0 and #Lv:ProfessionStripParts() == 0, "professions off clears the list and the strip")
+	Lv.db.profile.professions.enabled = true
+
+	-- The reports themselves: format strings with the wrong argument count throw at print time and
+	-- nowhere else, so both are run in every shape they can be printed in.
+	Lodestar.Msg = realMsg
+	local lines = {}
+	local realSay = Lodestar.Say
+	Lodestar.Say = function(_, fmt, ...) lines[#lines + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+
+	stub.professions = { { name = "Skinning", rank = 43, maxRank = 75 }, { name = "Herbalism", rank = 75, maxRank = 75 } }
+	Lodestar:HandleSlash("prof")
+	local report = table.concat(lines, "\n")
+	check(report:find("Skinning 43/75", 1, true) and report:find("32 to the cap", 1, true), "/lode prof shows the gap to the cap: " .. report)
+	check(report:find("Journeyman raises it to 150", 1, true) ~= nil, "/lode prof names the rank that lifts the cap: " .. report)
+
+	lines = {}
+	stub.professions = {}
+	Lodestar:HandleSlash("prof")
+	check(table.concat(lines, "\n"):find("No professions", 1, true) ~= nil, "/lode prof with none learned: " .. table.concat(lines, "\n"))
+
+	lines = {}
+	stub.auras = { { name = "Well Fed", expirationTime = GetTime() + 900 } }
+	Lodestar:HandleSlash("camp")
+	report = table.concat(lines, "\n")
+	check(report:find("Well Fed", 1, true) and report:find("15m left", 1, true), "/lode camp shows buff time left: " .. report)
+	check(report:find("food and drink", 1, true) ~= nil, "/lode camp reports the food count: " .. report)
+
+	-- A watched buff that is missing is the case worth printing, so it has to survive the report.
+	lines = {}
+	stub.auras = {}
+	Lodestar:HandleSlash("camp")
+	check(table.concat(lines, "\n"):find("missing", 1, true) ~= nil, "/lode camp calls out a missing buff: " .. table.concat(lines, "\n"))
+
+	Lodestar.Say = realSay
+	stub.auras = { "Well Fed" }
+	stub.professions = {}
+	Lv:RefreshProfessions()
+	Lv:RefreshStrip()
+end)
+
 -- Turn-ins to ding
 -- Reward XP of quests ready to turn in, read by questID (never via the quest-log selection, which
 -- Blizzard's detail pane drives Abandon and Track off), with "(ding!)" once the sum covers the level.
@@ -1832,7 +1998,28 @@ try("class trainers", function()
 	stub.fire("TRAINER_SHOW") stub.fire("TRAINER_CLOSED")
 	stub.tradeskillTrainer = false
 	check(G.db.char.lastTrainedLevel == 4, "profession trainer visit leaves lastTrainedLevel alone")
+	check(G:HarvestDB().npcs[6].kind.tradeskill == true, "the tradeskill flag was harvested instead")
+	-- ... and that flag is what the Leveling module's cap nag reaches for across the module
+	-- boundary. Guide is an optional dependency of Leveling, so this is the path that breaks first
+	-- if either side is loaded without the other.
+	local near = G:NearestTradeskillTrainer(300)
+	check(near and near.npcID == 6 and near.dist == 0, "nearest tradeskill trainer found from the harvest: " .. tostring(near and near.npcID))
+	check(G:NearestTradeskillTrainer(-1) == nil, "range is honoured")
+	do
+		local Lv = Lodestar:GetModule("Leveling")
+		local said = {}
+		local realMsg = Lodestar.Msg
+		Lodestar.Msg = function(_, fmt, ...) said[#said + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+		stub.professions = { { name = "Mining", rank = 150, maxRank = 150 } }
+		Lv:RefreshProfessions()
+		check(#said == 1 and said[1]:find("Expert raises it to 225", 1, true), "cap nag names the next rank: " .. table.concat(said, " | "))
+		check(said[1]:find("yd away", 1, true) ~= nil, "cap nag points at the harvested tradeskill trainer: " .. said[1])
+		Lodestar.Msg = realMsg
+		stub.professions = {}
+		Lv:RefreshProfessions()
+	end
 	G:HarvestDB().npcs[6].trains = nil G:HarvestDB().npcs[6].kind.trainer = nil
+	G:HarvestDB().npcs[6].kind.tradeskill = nil
 	t = G:TrainerSuggestion(true)
 	check(t and t.npcID == 2119, "back to the data trainer once the harvest entry is untagged")
 	-- far away: nothing within 300 yd

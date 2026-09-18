@@ -20,6 +20,11 @@ local SYMBOLS = {
 		"C_QuestLog.GetTitleForQuestID", "C_QuestLog.IsQuestTrivial", "C_QuestLog.GetQuestDifficultyLevel",
 		"C_QuestLog.GetSelectedQuest", "C_QuestLog.SetSelectedQuest", "GetQuestLogRewardXP", "GetQuestLogRewardMoney",
 		"C_Container.GetContainerNumFreeSlots", "GetInventoryItemDurability", "C_UnitAuras.GetAuraDataByIndex", "AuraUtil.ForEachAura",
+		-- Camp and professions: the bag walk for food and drink, and the two undocumented-but-present
+		-- profession globals. Enum.ItemConsumableSubclass.Fooddrink is the spelling the client uses.
+		"C_Container.GetContainerNumSlots", "C_Container.GetContainerItemID", "C_Container.GetContainerItemInfo",
+		"C_Item.GetItemInfoInstant", "Enum.ItemClass", "Enum.ItemConsumableSubclass",
+		"GetProfessions", "GetProfessionInfo",
 		"C_GossipInfo.GetAvailableQuests", "C_GossipInfo.GetActiveQuests", "C_GossipInfo.SelectAvailableQuest",
 		"C_GossipInfo.SelectActiveQuest", "C_GossipInfo.GetOptions", "C_GossipInfo.SelectOption",
 		"GetNumActiveQuests", "GetNumAvailableQuests", "GetActiveTitle", "GetAvailableTitle", "GetAvailableQuestInfo",

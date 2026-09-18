@@ -734,6 +734,23 @@ function Guide:NearestClassTrainer(range)
 	return best
 end
 
+--- Nearest harvested tradeskill trainer within `range` yards: { npcID, name, mapID, x, y, dist } or
+--- nil. Unlike class trainers there is no built-in list to fall back on -- Data/Trainers.lua covers
+--- classes only -- so this is whatever this account has actually walked past and opened.
+function Guide:NearestTradeskillTrainer(range)
+	local best
+	local db = self.HarvestDB and self:HarvestDB()
+	for id, e in pairs(db and db.npcs or {}) do
+		if e.kind and e.kind.tradeskill and e.map and e.x and e.y then
+			local dist = self:VectorTo(e.map, e.x / 100, e.y / 100)
+			if dist and (not range or dist <= range) and (not best or dist < best.dist) then
+				best = { npcID = id, name = e.name, mapID = e.map, x = e.x / 100, y = e.y / 100, dist = dist }
+			end
+		end
+	end
+	return best
+end
+
 --- "New spells available": the character has reached a level with new spells for the class, has
 --- not visited a class trainer since, and a trainer is close. Recomputed at most every 5 s.
 --- Returns { npcID, name, mapID, x, y, dist, level, title } or nil.

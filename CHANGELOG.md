@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Saved variables renamed.** Forever's beta client writes a saved variable whose name ends in `DB`
+  at logout and hands back `nil` at login, every session — which threw away the harvest, reset every
+  frame to its default position and restarted guide progress on each relog. `LodestarDB`,
+  `LodestarProbeDB`, `LodestarScanDB` and `LodestarShareDB` are now `LodestarCore`, `LodestarProbes`,
+  `LodestarScans` and `LodestarHarvest`; the old names stay declared for one release and are adopted
+  on first login. `tools/smoke/persist.lua` runs two real sessions in two Lua states and checks what
+  survives the file; `tools/check_tocs.py` rejects a `DB` suffix.
+- Leveling: **camp** — how long each watched buff has left (on the strip and as a warning before it
+  drops), food and drink counted in the bags with a low/empty warning, and `/lode camp`.
+- Leveling: **professions** — rank and cap per profession, a warning when one hits its tier cap that
+  names the rank which lifts it and the level that rank needs, points gained per character, capped
+  professions on the status strip, and `/lode prof`. Uses harvested tradeskill trainers to say how
+  far the nearest one is.
+
 - Guide: built-in Vanilla quest database (pfQuest import) and a Forever overlay harvested on the beta; smart mode,
   the arrow and quest tooltips resolve turn-ins, objectives and pick-ups from them (Forever exposes no quest POIs).
 - Guide: trails — walkable ground learned from where you walk plus seeded roads; the arrow routes along them (A*).

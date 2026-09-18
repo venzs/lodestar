@@ -5,7 +5,7 @@ A suite of addons for **World of Warcraft: Forever**. One core, seven modules an
 | Addon | What it does |
 |---|---|
 | **Lodestar** (required) | Settings panel, module toggles, minimap button, guild/party comms, `/lode` |
-| **Lodestar_Leveling** | XP/hour + time-to-level readout with the XP waiting in completed quests ("turn-ins to ding") and a status strip (bag slots, durability, rested %, Well Fed) with bag-space and repair nags; quest auto-accept/turn-in, `/way` waypoints, time-per-level stats |
+| **Lodestar_Leveling** | XP/hour + time-to-level readout with the XP waiting in completed quests ("turn-ins to ding") and a status strip (bag slots, durability, rested %, buff timers, food count, capped professions) with bag-space, repair, buff-expiry and low-food warnings; profession ranks and tier caps (`/lode prof`), camp state (`/lode camp`); quest auto-accept/turn-in, `/way` waypoints, time-per-level stats |
 | **Lodestar_Economy** | Auto-sell greys, auto-repair, account-wide gold ledger, vendor + auction prices in tooltips |
 | **Lodestar_UI** | Item/spell/NPC IDs and target-of-target in tooltips, map + minimap coordinates, clickable chat links, timestamps, copy-chat, fast loot |
 | **Lodestar_Guild** | Live guild board: who is online, where, what level, who wants a group (`/lode guild`, `/lode lfg`). On realms that restrict addon messages (the Forever beta) it shows the guild roster and `/lode lfg` drafts a guild chat line for you to send |
