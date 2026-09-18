@@ -133,6 +133,52 @@ function Guide:DataQuestPosition(questID, complete)
 	return nil
 end
 
+-- Read-only lookups for the guide window (StepFrame.lua) ------------------------------------------
+-- These two add nothing to the data model: they just answer "who and where" for a single quest so the
+-- window can write a plain-English headline and point the arrow at one action instead of the step.
+
+--- Names the data knows for a quest: who gives it, who takes it back, what its first objective is
+--- about, and whether that objective target is a creature. All four may be nil.
+function Guide:DataQuestNames(questID)
+	local d = data()
+	local q = d and d.quests[questID]
+	if not q then return nil end
+	local function firstName(store, ids)
+		for _, id in ipairs(ids or {}) do
+			local e = store[id]
+			if e and e.n then return e.n end
+		end
+		return nil
+	end
+	local giver = q.start and (firstName(d.npcs, q.start.npcs) or firstName(d.objs, q.start.objs)) or nil
+	local ender = q["end"] and (firstName(d.npcs, q["end"].npcs) or firstName(d.objs, q["end"].objs)) or nil
+	local objName, objIsCreature
+	local o = q.obj
+	if o then
+		objName = firstName(d.npcs, o.npcs)
+		objIsCreature = objName ~= nil
+		if not objName then objName = firstName(d.objs, o.objs) end
+		if not objName and o.items then
+			local npcs = itemSourceIDs(o.items)
+			objName = firstName(d.npcs, npcs)
+			objIsCreature = objName ~= nil
+		end
+	end
+	return giver, ender, objName, objIsCreature
+end
+
+--- Where a quest is picked up: mapID, x, y (0..1), name — the nearest known start NPC or object.
+function Guide:DataQuestStartPosition(questID)
+	local d = data()
+	local q = d and d.quests[questID]
+	local s = q and q.start
+	if not s then return nil end
+	local mapID, x, y, name = nearest(d.npcs, s.npcs)
+	if not mapID then mapID, x, y, name = nearest(d.objs, s.objs) end
+	if not mapID then return nil end
+	return mapID, x, y, name
+end
+
 --- Quest level and title from the data (nil when unknown).
 function Guide:DataQuestInfo(questID)
 	local d = data()

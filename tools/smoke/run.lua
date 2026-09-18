@@ -1579,15 +1579,15 @@ step
 	G:SetStep(2, true) G:EvaluateStep()
 	check(G.stepIndex == 2, "optional step shown in completionist mode, at " .. tostring(G.stepIndex))
 	G:RefreshStepFrame()
-	check(LodestarGuideFrame.step.text and LodestarGuideFrame.step.text:find("(optional)", 1, true), "window tags the optional step: " .. tostring(LodestarGuideFrame.step.text))
+	check(LodestarGuideFrame.headline.text and LodestarGuideFrame.headline.text:find("(optional)", 1, true), "window tags the optional step: " .. tostring(LodestarGuideFrame.headline.text))
 	G:SetCompletionist(false)
 	G:SetStep(1, true) G:EvaluateStep()
 	check(G.stepIndex == 6, "speed run skips the optional step again (buy, profession done; item step gated), at " .. tostring(G.stepIndex))
 	-- upcoming rows leave out steps that do not apply (optional in speed-run mode, item-gated without the item)
 	local function upcomingTexts()
 		local texts = {}
-		for _, f in ipairs(stub.frames) do
-			if f.parent == LodestarGuideFrame and f.kind == "Button" and f.hl and f.shown and f.text.text ~= "" then tinsert(texts, f.text.text) end
+		for _, row in ipairs(LodestarGuideFrame.upcomingRows) do
+			if row.shown and row.main.text and row.main.text ~= "" then tinsert(texts, (row.main.text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))) end
 		end
 		return texts
 	end
@@ -1763,6 +1763,226 @@ try("sync on load", function()
 	stub.questLog = {}
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
 	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
+end)
+-- The guide window: action rows, location bar, coming-up lines, smart list, width and resize.
+try("guide window", function()
+	local W = LodestarGuideFrame
+	local function plain(s) if type(s) ~= "string" then return "" end return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+	local function actionRows()
+		local out = {}
+		for _, r in ipairs(W.actionRows) do
+			if r.shown then
+				tinsert(out, { glyph = plain(r.glyph.text), chip = plain(r.chip.text), main = plain(r.main.text),
+					right = plain(r.right.text), detail = plain(r.detail.text), header = r.isHeader, frame = r })
+			end
+		end
+		return out
+	end
+	local function upcomingTexts()
+		local out = {}
+		for _, r in ipairs(W.upcomingRows) do
+			if r.shown and r.main.text ~= "" then tinsert(out, plain(r.main.text)) end
+		end
+		return out
+	end
+
+	-- A guide with one of every row shape the window has to draw.
+	check(G:RegisterGuide([[
+#guide Test: window
+#levels 1-60
+step
+  .goto Tirisfal Glades,30.8,66.2
+  .turnin 363 >>Hand it to Shadow Priest Sarvis in the chapel
+  .accept 364
+step
+  .goto Tirisfal Glades,32.3,63.6
+  .complete 364,1 >>Graveyard north-east of the chapel
+step
+  .goto Tirisfal Glades,30.8,66.2
+  .buy 2320,2
+step
+  .optional >>Only worth it in completionist mode
+  .accept 3901
+step
+  .goto Tirisfal Glades,31.0,65.0
+step
+  .text >>Last step
+]], "smoke") ~= nil, "window test guide registered")
+
+	stub.level = 3
+	stub.questLog = {}
+	stub.flagged = {}
+	stub.itemCounts = {}
+	stub.questDifficulty = {}
+	G.db.char.progress["Test: window"] = nil
+	G.db.char.lastTrainedLevel = 99      -- nothing to train: keep the banner free for the other hints
+	G.db.profile.steps.upcoming = 3
+	G:SetStepFrameWidth(360)
+	G:LoadGuide("Test: window", 1)
+	check(G.stepIndex == 1, "window test guide starts at step 1, at " .. tostring(G.stepIndex))
+	-- stand 566 yd south-east of the chapel, with Sarvis harvested there (zone + subzone)
+	stub.playerMap.x, stub.playerMap.y = 0.35, 0.70
+	G:HarvestDB().npcs[1569] = { name = "Shadow Priest Sarvis", map = 18, x = 30.8, y = 66.2,
+		zone = "Tirisfal Glades", subzone = "Deathknell", kind = {} }
+	G:InvalidateStepFrameCache()
+	stub.flagged[363] = true             -- Rude Awakening handed in; The Mindless Ones not taken yet
+	G:RefreshStepFrame()
+
+	-- Title, location bar, headline
+	check(W.title.text:find("Test: window", 1, true) and W.title.text:find("1/6", 1, true), "title: name and progress: " .. tostring(W.title.text))
+	local loc = plain(W.location.text)
+	check(loc:find("Deathknell · Tirisfal Glades", 1, true) and loc:find("566 yd", 1, true) and loc:find("NW", 1, true),
+		"location bar: harvested subzone, zone, distance and direction: " .. loc)
+	check(W.headline.text == "Turn in and pick up at Shadow Priest Sarvis", "hub headline names the NPC: " .. tostring(W.headline.text))
+
+	-- Action rows: one per action, verb chip, quest name, level, state glyph
+	local rows = actionRows()
+	check(#rows == 2, "one action row per action, got " .. #rows)
+	check(rows[1].chip == "Turn in" and rows[1].main:find("Rude Awakening", 1, true) and rows[1].main:find("(lvl 1)", 1, true),
+		"turn-in row: verb chip, quest name and level: " .. rows[1].chip .. " / " .. rows[1].main)
+	check(rows[2].chip == "Accept" and rows[2].main:find("The Mindless Ones", 1, true) and rows[2].main:find("(lvl 2)", 1, true),
+		"accept row names what we are picking up: " .. rows[2].chip .. " / " .. rows[2].main)
+	check(rows[1].glyph == "[+]" and rows[2].glyph == "[ ]", "completed action shows the done glyph: " .. rows[1].glyph .. " / " .. rows[2].glyph)
+	check(rows[1].detail:find("Shadow Priest Sarvis", 1, true), "the guide author's note becomes the row's detail line: " .. rows[1].detail)
+	check(W.actionRows[2].main.text:find("|cffffff00", 1, true), "a level 2 quest is yellow for a level 3 character: " .. W.actionRows[2].main.text)
+	stub.questDifficulty[364] = Enum.RelativeContentDifficulty.Trivial
+	G:RefreshStepFrame()
+	check(W.actionRows[2].main.text:find("|cff808080", 1, true), "the client's own difficulty answer wins when it has one: " .. W.actionRows[2].main.text)
+	stub.questDifficulty[364] = nil
+	G:RefreshStepFrame()
+
+	-- Coming up: location + verbs + quest names
+	local up = upcomingTexts()
+	check(#up == 3, "three coming-up rows, got " .. #up)
+	check(up[1]:find("^2%. Tirisfal Glades — do The Mindless Ones$") ~= nil, "coming-up line 1 names the place and the quest: " .. up[1])
+	check(up[2]:find("^3%. Deathknell — Buy ") ~= nil and up[3]:find("^5%. run to Deathknell$") ~= nil, "coming-up lines cover buy and goto-only steps: " .. up[2] .. " | " .. up[3])
+	G.db.profile.steps.upcoming = 10
+	G:RefreshStepFrame()
+	check(#upcomingTexts() == 4, "the upcoming option now goes up to 10 (4 applicable steps left here; the optional one is skipped): " .. #upcomingTexts())
+	G.db.profile.steps.upcoming = 3
+
+	-- Clicking a row retargets the arrow at that action, the headline hands it back to the step
+	G.db.profile.arrow.mode = "AUTO"
+	G:RetargetArrow()
+	check(G:GetArrowTarget() and G:GetArrowTarget().kind == "guide", "arrow starts on the step")
+	rows[1].frame.scripts.OnEnter(rows[1].frame)
+	rows[1].frame.scripts.OnLeave(rows[1].frame)
+	rows[1].frame.scripts.OnClick(rows[1].frame)
+	local t = G:GetArrowTarget()
+	check(t and t.kind == "waypoint" and t.mapID == 18 and math.abs(t.x - 0.308) < 0.002 and math.abs(t.y - 0.662) < 0.002,
+		"clicking the turn-in row points the arrow at the quest's ender: " .. tostring(t and t.kind) .. " " .. tostring(t and t.x))
+	W.headlineButton.scripts.OnClick(W.headlineButton)
+	check(G:GetArrowTarget() and G:GetArrowTarget().kind == "guide" and stub.waypoint == nil, "clicking the headline hands the arrow back to the step")
+
+	-- Objective progress on a .complete row
+	stub.questLog[364] = { title = "The Mindless Ones", complete = false,
+		objectives = { { text = "Mindless Zombie slain: 3/8", finished = false, numFulfilled = 3, numRequired = 8 } } }
+	G:SetStep(2, true)
+	G:RefreshStepFrame()
+	rows = actionRows()
+	check(#rows == 1 and rows[1].chip == "Do" and rows[1].main:find("The Mindless Ones", 1, true), "kill step draws one Do row: " .. tostring(rows[1] and rows[1].chip))
+	check(rows[1].detail == "Mindless Zombie slain: 3/8", "live objective progress on the row: " .. rows[1].detail)
+	check(W.headline.text == "Kill Mindless Zombies", "kill headline names the mob: " .. tostring(W.headline.text))
+
+	-- Buy row: item name and have/need
+	stub.itemCounts[2320] = 1
+	G:SetStep(3, true)
+	G:RefreshStepFrame()
+	rows = actionRows()
+	check(rows[1].chip == "Buy" and rows[1].main:find("Item2320", 1, true) and rows[1].right == "1/2", "buy row: item name and have/need: " .. rows[1].main .. " " .. rows[1].right)
+	stub.itemCounts[2320] = nil
+
+	-- Optional tag and its reason
+	G:SetStep(4, true)
+	G:RefreshStepFrame()
+	check(W.headline.text:find("(optional)", 1, true), "optional tag on the headline: " .. tostring(W.headline.text))
+	check(plain(W.banner.text):find("Only worth it in completionist mode", 1, true), "the optional reason is shown: " .. plain(W.banner.text))
+
+	-- Goto-only step
+	G:SetStep(5, true)
+	G:RefreshStepFrame()
+	rows = actionRows()
+	check(W.headline.text == "Run to Deathknell", "goto-only headline: " .. tostring(W.headline.text))
+	check(#rows == 1 and rows[1].chip == "Reach", "goto-only step still gets a row: " .. tostring(rows[1] and rows[1].chip))
+
+	-- Sync hint
+	G:SetStep(1, true)
+	stub.questLog[364] = nil
+	stub.flagged[364] = true
+	stub.advance(6)
+	G:RefreshStepFrame()
+	check(plain(W.banner.text):find("You look further along", 1, true), "sync hint still renders: " .. plain(W.banner.text))
+
+	-- Trainer banner
+	stub.playerMap.x, stub.playerMap.y = 0.308, 0.662
+	stub.level = 4
+	G.db.char.lastTrainedLevel = nil
+	G:TrainerSuggestion(true)
+	G:InvalidateStepFrameCache()
+	G:RefreshStepFrame()
+	check(plain(W.banner.text):find("Dannal Stern", 1, true) and plain(W.banner.text):find("New spells", 1, true), "trainer banner still renders: " .. plain(W.banner.text))
+	stub.level = 3
+	G.db.char.lastTrainedLevel = 99
+
+	-- Finished state
+	G:SetStep(6, true)
+	G:FinishGuide()
+	G:RefreshStepFrame()
+	check(plain(W.banner.text):find("Guide finished", 1, true), "finished state: " .. plain(W.banner.text))
+	check(W.title.text:find("done", 1, true), "title marks the guide done: " .. tostring(W.title.text))
+	G.finished = nil
+
+	-- Width: option, clamping, menu presets and the resize grip
+	check(G:SetStepFrameWidth(520) == 520 and W.uiWidth == 520, "width option widens the window: " .. tostring(W.uiWidth))
+	local wideScale = W.uiScale
+	check(G:SetStepFrameWidth(260) == 260 and W.uiWidth == 260 and W.uiScale < wideScale, "260 re-lays out with smaller rows: " .. tostring(W.uiScale) .. " vs " .. tostring(wideScale))
+	check(#actionRows() >= 1, "rows still render at the minimum width")
+	check(G:SetStepFrameWidth(700) == 520 and G:SetStepFrameWidth(100) == 260, "width is clamped to 260-520")
+	G:SetStepFrameWidth(400)
+	W.grip.scripts.OnMouseDown(W.grip)
+	W.grip.scripts.OnMouseUp(W.grip)
+	check(G.db.profile.steps.width == 260 and W.uiWidth == 260, "the grip saves the dragged width (the stub frame measures 200 px, clamped to the minimum): " .. tostring(G.db.profile.steps.width))
+	W.grip.scripts.OnEnter(W.grip)
+	W.grip.scripts.OnLeave(W.grip)
+	G:SetStepFrameWidth(360)
+
+	-- Smart mode: grouped list, levels on pick-ups, distances, clicking pins
+	stub.questLog = {}
+	stub.flagged = { [363] = true }
+	stub.slash("/lode guide smart")
+	G:PinSmartItem(nil)
+	G:CollectSmartItems(true)
+	G:RefreshStepFrame()
+	check(W.title.text:find("smart mode", 1, true), "window shows smart mode: " .. tostring(W.title.text))
+	local headers, pickup, distance = {}, nil, nil
+	for _, r in ipairs(actionRows()) do
+		if r.header then headers[r.main] = true
+		else
+			if r.main:find("%(lvl %d+%)") and not pickup then pickup = r.main end
+			if r.right:find("yd", 1, true) and not distance then distance = r.right end
+		end
+	end
+	check(headers["Pick up"], "smart list groups the rest under kind headers: " .. tostring(next(headers)))
+	check(pickup ~= nil, "pick-up rows say what level the quest is: " .. tostring(pickup))
+	check(distance ~= nil, "smart rows carry a distance: " .. tostring(distance))
+	local firstItem
+	for _, r in ipairs(W.actionRows) do if r.shown and not r.isHeader and not firstItem then firstItem = r end end
+	firstItem.scripts.OnClick(firstItem)
+	check(G:GetPinnedSmartItem() ~= nil, "clicking a smart row pins it")
+
+	-- Back to where the rest of the run expects things
+	G:PinSmartItem(nil)
+	G.db.profile.arrow.mode = "AUTO"
+	if stub.waypoint then C_Map.ClearUserWaypoint() end
+	stub.playerMap.x, stub.playerMap.y = 0.308, 0.662
+	stub.level = 3
+	stub.questLog = {}
+	stub.flagged = {}
+	stub.questDifficulty = {}
+	G.db.char.lastTrainedLevel = nil
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
+	G:InvalidateStepFrameCache()
 end)
 try("forever overlay", function()
 	check(G.ForeverData and G.VanillaData.quests[99142] and G.VanillaData.quests[99142].t == "Tomb Weed", "Forever quest merged into the data")

@@ -36,6 +36,7 @@ Guide.defaults = {
 			show = true,
 			locked = false,
 			scale = 1,
+			width = 360,             -- window width in pixels (260-520; drag the bottom-right grip)
 			upcoming = 3,
 			pos = { point = "TOPRIGHT", x = -40, y = -200 },
 			autoAdvance = true,
@@ -123,9 +124,16 @@ Guide.options = {
 		set = function(_, v) Guide.db.profile.steps.locked = v; Guide:UpdateStepFrame() end,
 	},
 	stepsUpcoming = {
-		type = "range", order = 23, name = "Upcoming steps shown", min = 0, max = 6, step = 1,
+		type = "range", order = 23, name = "Upcoming steps shown", min = 0, max = 10, step = 1,
+		desc = "How many of the next steps the window lists under \"Coming up\".",
 		get = function() return Guide.db.profile.steps.upcoming end,
 		set = function(_, v) Guide.db.profile.steps.upcoming = v; Guide:RefreshStepFrame() end,
+	},
+	stepsWidth = {
+		type = "range", order = 23.5, name = "Window width", min = 260, max = 520, step = 10,
+		desc = "Wider fits longer quest names on one line. You can also drag the grip in the window's bottom-right corner or pick a width from its right-click menu; the height always follows the content.",
+		get = function() return Guide:GetStepFrameWidth() end,
+		set = function(_, v) Guide:SetStepFrameWidth(v) end,
 	},
 	stepsScale = {
 		type = "range", order = 24, name = "Scale", min = 0.6, max = 1.6, step = 0.1,

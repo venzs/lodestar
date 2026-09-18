@@ -739,6 +739,13 @@ GetMerchantItemID = function(slot) return stub.merchantItems[slot] end
 -- GetQuestLogRequiredMoney does not exist on this client; C_QuestLog.GetRequiredMoney is the one that does.
 C_QuestLog.GetRequiredMoney = function(id) return stub.questRequiredMoney and stub.questRequiredMoney[id] or 0 end
 stub.questRequiredMoney = {}
+-- Guide window: quest difficulty and the harvested places the location bar reads ----------------------
+Enum.RelativeContentDifficulty = { Trivial = 1, Easy = 2, Fair = 3, Difficult = 4, Impossible = 5 }
+stub.questDifficulty = {}            -- [questID] = Enum.RelativeContentDifficulty value (nil = client does not know)
+C_PlayerInfo = {
+	GetContentDifficultyQuestForPlayer = function(questID) return stub.questDifficulty[questID] end,
+	GetContentDifficultyCreatureForPlayer = function() return nil end,
+}
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1
