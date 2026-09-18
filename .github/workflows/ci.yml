@@ -18,5 +18,15 @@ jobs:
         run: luacheck . --no-color -q
       - name: API existence check
         run: python3 tools/apicheck.py .
+      - name: TOC check
+        run: python3 tools/check_tocs.py
+      - name: Event registration check
+        run: python3 tools/check_events.py
+      - name: Guide lint
+        run: python3 tools/router/lint_guides.py
       - name: Smoke test under the WoW stub
         run: lua5.1 tools/smoke/run.lua
+      # Two real sessions in two Lua states, with the saved variables serialised to disk and
+      # reloaded in the client's window. Everything the in-process suite structurally cannot see.
+      - name: Persistence across a logout
+        run: lua5.1 tools/smoke/persist.lua
