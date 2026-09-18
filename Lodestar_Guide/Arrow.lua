@@ -221,7 +221,8 @@ local function onUpdate(self, elapsed)
 	local relative = bearing - facing
 	self.arrow:Show()
 	self.arrow:SetRotation(relative)
-	self.arrow:SetVertexColor(colorFor(relative))
+	local arrived = dist <= (target.radius or Guide.db.profile.arrow.arrivalYards or 10)
+	if arrived then self.arrow:SetVertexColor(0.3, 1, 0.3) else self.arrow:SetVertexColor(colorFor(relative)) end
 	self.title:SetText(target.title or "")
 
 	-- speed / ETA
@@ -236,12 +237,25 @@ local function onUpdate(self, elapsed)
 		eta = "  ·  " .. FormatDuration(dist / speed)
 	end
 	local sub = target.subtitle and ("|cffaaaaaa" .. target.subtitle .. "|r  ·  ") or ""
-	self.dist:SetText(("%s%d yd%s"):format(sub, dist, eta))
+	self.dist:SetText(arrived and (sub .. "|cff7fff7fhere|r") or ("%s%d yd%s"):format(sub, dist, eta))
+end
+
+local ARROW_ATLAS = "Navigation-Tracked-Arrow"
+local SIZES = { { "Small", 48 }, { "Normal", 72 }, { "Large", 100 }, { "Huge", 140 } }
+
+--- Apply the configured arrow size: the art, the text widths and the frame follow it.
+local function layoutArrow()
+	local size = Guide.db.profile.arrow.size or 72
+	arrow.arrow:SetSize(size * (arrow.aspect or 1), size)
+	local width = math.max(260, size * 2.5)
+	arrow.title:SetWidth(width)
+	arrow.dist:SetWidth(width)
+	arrow:SetSize(width, size + 44)
 end
 
 local function createArrow()
 	arrow = CreateFrame("Frame", "LodestarArrow", UIParent)
-	arrow:SetSize(220, 76)
+	arrow:SetSize(260, 116)
 	arrow:SetFrameStrata("MEDIUM")
 	arrow:SetClampedToScreen(true)
 	arrow:SetMovable(true)
@@ -254,21 +268,27 @@ local function createArrow()
 	end)
 
 	arrow.arrow = arrow:CreateTexture(nil, "ARTWORK")
-	arrow.arrow:SetSize(44, 44)
 	arrow.arrow:SetPoint("TOP", 0, -2)
-	arrow.arrow:SetTexture("Interface\\Minimap\\MinimapArrow")
+	-- Blizzard's own navigation arrow art when the client has it (crisp at any size), else the minimap arrow.
+	local atlas = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(ARROW_ATLAS)
+	if atlas and atlas.width and atlas.height and atlas.height > 0 then
+		arrow.arrow:SetAtlas(ARROW_ATLAS)
+		arrow.aspect = atlas.width / atlas.height
+	else
+		arrow.arrow:SetTexture("Interface\\Minimap\\MinimapArrow")
+		arrow.aspect = 1
+	end
 
-	arrow.title = arrow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	arrow.title:SetPoint("TOP", arrow.arrow, "BOTTOM", 0, -2)
-	arrow.title:SetWidth(220)
+	arrow.title = arrow:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	arrow.title:SetPoint("TOP", arrow.arrow, "BOTTOM", 0, -4)
 	arrow.title:SetJustifyH("CENTER")
 	arrow.title:SetWordWrap(false)
 
-	arrow.dist = arrow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	arrow.dist:SetPoint("TOP", arrow.title, "BOTTOM", 0, -1)
-	arrow.dist:SetWidth(220)
+	arrow.dist = arrow:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	arrow.dist:SetPoint("TOP", arrow.title, "BOTTOM", 0, -2)
 	arrow.dist:SetJustifyH("CENTER")
 
+	layoutArrow()
 	arrow:SetScript("OnUpdate", onUpdate)
 	arrow:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
@@ -293,6 +313,7 @@ function Guide:UpdateArrowFrame()
 	arrow:ClearAllPoints()
 	arrow:SetPoint(cfg.pos.point or "CENTER", UIParent, cfg.pos.point or "CENTER", cfg.pos.x or 0, cfg.pos.y or 180)
 	arrow:SetScale(cfg.scale or 1)
+	layoutArrow()
 	arrow:Show()
 end
 
@@ -306,6 +327,14 @@ function Guide:ShowArrowMenu()
 				function() self.db.profile.arrow.mode = mode self:RetargetArrow() end)
 		end
 		root:CreateDivider()
+		local sizeMenu = root:CreateButton("Size")
+		if sizeMenu and sizeMenu.CreateRadio then
+			for _, entry in ipairs(SIZES) do
+				local label, px = entry[1], entry[2]
+				sizeMenu:CreateRadio(label, function() return (self.db.profile.arrow.size or 72) == px end,
+					function() self.db.profile.arrow.size = px self:UpdateArrowFrame() end)
+			end
+		end
 		root:CreateCheckbox("Locked", function() return self.db.profile.arrow.locked end,
 			function() self.db.profile.arrow.locked = not self.db.profile.arrow.locked end)
 		root:CreateButton("Hide arrow", function() self.db.profile.arrow.show = false self:UpdateArrowFrame() end)

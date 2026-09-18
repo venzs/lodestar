@@ -16,6 +16,7 @@ Guide.defaults = {
 			show = true,
 			locked = false,
 			scale = 1,
+			size = 72,             -- arrow art height in pixels (right-click > Size)
 			mode = "AUTO",         -- AUTO | GUIDE | WAYPOINT | QUEST | OFF
 			showETA = true,
 			superTrack = true,     -- also super-track the quest the arrow points at
@@ -71,8 +72,13 @@ Guide.options = {
 		get = function() return Guide.db.profile.arrow.superTrack end,
 		set = function(_, v) Guide.db.profile.arrow.superTrack = v end,
 	},
+	arrowSize = {
+		type = "range", order = 16, name = "Arrow size", min = 32, max = 200, step = 4,
+		get = function() return Guide.db.profile.arrow.size or 72 end,
+		set = function(_, v) Guide.db.profile.arrow.size = v; Guide:UpdateArrowFrame() end,
+	},
 	arrowScale = {
-		type = "range", order = 16, name = "Scale", min = 0.5, max = 2, step = 0.1,
+		type = "range", order = 17, name = "Text scale", min = 0.5, max = 2, step = 0.1,
 		get = function() return Guide.db.profile.arrow.scale end,
 		set = function(_, v) Guide.db.profile.arrow.scale = v; Guide:UpdateArrowFrame() end,
 	},

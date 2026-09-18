@@ -245,7 +245,7 @@ Settings = {
 	GetCategory = function(id) return { ID = id } end,
 	OpenToCategory = function(id) stub.openedCategory = id end,
 }
-MenuUtil = { CreateContextMenu = function(_, gen) local root = { CreateTitle = function() end, CreateCheckbox = function() end, CreateDivider = function() end, CreateButton = function() end, CreateRadio = function() end } gen(nil, root) stub.menuShown = true end }
+MenuUtil = { CreateContextMenu = function(_, gen) local root = {} root.CreateTitle = function() end root.CreateCheckbox = function() end root.CreateDivider = function() end root.CreateButton = function() return root end root.CreateRadio = function() end gen(nil, root) stub.menuShown = true end }
 TooltipDataProcessor = { AddTooltipPostCall = function(kind, fn) stub.tooltipCalls = stub.tooltipCalls or {} stub.tooltipCalls[kind] = stub.tooltipCalls[kind] or {} tinsert(stub.tooltipCalls[kind], fn) end }
 TooltipUtil = {
 	GetDisplayedItem = function() return "Broken Fang", "|Hitem:1234::::::::1:::::|h[Broken Fang]|h", 1234 end,
@@ -568,6 +568,7 @@ QuestIsFromAreaTrigger = function() return false end
 MAX_QUESTS = 25
 C_GuildInfo.GuildRoster = function() stub.rosterRequested = (stub.rosterRequested or 0) + 1 end
 Enum.PlayerInteractionType = { Merchant = 5 }
+C_Texture = { GetAtlasInfo = function(name) if name == "Navigation-Tracked-Arrow" then return { width = 34, height = 44 } end end }
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1
