@@ -330,7 +330,34 @@ try("recorder", function()
 	stub.slash("/lode record show Test route")
 	stub.slash("/lode record discard")
 end)
+try("engine sync + abandon", function()
+	stub.level = 3
+	-- fresh load with no saved progress: quests 3901 + 3903 done/on -> suggested start skips step 1 and 2
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+	stub.flagged[3901] = true
+	stub.questLog[3903] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "x: 0/8", finished = false } } }
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+	check(G.stepIndex >= 3, "suggested starting point skipped completed steps, at " .. tostring(G.stepIndex))
+	-- turn-in grace: flag not yet set, event just fired -> still counts as turned in
+	stub.fire("QUEST_TURNED_IN", 4444, 100, 0)
+	check(G:IsActionComplete({ type = "turnin", questID = 4444 }), "recent turn-in counts before the flag lands")
+	stub.advance(10)
+	check(not G:IsActionComplete({ type = "turnin", questID = 4444 }), "turn-in grace expires")
+	-- abandon 3903 -> regress to its accept step (step 2)
+	G:SetStep(4, true)
+	stub.questLog[3903] = nil
+	stub.fire("QUEST_REMOVED", 3903, false)
+	check(G.stepIndex == 2, "abandon regressed to the accept step, at " .. tostring(G.stepIndex))
+	-- vendor completes on close, not open
+	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
+	stub.fire("MERCHANT_SHOW")
+	check(not (G.stepFlags[G.stepIndex] and G.stepFlags[G.stepIndex].vendor), "vendor not complete while open")
+	stub.fire("MERCHANT_CLOSED")
+	check(G.stepFlags[G.stepIndex] and G.stepFlags[G.stepIndex].vendor, "vendor complete on close")
+	stub.slash("/lode guide sync")
+end)
 try("smart mode", function()
+	stub.questLog[3903] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "x: 0/8", finished = false } }, wp = { map = 18, x = 0.33, y = 0.66 } }
 	stub.slash("/lode guide smart")
 	check(G.current == nil, "guide unloaded")
 	local items = G:CollectSmartItems(true)

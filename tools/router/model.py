@@ -147,6 +147,7 @@ class Step:
     goto: Optional[MapPos] = None
     turnins: list[int] = field(default_factory=list)
     accepts: list[int] = field(default_factory=list)
+    order: list[tuple[str, int]] = field(default_factory=list)   # ("turnin"|"accept", quest_id) in execution order
     completes: list[tuple[int, int]] = field(default_factory=list)   # (quest_id, objective_index)
     level_gate: Optional[int] = None                                 # .xp N
     zone: Optional[str] = None

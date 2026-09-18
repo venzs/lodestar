@@ -40,16 +40,32 @@ local function playerMapPos()
 	return mapID, x, y
 end
 
---- Distance in yards and bearing (radians, 0 = north, counter-clockwise) from the player to a map point.
-function Guide:VectorTo(mapID, x, y)
+--- Player world position (continent, north, west). UnitPosition is allocation-free and lives in the
+--- same yard space as GetWorldPosFromMapPos (HereBeDragons relies on the same equivalence).
+local function playerWorld()
+	if UnitPosition then
+		local wx, wy, _, instance = UnitPosition("player")
+		if wx and wy and instance then return instance, wx, wy end
+	end
 	local pmap, px, py = playerMapPos()
 	if not pmap then return nil end
-	local pc, pwx, pwy = worldPos(pmap, px, py)
-	local tc, twx, twy = worldPos(mapID, x, y)
+	return worldPos(pmap, px, py)
+end
+
+--- Distance and bearing to a world point (continent, north, west).
+local function vectorToWorld(tc, twx, twy)
+	local pc, pwx, pwy = playerWorld()
 	if not pc or not tc then return nil end
 	if pc ~= tc then return nil, "continent" end
 	local dx, dy = twx - pwx, twy - pwy
 	return math.sqrt(dx * dx + dy * dy), math.atan2(dy, dx)
+end
+
+--- Distance in yards and bearing (radians, 0 = north, counter-clockwise) from the player to a map point.
+function Guide:VectorTo(mapID, x, y)
+	local tc, twx, twy = worldPos(mapID, x, y)
+	if not tc then return nil end
+	return vectorToWorld(tc, twx, twy)
 end
 
 --- Resolve a map given as a uiMapID or a zone name. Names are looked up once from the map tree.
@@ -127,6 +143,7 @@ function Guide:RetargetArrow()
 		lastDistance, lastDistanceTime, speed = nil, nil, 0
 	end
 	target = t
+	if t then t.continent, t.wx, t.wy = worldPos(t.mapID, t.x, t.y) end
 	if t and t.questID and self.db.profile.arrow.superTrack and C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
 		if lastSuperTracked ~= t.questID then
 			lastSuperTracked = t.questID
@@ -170,7 +187,12 @@ local function onUpdate(self, elapsed)
 		self.dist:SetText("")
 		return
 	end
-	local dist, bearing = Guide:VectorTo(target.mapID, target.x, target.y)
+	local dist, bearing
+	if target.continent then
+		dist, bearing = vectorToWorld(target.continent, target.wx, target.wy)
+	else
+		dist, bearing = Guide:VectorTo(target.mapID, target.x, target.y)
+	end
 	if not dist then
 		self.arrow:Hide()
 		self.title:SetText(target.title or "")

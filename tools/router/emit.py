@@ -29,6 +29,24 @@ def _mmss(seconds: float) -> str:
     return f"{s // 60}:{s % 60:02d}"
 
 
+def hub_actions(s: Step) -> list[tuple[str, int]]:
+    """Turn-ins before accepts (how you play a hub), except where the planner recorded that an accept had
+    to precede a turn-in in the same visit (a hand-off quest taken and handed in at the same spot)."""
+    if s.order:
+        kept = {("turnin", q) for q in s.turnins} | {("accept", q) for q in s.accepts}
+        ordered = [a for a in s.order if a in kept]
+        # stable partition: pull turn-ins forward unless an accept of the same quest precedes them
+        out: list[tuple[str, int]] = []
+        for a in ordered:
+            if a[0] == "turnin" and ("accept", a[1]) not in ordered[:ordered.index(a)]:
+                out.append(a)
+        for a in ordered:
+            if a not in out:
+                out.append(a)
+        return out
+    return [("turnin", q) for q in s.turnins] + [("accept", q) for q in s.accepts]
+
+
 def _goto(step: Step, radius: Optional[float] = None) -> Optional[str]:
     if not step.goto:
         return None
@@ -58,13 +76,13 @@ def emit(header: GuideHeader, steps: list[Step], cat: Catalog, with_sim_comments
         if s.kind == StepKind.HUB:
             g = _goto(s)
             if g: lines.append(g)
-            for qid in s.turnins:
+            for kind, qid in hub_actions(s):
                 q = cat.quests[qid]
-                lines.append(f"  .turnin {qid} >>Turn in {q.name}")
-            for qid in s.accepts:
-                q = cat.quests[qid]
-                giver = cat.npcs[q.giver].name if q.giver in cat.npcs else "?"
-                lines.append(f"  .accept {qid} >>Accept {q.name} from {giver}   -- quest lvl {q.level}")
+                if kind == "turnin":
+                    lines.append(f"  .turnin {qid} >>Turn in {q.name}")
+                else:
+                    giver = cat.npcs[q.giver].name if q.giver in cat.npcs else "?"
+                    lines.append(f"  .accept {qid} >>Accept {q.name} from {giver}   -- quest lvl {q.level}")
         elif s.kind == StepKind.OBJECTIVE:
             g = _goto(s)
             if g: lines.append(g)

@@ -183,6 +183,8 @@ def steps_from_lap(entries: list[LapEntry], cat: Catalog, hub_yards: float = 20.
             s = Step(kind=StepKind.HUB, goto=e.pos)
             s.turnins = [g.questID for g in group if g.type == "turnin" and g.questID in cat.quests]
             s.accepts = [g.questID for g in group if g.type == "accept" and g.questID in cat.quests]
+            # keep the real order: a hand-off quest is accepted and turned in at the same hub
+            s.order = [(g.type, g.questID) for g in group if g.questID in cat.quests]
             steps.append(s)
             i = j
         elif e.type == "complete" and e.questID in cat.quests:

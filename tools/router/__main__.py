@@ -14,7 +14,7 @@ from .catalog import load
 from .cost import CostModel
 from .emit import GuideHeader, emit
 from .laps import calibrate, load_entries, steps_from_lap
-from .router import Planner, PlannerConfig
+from .router import Planner, PlannerConfig, plan_two_pass
 from .validate import replay
 
 
@@ -62,12 +62,12 @@ def main(argv=None) -> int:
     if args.player_class:
         start.player_class = args.player_class
     cfg = PlannerConfig(target_level=args.target)
-    planner = Planner(cat, world, cm, cfg)
-    steps = planner.plan(start.clone())
-    rep = replay(steps, cat, world, cm, start)   # second pass: recompute times after pruning, check invariants
+    steps, planner = plan_two_pass(cat, world, cm, cfg, start)
+    rep = replay(steps, cat, world, cm, start)   # recompute times after pruning/merging, check invariants
     for issue in rep.issues:
         print("VALIDATION:", issue, file=sys.stderr)
-    name = args.name or f"{cat.faction}/{cat.race} {start.level}-{rep.final_level}: {planner.hubs[0].name.split()[-1]} (router)"
+    zone = raw.get("zone") or planner.hubs[0].name
+    name = args.name or f"{cat.faction}/{cat.race} {start.level}-{rep.final_level}: {zone} (router)"
     header = GuideHeader(name=name, faction=cat.faction, races=[cat.race] if cat.race else [],
                          classes=[start.player_class] if start.player_class else [],
                          levels=(start.level, rep.final_level), next=args.next_guide,

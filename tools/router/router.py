@@ -20,12 +20,14 @@ priced by the turn-in they enable):
                     S += any other feasible accepted objective insertable into the tour for <= detour_budget
                     tour = NN + 2-opt + Or-opt over the sites of S (start = here, end = H)
                     simulate -> (seconds, xp, unlocked_value_at_H, band_penalty)
+                    seconds += comeback charge (extra travel forced later by work left on this side)
                     score = (xp + gamma*unlocked) * penalty / seconds
-                + pickup-only trips to hubs offering acceptable quests
-      if no bundle, or best.score < grind_rate * grind_tolerance:
-          grind at the best spot until the level that makes the best *infeasible* bundle feasible
+                + pickup-only / turn-in-only trips to hubs (no sites)
+      if no bundle, or best.score < grind_rate * grind_tolerance   (stall-breaker):
+          grind one level at the best reachable spot within +/-1 of the player; re-evaluate
       else apply best (emit travel/objective steps), continue
-  prune accepts never turned in (except breadcrumbs), final re-simulation, validate.
+  prune accepts never turned in (except breadcrumbs), merge grinds, second pass without the pruned
+  quests, replay for final timings + invariants, emit.
 """
 from __future__ import annotations
 
@@ -35,7 +37,7 @@ from typing import Optional
 
 from . import xp as XP
 from .cost import CostModel, band_penalty, difficulty, feasible
-from .model import Catalog, GrindSpot, Hub, MapPos, NPC, Objective, ObjKind, Quest, Step, StepKind
+from .model import Catalog, GrindSpot, Hub, MapPos, Objective, ObjKind, Quest, Step, StepKind
 from .sim import PlayerState, do_objective, grind_until, travel
 from .world import World, travel_options
 
@@ -46,12 +48,14 @@ class PlannerConfig:
     hub_radius: float = 40.0          # yards; NPCs within this of a hub centre join it (Recorder uses 20 yd + 3 min)
     detour_budget: float = 45.0       # seconds; extra objectives are folded into a tour if they cost <= this
     gamma: float = 0.5                # discount on XP unlocked (newly acceptable) at the end hub
-    grind_tolerance: float = 0.6      # grind if best bundle xp/s < grind xp/s * this
+    grind_tolerance: float = 0.35     # stall-breaker: grind only if best bundle xp/s < grind xp/s * this
     accept_ahead_levels: int = 3      # accept quests whose difficulty <= level + this (we level while out)
     home_hub_quests: int = 3          # bind hearth at an inn hub that is the turn-in for >= this many accepted quests
     rebind_min_yards: float = 1500.0
     max_iterations: int = 400
-    site_merge_yards: float = 120.0   # objectives sharing mobs within this distance are one site
+    site_merge_yards: float = 120.0   # objectives sharing mobs within this distance are one visit (kills overlap)
+    colocate_yards: float = 35.0      # objectives this close are one step even with different mobs (times add)
+    village_seconds: float = 25.0     # neighbouring hubs within this run time are swept in one pickup pass
 
 
 # --- hubs ---------------------------------------------------------------------------------------------
@@ -91,8 +95,10 @@ class Site:
         return tuple(sorted(o.uid() for o in self.objectives))
 
 
-def build_sites(objs: list[Objective], world: World, origin: MapPos, merge_yards: float) -> list[Site]:
-    """One site per objective (nearest POI to the origin), merged when they share mobs and are close."""
+def build_sites(objs: list[Objective], world: World, origin: MapPos, merge_yards: float, colocate_yards: float = 35.0) -> list[Site]:
+    """One site per objective (nearest POI to the origin). Objectives join an existing site when they
+    share mobs within merge_yards (kills overlap: one pack serves both) or simply stand within
+    colocate_yards of it (one step, times add)."""
     sites: list[Site] = []
     for o in objs:
         if not o.pois:
@@ -100,13 +106,29 @@ def build_sites(objs: list[Objective], world: World, origin: MapPos, merge_yards
         pos = min(o.pois, key=lambda p: world.yards(origin, p))
         merged = False
         for s in sites:
-            if o.mob_ids and any(set(o.mob_ids) & set(x.mob_ids) for x in s.objectives) and world.yards(s.pos, pos) <= merge_yards:
+            d = world.yards(s.pos, pos)
+            shares = o.mob_ids and any(set(o.mob_ids) & set(x.mob_ids) for x in s.objectives)
+            if (shares and d <= merge_yards) or d <= colocate_yards:
                 s.objectives.append(o)
                 merged = True
                 break
         if not merged:
             sites.append(Site(pos, [o]))
     return sites
+
+
+def mob_groups(site: Site) -> list[list[Objective]]:
+    """Partition a site's objectives into groups that share mobs; within a group the largest kill count
+    covers the rest, across groups the times add."""
+    groups: list[list[Objective]] = []
+    for o in site.objectives:
+        for g in groups:
+            if o.mob_ids and any(set(o.mob_ids) & set(x.mob_ids) for x in g):
+                g.append(o)
+                break
+        else:
+            groups.append([o])
+    return groups
 
 
 # --- excursion ordering: nearest neighbour + 2-opt + Or-opt on run time ------------------------------------
@@ -180,10 +202,12 @@ class Bundle:
 
 
 class Planner:
-    def __init__(self, cat: Catalog, world: World, cm: CostModel, cfg: PlannerConfig):
+    def __init__(self, cat: Catalog, world: World, cm: CostModel, cfg: PlannerConfig, never_accept: Optional[set[int]] = None):
         self.cat, self.world, self.cm, self.cfg = cat, world, cm, cfg
         self.hubs, self.npc_hub = cluster_hubs(cat, world, cfg.hub_radius)
         self.last_train_level = 1
+        self.never_accept: set[int] = set(never_accept or ())   # pass 2: quests pass 1 accepted but never used
+        self.pruned: set[int] = set()
 
     # -- helpers ---------------------------------------------------------------------------------
 
@@ -214,10 +238,28 @@ class Planner:
     # -- hub visit ------------------------------------------------------------------------------
 
     def visit_hub(self, h: Hub, st: PlayerState) -> list[Step]:
+        """Everything the player does standing at one hub, then a sweep of the neighbouring hubs of the
+        same village (within village_seconds of running) so nothing is left to pick up before leaving."""
+        steps = self._visit_one(h, st)
+        visited = {h.id}
+        while True:
+            near = [o for o in self.hubs if o.id not in visited
+                    and self.world.run_seconds(st.pos, o.center) <= self.cfg.village_seconds
+                    and (self.turnins_at(o, st) or any(self.worth_accepting(q, st) for q in self.offered_at(o, st)))]
+            if not near:
+                break
+            nxt = min(near, key=lambda o: self.world.run_seconds(st.pos, o.center))
+            travel(st, self.world, nxt.center, self.world.run_seconds(st.pos, nxt.center))
+            visited.add(nxt.id)
+            steps += self._visit_one(nxt, st)
+        return steps
+
+    def _visit_one(self, h: Hub, st: PlayerState) -> list[Step]:
         steps: list[Step] = []
         step = Step(kind=StepKind.HUB, goto=h.center, sim_t_start=st.t, sim_level=st.level)
         xp_before = st.total_xp
-        # 1. turn in (repeat: turn-ins can unlock chain follow-ups at the same NPC)
+        # turn in -> accept -> turn in ... until nothing changes: a turn-in unlocks the chain follow-up at the
+        # same NPC, and a quest with no objectives (a "talk to X" hand-off) is turned in the moment it is taken
         changed = True
         while changed:
             changed = False
@@ -225,13 +267,15 @@ class Planner:
                 st.turnin(q)
                 st.t += 4.0
                 step.turnins.append(q.id)
+                step.order.append(("turnin", q.id))
                 changed = True
-        # 2. accept
-        for q in sorted(self.offered_at(h, st), key=lambda q: q.level):
-            if self.worth_accepting(q, st) and st.can_accept(q):
-                st.accept(q)
-                st.t += 3.0
-                step.accepts.append(q.id)
+            for q in sorted(self.offered_at(h, st), key=lambda q: q.level):
+                if self.worth_accepting(q, st) and st.can_accept(q) and q.id not in self.never_accept:
+                    st.accept(q)
+                    st.t += 3.0
+                    step.accepts.append(q.id)
+                    step.order.append(("accept", q.id))
+                    changed = True
         step.sim_xp_gained = st.total_xp - xp_before
         step.sim_t_end = st.t
         if step.turnins or step.accepts:
@@ -250,7 +294,7 @@ class Planner:
                                   text=f"Set your hearthstone at {inn.name}", sim_t_start=st.t, sim_t_end=st.t, sim_level=st.level))
         trainer = f"trainer:{st.player_class.lower()}" if st.player_class else None
         if trainer and trainer in h.services and st.level >= self.last_train_level + 2:
-            self.last_train_level = st.level - (st.level % 2)
+            self.last_train_level = st.level
             st.t += 20.0
             steps.append(Step(kind=StepKind.TRAIN, goto=h.center, text=f"Train new skills (level {st.level})",
                               classes=(st.player_class,), sim_t_start=st.t, sim_t_end=st.t, sim_level=st.level))
@@ -301,24 +345,25 @@ class Planner:
         for s in sites:
             steps += self.travel_step(st, s.pos, f"Go to {s.objectives[0].text}")
             step = Step(kind=StepKind.OBJECTIVE, goto=s.pos, sim_t_start=st.t, sim_level=st.level)
-            # merged site: the kills for the biggest objective cover the smaller ones
-            main = max(s.objectives, key=lambda o: self.cm.kills_needed(o))
-            for o in s.objectives:
-                q = self.cat.quests[o.quest_id]
-                if not feasible(o, q.level, st.level):
-                    ok, needs = False, max(needs or 0, difficulty(o, q.level) - 2)
-                secs_est = self.cm.objective_seconds(o, st.level, q.level)
-                pen_num += band_penalty(o, q.level, st.level) * secs_est
-                pen_den += secs_est
-                if o is main:
-                    do_objective(st, self.cat, self.cm, o)
-                else:
-                    st.done_objectives.add(o.uid())
-                    if o.kind not in (ObjKind.KILL, ObjKind.COLLECT):
-                        st.t += self.cm.objective_seconds(o, st.level, q.level)
-                step.completes.append(o.uid())
-                if q.classes:
-                    step.classes = tuple(q.classes)
+            for group in mob_groups(s):
+                # within a group the biggest kill count covers the rest (same pack of mobs)
+                main = max(group, key=lambda o: self.cm.kills_needed(o))
+                for o in group:
+                    q = self.cat.quests[o.quest_id]
+                    if not feasible(o, q.level, st.level):
+                        ok, needs = False, max(needs or 0, difficulty(o, q.level) - 2)
+                    secs_est = self.cm.objective_seconds(o, st.level, q.level)
+                    pen_num += band_penalty(o, q.level, st.level) * secs_est
+                    pen_den += secs_est
+                    if o is main:
+                        do_objective(st, self.cat, self.cm, o)
+                    else:
+                        st.done_objectives.add(o.uid())
+                        if o.kind not in (ObjKind.KILL, ObjKind.COLLECT):
+                            st.t += self.cm.objective_seconds(o, st.level, q.level)
+                    step.completes.append(o.uid())
+                    if q.classes:
+                        step.classes = tuple(q.classes)
             step.sim_t_end = st.t
             steps.append(step)
         steps += self.travel_step(st, end_hub.center, f"Go to {end_hub.name}")
@@ -339,9 +384,13 @@ class Planner:
         for h in self.hubs:
             # objectives whose turn-in is at h, plus objectives of quests that need nothing else
             core = [o for o in objs if self.hub_of_npc(self.cat.quests[o.quest_id].turnin) is h]
-            if not core and not self.offered_at(h, st):
+            offers = [q for q in self.offered_at(h, st) if self.worth_accepting(q, st) and q.id not in self.never_accept]
+            pending = self.turnins_at(h, st)   # already complete (e.g. a hand-off quest), just needs the walk
+            if not core and not offers and not pending:
                 continue
-            sites = build_sites(core, self.world, st.pos, self.cfg.site_merge_yards)
+            if h is here and not core:
+                continue
+            sites = build_sites(core, self.world, st.pos, self.cfg.site_merge_yards, self.cfg.colocate_yards)
             tour = order_sites(sites, self.world, st.pos, h.center)
             # fold in other feasible objectives that are cheap to insert (they may complete quests for a later hub)
             extra = [o for o in objs if o not in core]
@@ -357,10 +406,30 @@ class Planner:
                 if best_delta <= self.cfg.detour_budget and best_k is not None:
                     tour.insert(best_k, Site(pos, [o]))
             b = self.simulate_bundle(st, h, tour)
-            if h is here and not tour:
-                continue
+            b.seconds += self.comeback_charge(st, b, objs)
             bundles.append(b)
         return bundles
+
+    def comeback_charge(self, st: PlayerState, b: Bundle, objs: list[Objective]) -> float:
+        """Leaving work behind on this side of the map is not free: charge the extra travel the plan will
+        need later to come back for it (max over the objectives left behind of the distance from the end
+        hub minus the distance from here). This is what stops a cheap flight or hearth from bouncing the
+        player between areas for one turn-in, and what makes "finish the area before you leave" emerge."""
+        done = {o.uid() for s in b.sites for o in s.objectives}
+        worst = 0.0
+        for o in objs:
+            if o.uid() in done:
+                continue
+            pos = min(o.pois, key=lambda p: self.world.yards(st.pos, p))
+            extra = self.world.run_seconds(b.end_hub.center, pos) - self.world.run_seconds(st.pos, pos)
+            worst = max(worst, extra)
+        return worst
+
+    def bundle_value(self, b: Bundle) -> float:
+        """XP per second, with the discounted value of what the end hub unlocks and the level-band penalty."""
+        if b.seconds <= 0:
+            return 0.0
+        return (b.xp + self.cfg.gamma * b.unlocked) / b.seconds * b.penalty
 
     # -- grinding --------------------------------------------------------------------------------------
 
@@ -428,49 +497,51 @@ class Planner:
                 if st.level >= self.cfg.target_level:
                     break
             bundles = self.candidate_bundles(st, here)
-            feasible_b = [b for b in bundles if b.feasible and b.sites]
-            pickup_b = [b for b in bundles if b.feasible and not b.sites and b.unlocked > 0]
+            usable = [b for b in bundles if b.feasible and self.bundle_value(b) > 0]
             g = self.best_grind(st)
             grind_rate = g[1] if g else 0.0
-            best = None
-            if feasible_b:
-                best = max(feasible_b, key=lambda b: (b.xp + self.cfg.gamma * b.unlocked) / b.seconds * b.penalty)
-                best_rate = (best.xp + self.cfg.gamma * best.unlocked) / best.seconds * best.penalty
-                if best_rate < grind_rate * self.cfg.grind_tolerance:
-                    best = None
-            if best is None and pickup_b and not feasible_b:
-                best = max(pickup_b, key=lambda b: b.unlocked / b.seconds)
-            if best is None:
-                target = min(self.cfg.target_level, self.next_useful_level(st, bundles))
+            best = max(usable, key=self.bundle_value) if usable else None
+            # stall-breaker: nothing worth doing, or everything left is so poor that grinding beats it clearly
+            if best is None or self.bundle_value(best) < grind_rate * self.cfg.grind_tolerance:
+                # one level at a time; consecutive grind steps at one spot are merged by merge_grinds()
+                target = min(self.cfg.target_level, st.level + 1)
                 gs = self.grind_step(st, target)
                 if not gs:
-                    break   # nothing to do and nowhere to grind: the guide ends here
-                steps += gs
-                continue
+                    if best is None:
+                        break   # nothing to do and nowhere to grind: the guide ends here
+                else:
+                    steps += gs
+                    continue
             steps += best.steps
             self._adopt(st, best.end_state)
         # final sweep: turn in whatever is complete at a nearby hub
         here = self.hub_at(st.pos)
         if here:
             steps += self.visit_hub(here, st)
-        return prune_unused_accepts(steps, self.cat, self.hubs, self.npc_hub)
+        steps, self.pruned = prune_unused_accepts(steps, self.cat, self.hubs, self.npc_hub)
+        return merge_grinds(steps)
 
     @staticmethod
     def _adopt(st: PlayerState, new: PlayerState) -> None:
         st.__dict__.update(new.clone().__dict__)
 
 
-def prune_unused_accepts(steps: list[Step], cat: Catalog, hubs: list[Hub], npc_hub: dict[int, int]) -> list[Step]:
+def prune_unused_accepts(steps: list[Step], cat: Catalog, hubs: list[Hub], npc_hub: dict[int, int]) -> tuple[list[Step], set[int]]:
     """Drop accepts of quests the plan never turns in, unless they are breadcrumbs to a hub outside
-    the plan (the next guide will turn them in)."""
+    the plan (the next guide will turn them in). Returns (steps, pruned quest ids) so a second planning
+    pass can refuse those accepts up front (they cost log slots and dialogue time in pass 1)."""
     turned = {q for s in steps for q in s.turnins}
-    planned_hubs = {npc_hub[n] for n in npc_hub}
+    pruned: set[int] = set()
     keep: list[Step] = []
     for s in steps:
         if s.kind == StepKind.HUB:
-            s.accepts = [q for q in s.accepts if q in turned or cat.quests[q].breadcrumb or
-                         (cat.quests[q].turnin not in npc_hub)]
-            s.completes = [c for c in s.completes if c[0] in turned]
+            kept = []
+            for q in s.accepts:
+                if q in turned or cat.quests[q].breadcrumb or cat.quests[q].turnin not in npc_hub:
+                    kept.append(q)
+                else:
+                    pruned.add(q)
+            s.accepts = kept
             if not (s.accepts or s.turnins):
                 continue
         if s.kind == StepKind.OBJECTIVE:
@@ -478,4 +549,33 @@ def prune_unused_accepts(steps: list[Step], cat: Catalog, hubs: list[Hub], npc_h
             if not s.completes:
                 continue
         keep.append(s)
-    return keep
+    return keep, pruned
+
+
+def merge_grinds(steps: list[Step]) -> list[Step]:
+    """Consecutive grind steps at the same spot become one `.xp N` step with the final level."""
+    out: list[Step] = []
+    for s in steps:
+        if out and s.kind == StepKind.GRIND and out[-1].kind == StepKind.GRIND and out[-1].goto == s.goto:
+            prev = out[-1]
+            prev.level_gate = s.level_gate
+            prev.text = (prev.text or "").split(" until level")[0] + f" until level {s.level_gate}"
+            prev.sim_t_end = s.sim_t_end
+            prev.sim_xp_gained += s.sim_xp_gained
+            continue
+        out.append(s)
+    return out
+
+
+def plan_two_pass(cat: Catalog, world: World, cm: CostModel, cfg: PlannerConfig, start: PlayerState) -> tuple[list[Step], Planner]:
+    """Pass 1 accepts liberally and prunes; pass 2 replans refusing the pruned quests, which frees
+    quest-log slots and dialogue time. Keep whichever pass simulates faster."""
+    p1 = Planner(cat, world, cm, cfg)
+    s1 = p1.plan(start.clone())
+    if not p1.pruned:
+        return s1, p1
+    p2 = Planner(cat, world, cm, cfg, never_accept=p1.pruned)
+    s2 = p2.plan(start.clone())
+    t1 = s1[-1].sim_t_end if s1 else math.inf
+    t2 = s2[-1].sim_t_end if s2 else math.inf
+    return (s2, p2) if t2 <= t1 else (s1, p1)

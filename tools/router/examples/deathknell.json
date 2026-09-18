@@ -2,6 +2,7 @@
   "_comment": "SYNTHETIC example for the router. Quest ids and coordinates follow the Classic-era Deathknell layout used by Lodestar_Guides_Horde/Undead_Deathknell.lua; XP values, NPC ids, mob levels and the map frame are plausible placeholders, not Forever data. Replace with wago.tools exports + recordings.",
   "faction": "Horde",
   "race": "Undead",
+  "zone": "Deathknell",
   "map_frames": [
     { "map": 18, "x0": 0, "y0": 0, "x1": 4518, "y1": 3012, "continent": 0 }
   ],

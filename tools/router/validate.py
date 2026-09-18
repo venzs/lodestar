@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .cost import MAX_ABOVE, CostModel, difficulty
+from .emit import hub_actions
 from .model import Catalog, ObjKind, Step, StepKind
 from .sim import QUEST_LOG_CAP, PlayerState, do_objective, grind_until, travel
 from .world import World, travel_options
@@ -40,22 +41,22 @@ def replay(steps: list[Step], cat: Catalog, world: World, cm: CostModel, start: 
             if s.kind == StepKind.TRAVEL and opt.kind != "hearth" and s.text and s.text.startswith("Use your Hearthstone"):
                 rep.issues.append(f"step {i}: hearth planned but cooldown not ready at t={st.t:.0f}s")
         if s.kind == StepKind.HUB:
-            for qid in s.turnins:
+            for kind, qid in hub_actions(s):   # the exact order the guide text will show
                 q = cat.quests[qid]
-                if not st.can_turnin(q):
-                    rep.issues.append(f"step {i}: turn-in {qid} ({q.name}) before it is complete/accepted")
-                    continue
-                st.turnin(q); st.t += 4
-            for qid in s.accepts:
-                q = cat.quests[qid]
-                if not st.can_accept(q):
-                    why = "prereqs" if any(p not in st.turned_in for p in q.prereqs) else "min level/log/class"
-                    rep.issues.append(f"step {i}: accept {qid} ({q.name}) not possible ({why})")
-                    continue
-                st.accept(q); st.t += 3
-                seen_accept.add(qid)
-                if st.log_size() > QUEST_LOG_CAP:
-                    rep.issues.append(f"step {i}: quest log over capacity ({st.log_size()})")
+                if kind == "turnin":
+                    if not st.can_turnin(q):
+                        rep.issues.append(f"step {i}: turn-in {qid} ({q.name}) before it is complete/accepted")
+                        continue
+                    st.turnin(q); st.t += 4
+                else:
+                    if not st.can_accept(q):
+                        why = "prereqs" if any(p not in st.turned_in for p in q.prereqs) else "min level/log/class"
+                        rep.issues.append(f"step {i}: accept {qid} ({q.name}) not possible ({why}, level {st.level})")
+                        continue
+                    st.accept(q); st.t += 3
+                    seen_accept.add(qid)
+                    if st.log_size() > QUEST_LOG_CAP:
+                        rep.issues.append(f"step {i}: quest log over capacity ({st.log_size()})")
         elif s.kind == StepKind.OBJECTIVE:
             for qid, idx in s.completes:
                 q = cat.quests[qid]

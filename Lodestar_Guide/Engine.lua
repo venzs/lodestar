@@ -11,6 +11,8 @@ Guide.stepFlags = {}      -- [stepIndex] = { hs = true, train = true, fly = true
 
 local evalQueued = false
 local arrivalTicker
+local recentTurnIn, recentAccept = {}, {}   -- questID -> GetTime(); the server flag lags the event by a few seconds
+local TURNIN_GRACE, ACCEPT_GRACE = 6, 3
 
 -- Registry ---------------------------------------------------------------------------------------
 
@@ -110,7 +112,13 @@ function Guide:LoadGuide(name, stepIndex)
 	self.current = guide
 	self.stepFlags = {}
 	self.db.char.currentGuide = guide.name
-	self.stepIndex = stepIndex or self.db.char.progress[guide.name] or 1
+	local saved = self.db.char.progress[guide.name]
+	if not stepIndex and not saved then
+		local start, skipped = self:SuggestStartIndex(guide)
+		if skipped > 0 then Lodestar:Msg("Skipped %d completed step%s — starting at step %d.", skipped, skipped == 1 and "" or "s", start) end
+		stepIndex = start
+	end
+	self.stepIndex = stepIndex or saved or 1
 	if self.stepIndex < 1 then self.stepIndex = 1 end
 	if self.stepIndex > #guide.steps then self.stepIndex = #guide.steps end
 	self.db.char.progress[guide.name] = self.stepIndex
@@ -215,14 +223,26 @@ end
 
 -- Completion -------------------------------------------------------------------------------------------
 
+local function turnedIn(questID)
+	if C_QuestLog.IsQuestFlaggedCompleted(questID) then return true end
+	local t = recentTurnIn[questID]
+	return t ~= nil and (GetTime() - t) < TURNIN_GRACE
+end
+
+local function accepted(questID)
+	if C_QuestLog.IsOnQuest(questID) or turnedIn(questID) then return true end
+	local t = recentAccept[questID]
+	return t ~= nil and (GetTime() - t) < ACCEPT_GRACE
+end
+
 function Guide:IsActionComplete(action, flags)
 	local t = action.type
 	if t == "accept" then
-		return C_QuestLog.IsOnQuest(action.questID) or C_QuestLog.IsQuestFlaggedCompleted(action.questID)
+		return accepted(action.questID)
 	elseif t == "turnin" then
-		return C_QuestLog.IsQuestFlaggedCompleted(action.questID)
+		return turnedIn(action.questID)
 	elseif t == "complete" then
-		if C_QuestLog.IsQuestFlaggedCompleted(action.questID) then return true end
+		if turnedIn(action.questID) then return true end
 		if not C_QuestLog.IsOnQuest(action.questID) then return false end
 		if action.objective then
 			local objectives = C_QuestLog.GetQuestObjectives(action.questID)
@@ -246,8 +266,10 @@ function Guide:IsActionComplete(action, flags)
 		return flags and flags.train or false
 	elseif t == "fly" then
 		return flags and flags.fly or false
-	elseif t == "vendor" or t == "repair" then
+	elseif t == "vendor" then
 		return flags and flags.vendor or false
+	elseif t == "repair" then
+		return flags and (flags.repair or flags.vendor) or false
 	else -- text
 		return flags and flags.manual or false
 	end
@@ -257,19 +279,63 @@ function Guide:IsStepComplete(step)
 	local flags = self.stepFlags[step.index]
 	if flags and flags.manual then return true end
 	if step.arrival then
-		local target = self:GetArrowTarget()
-		if target and target.kind == "guide" then
-			local dist = self:GetArrowDistance()
-			local radius = step.go.radius or self.db.profile.arrow.arrivalYards or 10
-			return dist ~= nil and dist <= radius
+		-- Measured directly (not via the arrow, which may be pointing elsewhere), with hysteresis so a
+		-- step doesn't flap at the edge of the radius, and never while on a flight path.
+		if UnitOnTaxi and UnitOnTaxi("player") then return false end
+		local mapID = self:ResolveMap(step.go.map)
+		local dist = mapID and self:VectorTo(mapID, step.go.x / 100, step.go.y / 100)
+		if not dist then return false end
+		local radius = step.go.radius or self.db.profile.arrow.arrivalYards or 10
+		flags = flags or {}
+		self.stepFlags[step.index] = flags
+		if flags.arrived then
+			if dist > radius * 1.5 then flags.arrived = nil end
+		elseif dist <= radius then
+			flags.arrived = true
 		end
-		return false
+		return flags.arrived == true
 	end
 	if #step.actions == 0 then return false end
 	for _, action in ipairs(step.actions) do
 		if not self:IsActionComplete(action, flags) then return false end
 	end
 	return true
+end
+
+--- A quest was abandoned: go back to the step that accepts it, if we are past it.
+function Guide:OnQuestAbandoned(questID)
+	if not self.current then return end
+	for idx = self.stepIndex, 1, -1 do
+		local step = self.current.steps[idx]
+		for _, a in ipairs(step.actions) do
+			if a.type == "accept" and a.questID == questID then
+				if idx < self.stepIndex then
+					for j = idx, self.stepIndex do self.stepFlags[j] = nil end
+					Lodestar:Msg("Quest abandoned — back to step %d.", idx)
+					self:SetStep(idx, true)
+				end
+				return
+			end
+		end
+	end
+end
+
+--- Zygor-style "suggested starting point": the step after the last one whose quest actions are all
+--- complete according to the client's completion flags. Returns startIndex, skipped.
+function Guide:SuggestStartIndex(guide)
+	local last = 0
+	for idx, step in ipairs(guide.steps) do
+		local questActions, done = 0, 0
+		for _, a in ipairs(step.actions) do
+			if a.questID then
+				questActions = questActions + 1
+				if self:IsActionComplete(a, nil) then done = done + 1 end
+			end
+		end
+		if questActions > 0 and done == questActions then last = idx end
+	end
+	local start = math.min(last + 1, #guide.steps)
+	return start, math.max(0, start - 1)
 end
 
 --- Skip steps that don't apply or are already done. `initial` suppresses per-step announcements.
@@ -310,22 +376,50 @@ function Guide:EngineOnEvent(event, ...)
 	if not self.current then return end
 	local flags = self.stepFlags
 	local i = self.stepIndex
-	if event == "HEARTHSTONE_BOUND" then
-		flags[i] = flags[i] or {} flags[i].hs = true
-	elseif event == "TRAINER_CLOSED" then
-		flags[i] = flags[i] or {} flags[i].train = true
-	elseif event == "PLAYER_CONTROL_LOST" then
-		if self.taxiOpened and GetTime() - self.taxiOpened < 60 then
-			flags[i] = flags[i] or {} flags[i].fly = true
+	local function flag(key)
+		flags[i] = flags[i] or {}
+		flags[i][key] = true
+	end
+	if event == "QUEST_TURNED_IN" then
+		local questID = ...
+		if type(questID) == "number" then recentTurnIn[questID] = GetTime() end
+	elseif event == "QUEST_ACCEPTED" then
+		-- payload is (questID) on this client; be tolerant of an older (index, questID) shape
+		local a, b = ...
+		local questID = (type(b) == "number" and b > 0) and b or a
+		if type(questID) == "number" then recentAccept[questID] = GetTime() end
+	elseif event == "QUEST_REMOVED" then
+		local questID = ...
+		if type(questID) == "number" and not turnedIn(questID) then
+			self:OnQuestAbandoned(questID)
 		end
+	elseif event == "HEARTHSTONE_BOUND" then
+		flag("hs")
+	elseif event == "TRAINER_CLOSED" then
+		flag("train")
 	elseif event == "TAXIMAP_OPENED" then
 		self.taxiOpened = GetTime()
+	elseif event == "PLAYER_CONTROL_LOST" then
+		-- UnitOnTaxi can still be false at the instant of the event; check a moment later.
+		local opened = self.taxiOpened
+		self:ScheduleTimer(function()
+			if (UnitOnTaxi and UnitOnTaxi("player")) or (opened and GetTime() - opened < 2) then
+				flag("fly")
+				self:QueueEvaluate()
+			end
+		end, 0.3)
 	elseif event == "MERCHANT_SHOW" then
-		flags[i] = flags[i] or {} flags[i].vendor = true
+		flag("visitedVendor")
+		if CanMerchantRepair and CanMerchantRepair() then flag("canRepair") end
+	elseif event == "MERCHANT_CLOSED" then
+		if flags[i] and flags[i].visitedVendor then
+			flag("vendor")
+			if flags[i].canRepair then flag("repair") end
+		end
 	elseif event == "QUEST_DATA_LOAD_RESULT" then
 		self:RefreshStepFrame()
 	end
-	if ENGINE_EVENTS[event] or event == "HEARTHSTONE_BOUND" or event == "TRAINER_CLOSED" or event == "PLAYER_CONTROL_LOST" or event == "MERCHANT_SHOW" then
+	if ENGINE_EVENTS[event] or event == "HEARTHSTONE_BOUND" or event == "TRAINER_CLOSED" or event == "MERCHANT_CLOSED" then
 		self:QueueEvaluate()
 	end
 end
@@ -370,13 +464,20 @@ local function handleGuideSlash(rest)
 	elseif verb == "auto" then
 		local g = Guide:PickGuide()
 		if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character; using smart mode.") Guide:UnloadGuide() end
+	elseif verb == "sync" then
+		if Guide.current then
+			local start, skipped = Guide:SuggestStartIndex(Guide.current)
+			Lodestar:Say("Sync: %d step%s look done — jumping to step %d.", skipped, skipped == 1 and "" or "s", start)
+			Guide:SetStep(start, true)
+			Guide:EvaluateStep()
+		end
 	elseif verb == "smart" or verb == "unload" then
 		Guide:UnloadGuide()
 		Lodestar:Say("Smart mode: nearest turn-ins, objectives and quest givers.")
 	elseif verb == "nextup" or verb == "up" then
 		Guide:PrintNextUp()
 	else
-		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | auto | smart | nextup]")
+		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | sync | auto | smart | nextup]")
 	end
 end
 
