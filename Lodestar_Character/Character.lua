@@ -11,7 +11,7 @@ local Lodestar = _G.Lodestar
 local Character = Lodestar:NewModule("Character", "AceEvent-3.0", "AceTimer-3.0")
 Character.displayName = "Character"
 Character.description = "Hidden character-sheet stats (hit/crit/haste split, spell power per school, regen, DPS, weapon skills, defense detail, item level, durability, XP, talents) inside the standard stats pane."
-Character.order = 40
+Character.order = 35
 
 Character.defaults = {
 	profile = {
