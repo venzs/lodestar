@@ -750,7 +750,13 @@ function Guide:EnableEngine()
 		if self.current then return end
 		local saved = self.db.char.currentGuide
 		local savedGuide = saved and self.guideByName[saved]
-		if savedGuide and not (savedGuide.maxLevel and UnitLevel("player") > savedGuide.maxLevel) then
+		-- Keep the character on its guide whatever its level: #levels is deliberately narrower than the
+		-- route (the packs say so) and only steers PickGuide. Only a finished guide with no installed
+		-- #next hands the character back to the auto-pick.
+		local progress = savedGuide and self.db.char.progress[saved]
+		local finished = savedGuide and progress and progress >= #savedGuide.steps
+			and not (savedGuide.next and self.guideByName[savedGuide.next])
+		if savedGuide and not finished then
 			self:LoadGuide(saved)
 		elseif self.db.profile.steps.autoPickGuide then
 			local g = self:PickGuide()

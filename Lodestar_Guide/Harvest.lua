@@ -19,7 +19,7 @@
 --       levels   [level]  = UnitXPMax at that level
 --       meta              = { v, build, contributors = { ["Name-Realm"] = { faction, race, class, level,
 --                                                                           first, last, sessions } } }
---       backup            = one slot kept by `/lode harvest wipe`, restored by `/lode harvest restore`
+--   (the backup slot lives in LodestarScanDB, not here, so it never travels with a shared file)
 --
 --   LodestarScanDB    per-account bookkeeping nobody else needs:
 --       trails            learned walkable ground (Trails.lua)
@@ -56,6 +56,7 @@ local offer                     -- { questID, src, item, t }: what the open ques
 local shareOffer                -- GetTime() of the last QUEST_ACCEPT_CONFIRM (a party share)
 local scanTicker
 local scanPending = {}          -- [questID] = GetTime() while a load is in flight
+local backupSlot               -- forward declaration; defined with the wipe helpers below
 local scanPendingCount = 0
 
 --- Strip anything the client refuses to hand an addon (combat secrets, restricted values).
@@ -872,7 +873,7 @@ function Guide:HarvestSummary()
 	local out = {
 		quests = count(db.quests), npcs = count(db.npcs), objects = count(db.objects),
 		taxi = count(db.taxi), levels = count(db.levels), contributors = count(db.meta and db.meta.contributors),
-		positions = 0, backup = db.backup and true or false,
+		positions = 0, backup = backupSlot() and true or false,
 	}
 	for _, e in pairs(db.npcs) do if e.exact then out.positions = out.positions + 1 end end
 	for _, e in pairs(db.objects) do if e.map then out.positions = out.positions + 1 end end
@@ -1096,6 +1097,13 @@ local function worldCounts(t)
 	return count(t and t.quests), count(t and t.npcs), count(t and t.objects), count(t and t.taxi)
 end
 
+--- The wipe backup lives in the local-only DB (LodestarScanDB) so it never travels with a shared file.
+backupSlot = function()
+	local scan = Guide:ScanDB()
+	local slot = scan and scan.backup
+	return type(slot) == "table" and slot or nil
+end
+
 local function worldIsEmpty()
 	for _, key in ipairs(WORLD_KEYS) do
 		if next(db[key]) ~= nil then return false end
@@ -1108,18 +1116,19 @@ end
 --- except that wiping an already-empty harvest keeps the older backup rather than overwriting it with
 --- nothing, so a second wipe cannot destroy what the first one saved.
 local function stashAndWipe()
-	local keep = worldIsEmpty() and db.backup
+	local scan = Guide:ScanDB()
+	local keep = worldIsEmpty() and scan.backup
 	local backup = { at = time(), build = db.build }
 	for _, key in ipairs(WORLD_KEYS) do
 		backup[key] = db[key]
 		db[key] = {}
 	end
-	if not keep then db.backup = backup end
-	return db.backup
+	if not keep then scan.backup = backup end
+	return scan.backup
 end
 
 local function restoreBackup()
-	local backup = db.backup
+	local backup = backupSlot()
 	if type(backup) ~= "table" then return nil end
 	for _, key in ipairs(WORLD_KEYS) do
 		local saved = backup[key]
@@ -1141,9 +1150,9 @@ local function handleHarvest(rest)
 		Lodestar:Say("Harvest: %d quests, %d NPCs (%d with an exact position), %d objects, %d flight nodes, %d levels, %d contributor%s.",
 			sum.quests, sum.npcs, sum.positions, sum.objects, sum.taxi, sum.levels, sum.contributors, sum.contributors == 1 and "" or "s")
 		if sum.backup then
-			local bq, bn, bo, bt = worldCounts(db.backup)
+			local slot = backupSlot()
 			Lodestar:Say("  A backup from %s is kept: %d quests, %d NPCs, %d objects, %d flight nodes (/lode harvest restore).",
-				date("%Y-%m-%d %H:%M", db.backup.at or time()), bq, bn, bo, bt)
+				date("%Y-%m-%d %H:%M", slot.at or time()), worldCounts(slot))
 		end
 		Lodestar:Say("  |cffffff7f/lode share|r tells you where the file is. |cffffff7f/lode harvest sync on|off|r shares new finds with your guild.")
 	elseif verb == "share" then
@@ -1163,7 +1172,7 @@ local function handleHarvest(rest)
 		elseif a == "confirm" then
 			local q, n, o, t = worldCounts(db)
 			Lodestar:Say("This deletes the harvested world data: %d quests, %d NPCs, %d objects, %d flight nodes. Trails and the census cursor stay.", q, n, o, t)
-			Lodestar:Say("A backup is kept in the same file. To go ahead, type |cffffff7f/lode harvest wipe yes-really|r.")
+			Lodestar:Say("A backup is kept on this computer (not in the shared data). To go ahead, type |cffffff7f/lode harvest wipe yes-really|r.")
 		else
 			Lodestar:Say("|cffffff7f/lode harvest wipe|r deletes everything this account has harvested about the world (quests, NPCs, objects, flight nodes, levels).")
 			Lodestar:Say("It does not touch your trails or the quest census cursor (/lode trails wipe, /lode scan wipe). Type |cffffff7f/lode harvest wipe confirm|r to see the counts.")

@@ -1290,7 +1290,10 @@ try("harvest wipes", function()
 	check((stub.chat[#stub.chat] or ""):find("yes-really", 1, true) ~= nil, "the second phrase is spelled out")
 	stub.slash("/lode harvest wipe yes-really")
 	check(next(H.npcs) == nil and next(H.quests) == nil and next(H.taxi) == nil and next(H.objects) == nil, "the second phrase clears the world data")
-	check(H.backup and next(H.backup.npcs) ~= nil and H.backup.at, "a backup was stashed")
+	-- the backup lives in the local-only DB, so a shared Lodestar_Guide.lua never carries it
+	check(H.backup == nil, "the backup is not kept in the shareable table")
+	local slot = G:ScanDB().backup
+	check(slot and next(slot.npcs) ~= nil and slot.at, "a backup was stashed in the local DB")
 	check((stub.chat[#stub.chat - 1] or ""):find(npcs .. " NPCs", 1, true) ~= nil, "counts printed on the wipe: " .. tostring(stub.chat[#stub.chat - 1]))
 	check(G:ScanDB().trails ~= nil, "a harvest wipe does not touch the trails")
 	-- ...and it comes back
@@ -1304,10 +1307,10 @@ try("harvest wipes", function()
 	check((stub.chat[#stub.chat - 1] or ""):find(npcs .. " NPCs", 1, true) ~= nil, "counts printed on the restore")
 	-- a second wipe must not replace the backup with the nothing it finds
 	stub.slash("/lode harvest wipe yes-really")
-	local kept = H.backup
+	local kept = G:ScanDB().backup
 	check(next(kept.npcs) ~= nil, "the backup holds the data the first wipe took")
 	stub.slash("/lode harvest wipe yes-really")
-	check(H.backup == kept and next(H.backup.npcs) ~= nil, "wiping an already empty harvest keeps the backup the first wipe made")
+	check(G:ScanDB().backup == kept and next(kept.npcs) ~= nil, "wiping an already empty harvest keeps the backup the first wipe made")
 	stub.slash("/lode harvest restore")
 	after = 0
 	for _ in pairs(H.npcs) do after = after + 1 end
