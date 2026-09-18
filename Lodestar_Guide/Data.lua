@@ -93,7 +93,7 @@ function Guide:DataQuestPosition(questID, complete)
 	if not o then return nil end
 	local mapID, x, y, name, dist = nearest(d.npcs, o.npcs)
 	local mapID2, x2, y2, name2, dist2 = nearest(d.objs, o.objs)
-	if mapID2 and (not mapID or dist2 < dist) then mapID, x, y, name, dist = mapID2, x2, y2, name2, dist2 end
+	if mapID2 and (not mapID or dist2 < dist) then mapID, x, y, name = mapID2, x2, y2, name2 end
 	if not mapID then
 		local npcs, objs = itemSourceIDs(o.items)
 		mapID, x, y, name, dist = nearest(d.npcs, npcs)
