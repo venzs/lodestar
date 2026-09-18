@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: |cff4fc3f7Lodestar|r Character
+## Notes: The character-sheet stats Blizzard hides — melee, ranged and spell hit with miss tables, crit and haste split, spell power per school, MP5/HP5, attack speed and DPS, weapon skills, defense detail, block value, armor reduction, item level, durability, XP and rested, talent and Legacy points — rendered inside the standard stats pane. Part of the Lodestar suite.
+## Author: Abhi
+## Version: @project-version@
+## IconTexture: Interface\Icons\INV_Misc_Book_11
+## Dependencies: Lodestar
+## X-Category: Character Advancement
+## X-License: MIT
+## X-Lodestar-Module: Character
+
+Character.lua
+Stats.lua
+Inject.lua

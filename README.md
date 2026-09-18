@@ -11,6 +11,7 @@ A suite of addons for **World of Warcraft: Forever**. One core, four modules, in
 | **Lodestar_Guild** | Live guild board: who is online, where, what level, who wants a group (`/lode guild`, `/lode lfg`) |
 | **Lodestar_Guide** | Navigation arrow (points at the guide step, your `/way` pin, or the nearest quest objective/turn-in), step-by-step guide window, and a route recorder that turns your playthrough into a guide (`/lode record`) |
 | **Lodestar_Guides_Horde** | Guide data pack (routes in the text format below). Alliance pack to follow. |
+| **Lodestar_Character** | The character-sheet stats Blizzard hides, rendered inside the standard stats pane: melee/ranged/spell hit with miss tables vs +0..+3, crit and haste split, spell power per school, MP5/HP5, attack speed and DPS, weapon skills, enemy miss/crit/crush, block value, armor reduction, item level, durability, XP/rested, talent and Legacy points, PvP rank |
 
 `/lode` opens settings. `/lode help` lists every command.
 

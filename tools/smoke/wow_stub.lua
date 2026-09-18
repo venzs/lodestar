@@ -583,6 +583,125 @@ C_Item.RequestLoadItemDataByID = function() end
 GetProfessions = function() return stub.professions[1] and 1 or nil, stub.professions[2] and 2 or nil, nil, nil, nil, nil end
 GetProfessionInfo = function(index) local n = stub.professions[index] if n then return n, 134, 1, 75, 0, 0, 0, 0 end end
 IsTradeskillTrainer = function() return stub.tradeskillTrainer or false end
+-- Lodestar_Character: stat APIs and Blizzard's camelot stats-pane tables ----------------------------------
+Enum.ItemClass = { Weapon = 2, Armor = 4 }
+Enum.ItemWeaponSubclass = { Axe1H = 0, Axe2H = 1, Bows = 2, Guns = 3, Mace1H = 4, Mace2H = 5, Polearm = 6, Sword1H = 7, Sword2H = 8, Obsolete3 = 9, Staff = 10, Bearclaw = 11, Catclaw = 12, Unarmed = 13, Generic = 14, Dagger = 15, Thrown = 16, Crossbow = 18, Wand = 19, Fishingpole = 20 }
+Enum.Damageclass = { Physical = 0, Holy = 1, Fire = 2, Nature = 3, Frost = 4, Shadow = 5, Arcane = 6 }
+Enum.PowerType = { Mana = 0, Rage = 1, Focus = 2, Energy = 3 }
+Enum.PvPRanks = { RankNone = 0, Rank_1 = 5, Rank_14 = 18 }
+CR_HIT_MELEE, CR_HIT_RANGED, CR_HIT_SPELL, CR_EXPERTISE, CR_SPEED = 6, 7, 8, 24, 14
+MAX_SPELL_SCHOOLS, BASE_MOVEMENT_SPEED = 7, 7
+INVSLOT_MAINHAND, INVSLOT_OFFHAND, INVSLOT_RANGED, INVSLOT_LAST_EQUIPPED = 16, 17, 18, 19
+HIGHLIGHT_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE, GREEN_FONT_COLOR_CODE, RED_FONT_COLOR_CODE = "|cffffffff", "|r", "|cff20ff20", "|cffff2020"
+STAT_FORMAT, PAPERDOLLFRAME_TOOLTIP_FORMAT = "%s:", "%s"
+for i, school in ipairs({ "Holy", "Fire", "Nature", "Frost", "Shadow", "Arcane" }) do _G["DAMAGE_SCHOOL" .. (i + 1)] = school end
+Constants = { LegacyConsts = { LEGACY_REWARD_TRACK_FACTION_ID = 2802, LEGACY_POINTS_TRAIT_CURRENCY_ID = 4225, LEGACY_TREE_PROFESSIONS_ID = 1187, LEGACY_TREE_ADVENTURE_ID = 1188, LEGACY_TREE_PROGRESSION_ID = 1189 } }
+GetCombatRatingBonus = function(rating) return ({ [6] = 2, [7] = 1, [8] = 3 })[rating] or 0 end
+GetHitModifier = function() return 3 end        -- melee hit 2 + 3 = 5.0%
+GetRangedHitModifier = function() return 2 end  -- ranged hit 1 + 2 = 3.0%
+GetSpellHitModifier = function() return 1 end   -- spell hit 3 + 1 = 4.0%
+GetCritChance = function() return 5.5 end
+GetRangedCritChance = function() return 4.3 end
+GetSpellCritChance = function() return 6.1 end
+GetSpellBonusDamage = function(school) return school == 5 and 120 or 100 end -- Frost above the other schools
+GetSpellBonusHealing = function() return 110 end
+GetManaRegen = function() return 8.4, 2.2 end
+GetManaRegenFromSpirit = function() return 6, 0 end
+GetHealthRegen = function() return 6, 1.2 end
+GetHealthRegenFromSpirit = function() return 4, 0 end
+GetMeleeHaste = function() return stub.meleeHaste or 0 end
+GetRangedHaste = function() return 0, 0 end
+UnitSpellHaste = function() return 0 end
+UnitAttackSpeed = function() return 2.6, 1.8 end
+UnitDamage = function() return 40, 60, 20, 30, 0, 0, 1 end
+UnitRangedDamage = function() return 2.9, 30, 50, 0, 0, 1 end
+GetInventoryItemID = function(_, slot) return ({ [16] = 2001, [17] = 2002, [18] = 2003 })[slot] end
+C_SkillInfo = { GetSkillLineInfoByID = function(id) return { skillID = id, name = ({ [43] = "Swords", [173] = "Daggers", [45] = "Bows", [162] = "Unarmed" })[id] or ("Skill " .. id), rank = 87, maxRank = 100, modifier = 5 } end }
+UnitDefenseSkill = function() return 60, 5 end
+GetShieldBlock = function() return 42 end
+GetBlockChance = function() return 5 end
+GetDodgeChance = function() return 8.2 end
+GetParryChance = function() return 5 end
+GetDodgeChanceFromAttribute = function() return 0.032 end
+GetParryChanceFromAttribute = function() return 0 end
+UnitArmor = function() return 900, 1000, 1000, 100 end
+C_PaperDollInfo = {
+	GetArmorEffectiveness = function(armor, level) return armor / (armor + 400 + 85 * level) end,
+	GetArmorEffectivenessAgainstTarget = function() return nil end,
+	OffhandHasShield = function() return stub.shield or false end,
+	GetMinItemLevel = function() return 0 end,
+}
+UnitResistance = function(_, damageClass) local r = damageClass == 1 and (stub.holyResist or 0) or 10 return r, r, r, 0 end
+ResistancePercent = function(resistance, casterLevel) return resistance / (casterLevel * 5) * 75 end
+GetExpertise = function() return 0, 0, 0 end
+GetArmorPenetration = function() return 0 end
+GetSpellPenetration = function() return 0 end
+GetAverageItemLevel = function() return 24.5, 23.2, 23.2 end
+GetInventoryItemDurability = function(slot) if slot == 5 then return 62, 100 end if slot <= 10 then return 90, 100 end return nil end
+GetRestState = function() return 1, "Rested", 2 end
+GetUnitSpeed = function() return 7, 7, 0, stub.swimSpeed or 7 end
+GetNumUnspentTalents = function() return stub.unspentTalents or 3 end
+UnitPowerMax = function(_, powerType) if powerType == 0 then return stub.manaMax or 0 end return 100 end
+GetShapeshiftForm = function() return 0 end
+IsDualWielding = function() return true end
+IsRangedWeapon = function() return true end
+UnitEffectiveLevel = function() return stub.level end
+UnitSex = function() return 2 end
+GetText = function(key) return key end
+C_MajorFactions = {
+	GetCurrentRenownLevel = function() return stub.legacyRenown or 0 end,
+	GetMajorFactionProgressionInfo = function() return { renownLevel = stub.pvpRank or 0, renownReputationEarned = 1234, renownLevelThreshold = 5000 } end,
+}
+C_Traits = {
+	GetConfigIDByTreeID = function() return 77 end,
+	GetTreeCurrencyInfo = function() return { { traitCurrencyID = 4225, quantity = 5, spent = 7 } } end,
+	GetConfigInfo = function() return { treeIDs = { 1 } } end,
+}
+C_ClassTalents = { GetActiveConfigID = function() return nil end }
+-- Camelot/PaperDollFrameConstants.lua + PaperDollFrame.lua, reduced to what the injection touches.
+STAT_CATEGORY_GENERAL, STAT_CATEGORY_MODIFIERS = "General", "Modifiers"
+PAPERDOLL_STATCATEGORIES = {
+	{ categoryName = "General", unit = "player", stats = { { stat = "HEALTH" }, { stat = "POWER" } } },
+	{ categoryName = "Modifiers", unit = "player", stats = { { stat = "HITCHANCE", hideAt = 0 }, { stat = "CRITCHANCE", hideAt = 0 }, { stat = "HASTE", hideAt = 0 } } },
+	{ categoryName = "General", unit = "pet", stats = { { stat = "HEALTH" } } },
+}
+PaperDollFrame_SetLabelAndText = function(statFrame, label, text, isPercentage, numericValue)
+	if statFrame.Label then statFrame.Label:SetText(STAT_FORMAT:format(label)) end
+	if isPercentage then text = ("%d%%"):format(numericValue + 0.5) end
+	statFrame.Value:SetText(text)
+	statFrame.numericValue = numericValue
+end
+local function blizzardStat(label, value)
+	return { updateFunc = function(statFrame) PaperDollFrame_SetLabelAndText(statFrame, label, tostring(value), false, value) return value end }
+end
+PAPERDOLL_STATINFO = { HEALTH = blizzardStat("Health", 1000), POWER = blizzardStat("Rage", 100), HITCHANCE = blizzardStat("Hit chance", 5), CRITCHANCE = blizzardStat("Critical strike", 6.1), HASTE = blizzardStat("Haste", 0) }
+CharacterFrame = stub.newFrame("Frame", "CharacterFrame")
+CharacterFrame.shown = false
+-- Mirrors CharacterStatsPaneScrollBoxMixin:UpdateStats: walks the player categories, honours showFunc and hideAt.
+stub.paperDollUpdates = 0
+PaperDollFrame_UpdateStats = function()
+	stub.paperDollUpdates = stub.paperDollUpdates + 1
+	stub.paperDollRows = {}
+	local statFrame = stub.paperDollStatFrame
+	if not statFrame then
+		statFrame = stub.newFrame("Frame")
+		statFrame.Label, statFrame.Value = statFrame:CreateFontString(), statFrame:CreateFontString()
+		stub.paperDollStatFrame = statFrame
+	end
+	for _, category in ipairs(PAPERDOLL_STATCATEGORIES) do
+		if category.unit == "player" then
+			for _, stat in ipairs(category.stats) do
+				if not stat.showFunc or stat.showFunc() then
+					statFrame.tooltip, statFrame.tooltip2, statFrame.tooltip3 = nil, nil, nil
+					local numericValue = PAPERDOLL_STATINFO[stat.stat].updateFunc(statFrame, "player", stat.id)
+					if numericValue ~= stat.hideAt then
+						tinsert(stub.paperDollRows, { category = category.categoryName, stat = stat.stat, label = statFrame.Label.text, value = statFrame.Value.text, numeric = numericValue, tooltip2 = statFrame.tooltip2 })
+					end
+				end
+			end
+		end
+	end
+end
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

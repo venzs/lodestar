@@ -42,7 +42,7 @@ local function loadToc(addon)
 	stub.fire("ADDON_LOADED", addon)
 end
 
-local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild", "Lodestar_Guide", "Lodestar_Guides_Horde" }
+local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild", "Lodestar_Guide", "Lodestar_Guides_Horde", "Lodestar_Character" }
 for _, a in ipairs(addons) do loadToc(a) end
 -- Data/Trainers.lua belongs in the Guide TOC after Data/Vanilla.lua; load it here while that line is pending.
 if not _G.Lodestar:GetModule("Guide").TrainerData then loadLua("Lodestar_Guide/Data/Trainers.lua") end
@@ -65,7 +65,7 @@ end
 
 local Lodestar = _G.Lodestar
 check(Lodestar and Lodestar.db, "core initialised")
-check(#Lodestar.moduleList == 5, "five modules registered, got " .. tostring(#Lodestar.moduleList))
+check(#Lodestar.moduleList == 6, "six modules registered, got " .. tostring(#Lodestar.moduleList))
 for _, m in ipairs(Lodestar.moduleList) do check(m:IsEnabled(), "module enabled: " .. m.key) end
 check(#stub.sent >= 2, "login comms sent (version + presence), got " .. #stub.sent)
 check(stub.displayedPlayed ~= true, "played-time chat lines were muted")
@@ -483,7 +483,7 @@ try("profile change rebinds minimap", function()
 end)
 try("options build", function()
 	local opts = Lodestar:BuildOptions()
-	check(opts.args.Leveling and opts.args.Economy and opts.args.UI and opts.args.Guild and opts.args.profiles, "options tree has all groups")
+	check(opts.args.Leveling and opts.args.Economy and opts.args.UI and opts.args.Guild and opts.args.Character and opts.args.profiles, "options tree has all groups")
 	-- exercise every get/set once
 	local function walk(group)
 		for _, opt in pairs(group.args or {}) do
@@ -1202,6 +1202,167 @@ try("guide options", function()
 		end
 	end
 	walk(opts.args.Guide)
+end)
+
+-- Lodestar_Character
+try("character", function()
+	local C = Lodestar:GetModule("Character")
+	check(C and C:IsEnabled() and statuses["Lodestar_Character"] == true, "Character module registered and enabled")
+	local S = C.Stats
+	local st = C:GetInjectionState()
+	check(st.injected == true and st.fallback == false, "categories injected into PAPERDOLL_STATCATEGORIES")
+	-- fixed character state for the numbers below
+	stub.level, stub.xp, stub.xpMax, stub.rested = 12, 4000, 10000, 500
+	stub.manaMax, stub.shield, stub.holyResist, stub.swimSpeed, stub.legacyRenown, stub.pvpRank, stub.meleeHaste = 1000, true, 15, 3.5, 12, 3, 0
+	local instant = C_Item.GetItemInfoInstant
+	C_Item.GetItemInfoInstant = function(id) -- main hand sword, off-hand dagger, ranged bow
+		local sub = ({ [2001] = Enum.ItemWeaponSubclass.Sword1H, [2002] = Enum.ItemWeaponSubclass.Dagger, [2003] = Enum.ItemWeaponSubclass.Bows })[id]
+		return id, "Weapon", "Sub", "INVTYPE_WEAPON", 134, Enum.ItemClass.Weapon, sub
+	end
+	-- placement and names
+	local cats = C:InjectedCategories()
+	local names = {}
+	for i, cat in ipairs(cats) do names[i] = cat.categoryName end
+	check(table.concat(names, ",") == "Melee,Ranged,Spell,Regeneration,Defense detail,Weapon skills,Gear,Progress", "eight categories in order: " .. table.concat(names, ","))
+	check(PAPERDOLL_STATCATEGORIES[2].categoryName == "Modifiers" and PAPERDOLL_STATCATEGORIES[3].lodestar and PAPERDOLL_STATCATEGORIES[#PAPERDOLL_STATCATEGORIES].unit == "pet", "inserted after Blizzard's player categories, before the pet one")
+	local meleeStats = {}
+	for i, s in ipairs(cats[1].stats) do meleeStats[i] = s.stat end
+	check(table.concat(meleeStats, ",") == "LODESTAR_MELEE_HIT,LODESTAR_MELEE_CRIT,LODESTAR_MELEE_HASTE,LODESTAR_ATTACK_SPEED,LODESTAR_MELEE_DPS", "melee rows: " .. table.concat(meleeStats, ","))
+	check(cats[1].stats[1].hideAt == 0 and cats[1].stats[4].hideAt == nil, "hideZero applies to hit but never to attack speed")
+	check(PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT and PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT.lodestar, "PAPERDOLL_STATINFO entries registered")
+	-- every row's update runs on a Blizzard-style stat frame and produces text
+	local frame = stub.newFrame("Frame")
+	frame.Label, frame.Value = frame:CreateFontString(), frame:CreateFontString()
+	local texts, numerics = {}, {}
+	for stat, row in pairs(S.rowByStat) do
+		frame.Label.text, frame.Value.text, frame.tooltip, frame.tooltip2 = nil, nil, nil, nil
+		local ok, v = pcall(row.update, frame, "player")
+		check(ok, "row " .. stat .. " runs: " .. tostring(v))
+		if ok and v ~= nil then
+			check(type(frame.Value.text) == "string" and frame.Value.text ~= "" and frame.Label.text ~= nil, "row " .. stat .. " sets label and value")
+			check(type(frame.tooltip) == "string", "row " .. stat .. " sets a tooltip")
+			texts[stat], numerics[stat] = frame.Value.text, v
+		end
+	end
+	check(texts.LODESTAR_MELEE_HIT == "5.0%", "melee hit = rating bonus + modifier: " .. tostring(texts.LODESTAR_MELEE_HIT))
+	check(texts.LODESTAR_RANGED_HIT == "3.0%" and texts.LODESTAR_SPELL_HIT == "4.0%", "ranged/spell hit split")
+	check(texts.LODESTAR_MELEE_CRIT == "5.5%" and texts.LODESTAR_RANGED_CRIT == "4.3%" and texts.LODESTAR_SPELL_CRIT == "6.1%", "crit split")
+	check(texts.LODESTAR_ATTACK_SPEED == "2.60 / 1.80", "attack speed main / off: " .. tostring(texts.LODESTAR_ATTACK_SPEED))
+	check(texts.LODESTAR_MELEE_DPS == "19.2 / 13.9", "dps = (min+max)/2/speed: " .. tostring(texts.LODESTAR_MELEE_DPS))
+	check(texts.LODESTAR_RANGED_SPEED == "2.90" and texts.LODESTAR_RANGED_DPS == "13.8", "ranged speed and dps")
+	check(texts.LODESTAR_SPELL_FROST == "120" and texts.LODESTAR_SPELL_FIRE == nil, "only the school above the minimum gets a row")
+	check(texts.LODESTAR_MP5 == "42 / 11" and texts.LODESTAR_HP5 == "30 / 6", "mp5 / hp5 = per-second x5: " .. tostring(texts.LODESTAR_MP5) .. " " .. tostring(texts.LODESTAR_HP5))
+	-- defense 65 at level 12: boss skill 75, diff 10 -> miss 4.6, crit 5.4; crush uses defense capped at level*5 -> diff 15 -> 15%
+	check(texts.LODESTAR_ENEMY_MISS == "4.6%" and texts.LODESTAR_ENEMY_CRIT == "5.4%" and texts.LODESTAR_CRUSH == "15.0%", "enemy miss/crit/crush vs +3 from the defense formulas: " .. tostring(texts.LODESTAR_ENEMY_MISS) .. " " .. tostring(texts.LODESTAR_ENEMY_CRIT) .. " " .. tostring(texts.LODESTAR_CRUSH))
+	check(texts.LODESTAR_BLOCK_VALUE == "42" and texts.LODESTAR_DODGE_AGI == "3.2%" and numerics.LODESTAR_PARRY_STR == 0, "block value, dodge from agility, parry from strength")
+	check(texts.LODESTAR_ARMOR_REDUCTION == "41.3%", "armor reduction via C_PaperDollInfo.GetArmorEffectiveness: " .. tostring(texts.LODESTAR_ARMOR_REDUCTION))
+	check(texts.LODESTAR_HOLY_RESIST == "15", "holy resistance shown when non-zero")
+	check(texts.LODESTAR_WEAPON_SKILL_MH == "87/100 |cff20ff20+5|r", "main-hand weapon skill: " .. tostring(texts.LODESTAR_WEAPON_SKILL_MH))
+	check(texts.LODESTAR_WEAPON_SKILL_OH == texts.LODESTAR_WEAPON_SKILL_MH and texts.LODESTAR_WEAPON_SKILL_RANGED == texts.LODESTAR_WEAPON_SKILL_MH, "off-hand and ranged weapon skills")
+	check(texts.LODESTAR_ITEM_LEVEL == "23", "average item level (equipped)")
+	check(texts.LODESTAR_DURABILITY == "62%", "durability = lowest slot: " .. tostring(texts.LODESTAR_DURABILITY))
+	check(texts.LODESTAR_SWIM_SPEED == "50%", "swim speed shown when it differs from run speed")
+	check(texts.LODESTAR_XP == "40.0%" and texts.LODESTAR_RESTED == "500 (5%)", "xp and rested: " .. tostring(texts.LODESTAR_XP) .. " " .. tostring(texts.LODESTAR_RESTED))
+	check(texts.LODESTAR_TALENTS == "3" and texts.LODESTAR_LEGACY == "12 (5 free)" and texts.LODESTAR_PVP_RANK == "PVP_RANK_7_0", "talents, legacy and pvp rank rows")
+	-- off-hand with the same skill as the main hand collapses into one row
+	C_Item.GetItemInfoInstant = function(id) return id, "Weapon", "Sub", "INVTYPE_WEAPON", 134, Enum.ItemClass.Weapon, Enum.ItemWeaponSubclass.Sword1H end
+	check(S.rowByStat.LODESTAR_WEAPON_SKILL_OH.update(frame, "player") == nil, "off-hand row hidden when it shares the main-hand skill")
+	-- not applicable -> nil -> hidden through the registered updateFunc
+	stub.holyResist = 0
+	check(PAPERDOLL_STATINFO.LODESTAR_HOLY_RESIST.updateFunc(frame, "player") == 0, "nil from a row becomes the entry's hideAt")
+	check(PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT.updateFunc(frame, "pet") == 0, "pet unit is never ours")
+	-- Blizzard's pane walk: hideZero hides the zero haste row, off shows it
+	CharacterFrame.shown = true
+	local function paneRows()
+		PaperDollFrame_UpdateStats()
+		local byStat = {}
+		for _, r in ipairs(stub.paperDollRows) do byStat[r.stat] = r end
+		return byStat
+	end
+	local rows = paneRows()
+	check(rows.LODESTAR_MELEE_HIT and rows.LODESTAR_MELEE_HIT.value == "5.0%" and rows.LODESTAR_MELEE_HASTE == nil, "pane shows melee hit and drops the zero haste row")
+	check(rows.LODESTAR_MELEE_HIT.tooltip2 and rows.LODESTAR_MELEE_HIT.tooltip2:find("Level 12: 0%.0%%") and rows.LODESTAR_MELEE_HIT.tooltip2:find("Level 15 %(boss%): 2%.7%%"), "miss table vs +3 in the tooltip: " .. tostring(rows.LODESTAR_MELEE_HIT.tooltip2))
+	check(rows.HITCHANCE ~= nil, "Blizzard's Hit row untouched by default")
+	C.db.profile.hideZero = false
+	C:RefreshInjection()
+	rows = paneRows()
+	check(rows.LODESTAR_MELEE_HASTE and rows.LODESTAR_MELEE_HASTE.value == "0.0%", "hideZero off shows the zero haste row")
+	check(rows.LODESTAR_SPELL_FIRE == nil and rows.LODESTAR_HOLY_RESIST == nil, "rows with a fixed hideAt stay hidden regardless")
+	C.db.profile.hideZero = true
+	-- category toggle removes the category
+	C.db.profile.categories.gear = false
+	C:RefreshInjection()
+	local found = false
+	for _, cat in ipairs(C:InjectedCategories()) do if cat.key == "gear" then found = true end end
+	check(#C:InjectedCategories() == 7 and not found, "gear category removed when toggled off")
+	C.db.profile.categories.gear = true
+	C:RefreshInjection()
+	check(#C:InjectedCategories() == 8, "gear category back when toggled on")
+	-- replacing Blizzard's max-only rows wraps their showFunc and restores it
+	C.db.profile.replaceBlizzardMaxRows = true
+	C:RefreshInjection()
+	rows = paneRows()
+	check(rows.HITCHANCE == nil and rows.CRITCHANCE == nil and rows.HEALTH ~= nil, "Blizzard's Hit/Crit rows hidden while replaced")
+	C.db.profile.replaceBlizzardMaxRows = false
+	C:RefreshInjection()
+	rows = paneRows()
+	check(rows.HITCHANCE ~= nil and PAPERDOLL_STATCATEGORIES[2].stats[1].showFunc == nil, "Blizzard's rows restored, showFunc back to nil")
+	-- refresh throttle: only while the character frame is shown, coalesced
+	CharacterFrame.shown = false
+	local before = stub.paperDollUpdates
+	stub.fire("PLAYER_XP_UPDATE", "player")
+	stub.advance(1)
+	check(stub.paperDollUpdates == before, "no stats update while the character frame is hidden")
+	CharacterFrame.shown = true
+	stub.fire("PLAYER_XP_UPDATE", "player")
+	stub.fire("UPDATE_INVENTORY_DURABILITY")
+	stub.fire("UNIT_DEFENSE", "player")
+	check(stub.paperDollUpdates == before, "update is deferred, not immediate")
+	stub.advance(1)
+	check(stub.paperDollUpdates == before + 1, "three events coalesced into one PaperDollFrame_UpdateStats, got +" .. (stub.paperDollUpdates - before))
+	stub.fire("UNIT_DEFENSE", "target")
+	stub.advance(1)
+	check(stub.paperDollUpdates == before + 1, "other units' UNIT_ events ignored")
+	-- fallback panel when the camelot tables are missing
+	CharacterFrame:Hide()
+	local savedCats = PAPERDOLL_STATCATEGORIES
+	PAPERDOLL_STATCATEGORIES = nil
+	C:DisableInjection()
+	C:EnableInjection()
+	st = C:GetInjectionState()
+	check(st.fallback == true and st.injected == false, "fallback panel path taken without PAPERDOLL_STATCATEGORIES")
+	check(LodestarCharacterStatsFrame and not LodestarCharacterStatsFrame.shown, "fallback panel created, hidden while the character frame is")
+	CharacterFrame:Show()
+	check(LodestarCharacterStatsFrame.shown and (LodestarCharacterStatsFrame.shownRows or 0) > 0, "fallback panel shows and fills with the character frame's OnShow")
+	local shown = C:RefreshFallbackPanel()
+	check(shown >= 20, "fallback panel lists the rows, got " .. tostring(shown))
+	local labels = {}
+	for _, r in ipairs(LodestarCharacterStatsFrame.rows) do if r.shown then labels[r.Label.text] = r.Value.text end end
+	check(labels["Melee hit:"] == "5.0%" and labels["Durability:"] == "62%", "fallback rows carry the same label/value")
+	CharacterFrame.shown = false
+	CharacterFrame:Hide()
+	check(not LodestarCharacterStatsFrame.shown, "fallback panel hides with the character frame")
+	PAPERDOLL_STATCATEGORIES = savedCats
+	C:DisableInjection()
+	C:EnableInjection()
+	st = C:GetInjectionState()
+	check(st.injected == true and st.fallback == false and not LodestarCharacterStatsFrame.shown, "injection back once the tables return")
+	-- module disable removes everything, enable restores
+	Lodestar:SetModuleEnabled("Character", false)
+	check(#C:InjectedCategories() == 0 and PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT == nil and statuses["Lodestar_Character"] == false, "disable removed categories and stat infos")
+	Lodestar:SetModuleEnabled("Character", true)
+	check(#C:InjectedCategories() == 8 and PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT ~= nil, "re-enable injected again")
+	-- options page
+	local opts = Lodestar:BuildOptions()
+	for _, opt in pairs(opts.args.Character.args) do
+		if opt.get then
+			local v = opt.get({})
+			if opt.set and opt.type == "toggle" then opt.set({}, v) end
+		elseif opt.type == "execute" then opt.func()
+		end
+	end
+	C_Item.GetItemInfoInstant = instant
+	stub.level = 3
 end)
 
 -- AceDB strips defaults from the saved tables on logout, so this must be the last thing we do.

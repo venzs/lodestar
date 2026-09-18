@@ -12,6 +12,7 @@ move-folders:
   Lodestar/Lodestar_Guild: Lodestar_Guild
   Lodestar/Lodestar_Guide: Lodestar_Guide
   Lodestar/Lodestar_Guides_Horde: Lodestar_Guides_Horde
+  Lodestar/Lodestar_Character: Lodestar_Character
 
 ignore:
   - tools
