@@ -1,9 +1,10 @@
 -- Lodestar_Character: the stat rows.
 --
--- Every row has an `update(statFrame, unit)` with the same contract as Blizzard's PAPERDOLL_STATINFO
--- updateFuncs: it fills the row through PaperDollFrame_SetLabelAndText, sets statFrame.tooltip /
--- tooltip2 / tooltip3 and returns the numeric value. Returning nil means "not applicable, hide the row";
--- the injector turns that into whatever hideAt the row is registered with. Formulas and constants
+-- Every row has an `update(statFrame, unit)` with the same contract Blizzard's PAPERDOLL_STATINFO
+-- updateFuncs use: it fills the row through Stats.SetLabelAndText (our own stand-in for Blizzard's
+-- PaperDollFrame_SetLabelAndText, same signature), sets statFrame.tooltip / tooltip2 / tooltip3 and
+-- returns the numeric value. Returning nil means "not applicable, hide the row". The statFrame is one of
+-- our panel's rows — we never call into Blizzard's stats pane; Panel.lua says why. Formulas and constants
 -- come from Blizzard's own camelot files (PaperDollFrameStats.lua, SkillsFrame.lua, PaperDollFrame.lua).
 local Lodestar = _G.Lodestar
 local Character = Lodestar:GetModule("Character")
@@ -67,13 +68,9 @@ local function levelLabel(offset)
 	return offset == 3 and ("Level %d (boss)"):format(level) or ("Level %d"):format(level)
 end
 
---- Fill a row the way Blizzard's updateFuncs do. Falls back to plain Label/Value writes (own panel).
+--- Fill a row the way Blizzard's updateFuncs do, but into a row frame of ours: same fields
+--- PaperDollFrame_SetLabelAndText would set, without calling Blizzard's function.
 function Stats.SetLabelAndText(statFrame, label, text, numericValue)
-	local fn = _G.PaperDollFrame_SetLabelAndText
-	if type(fn) == "function" then
-		fn(statFrame, label, text, false, numericValue)
-		return
-	end
 	if statFrame.Label then statFrame.Label:SetText((_G.STAT_FORMAT or "%s:"):format(label)) end
 	if statFrame.Value then statFrame.Value:SetText(text) end
 	statFrame.numericValue = numericValue
@@ -153,7 +150,7 @@ local function weaponSkill(slot)
 	return playerLevel() * SKILL_PER_LEVEL, nil
 end
 
---- "287/300", plus a coloured "+5" / "-3" when a modifier applies. Rows are 187 px wide, so the value stays short.
+--- "287/300", plus a coloured "+5" / "-3" when a modifier applies. Panel columns are ~135 px wide, so the value stays short.
 local function skillText(info)
 	local mod = info.modifier or 0
 	local text = ("%d/%d"):format(info.rank, info.maxRank)
@@ -645,7 +642,7 @@ end
 
 -- Category / row table --------------------------------------------------------------------------------
 --
--- Row fields: stat (PAPERDOLL_STATINFO key), label (for the report/fallback panel), update, and optionally
+-- Row fields: stat (our own key, used by the panel and the tests), label, update, and optionally
 -- hideAt (always applied), hideZero (default true: hidden at 0 when the option is on), showFunc.
 
 local function shieldEquipped() return safe(C_PaperDollInfo.OffhandHasShield) and true or false end

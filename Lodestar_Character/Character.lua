@@ -1,16 +1,15 @@
 -- Lodestar_Character: module definition, defaults and settings page.
 --
--- Blizzard's Forever character sheet renders its stats pane from two global tables
--- (PAPERDOLL_STATCATEGORIES / PAPERDOLL_STATINFO). This module adds categories of its own to those
--- tables so the hidden numbers (melee/ranged/spell hit split with miss tables, crit and haste split,
--- spell power per school, MP5/HP5, attack speed and DPS, weapon skills, defense detail, block value,
--- armor reduction, item level, durability, XP/rested, talent and Legacy points) show up as ordinary
--- rows with Blizzard's own headers, striping, tooltips and gamepad navigation.
+-- The numbers Blizzard's Forever character sheet hides (melee/ranged/spell hit with miss tables, crit
+-- and haste split, spell power per school, MP5/HP5, attack speed and DPS, weapon skills, defense detail,
+-- block value, armor reduction, item level, durability, XP/rested, talent and Legacy points) are drawn
+-- in a panel of our own next to the character sheet. Panel.lua explains why they are NOT put into
+-- Blizzard's own stats pane.
 local Lodestar = _G.Lodestar
 
 local Character = Lodestar:NewModule("Character", "AceEvent-3.0", "AceTimer-3.0")
 Character.displayName = "Character"
-Character.description = "Hidden character-sheet stats (hit/crit/haste split, spell power per school, regen, DPS, weapon skills, defense detail, item level, durability, XP, talents) inside the standard stats pane."
+Character.description = "Hidden character-sheet stats (hit/crit/haste split, spell power per school, regen, DPS, weapon skills, defense detail, item level, durability, XP, talents) in a panel beside the character sheet."
 Character.order = 35
 
 Character.defaults = {
@@ -26,7 +25,9 @@ Character.defaults = {
 			progress = true,
 		},
 		hideZero = true,
-		replaceBlizzardMaxRows = false,
+		show = true,
+		locked = false,
+		-- pos: set once the panel is dragged; nil means "docked to the character sheet".
 	},
 }
 
@@ -34,14 +35,20 @@ local function categoryToggle(order, key, name, desc)
 	return {
 		type = "toggle", order = order, name = name, desc = desc,
 		get = function() return Character.db.profile.categories[key] end,
-		set = function(_, v) Character.db.profile.categories[key] = v; Character:RefreshInjection() end,
+		set = function(_, v) Character.db.profile.categories[key] = v; Character:RefreshPanel() end,
 	}
 end
 
 Character.options = {
 	desc = {
 		type = "description", order = 1, fontSize = "medium",
-		name = "Extra categories in the character sheet's stats pane. Hover a row for the details (miss tables against +0..+3 targets, per-school spell power, sources).\n",
+		name = "A stats panel beside the character sheet with the numbers the sheet leaves out. Hover a row for the details (miss tables against +0..+3 targets, per-school spell power, sources); right-click the panel for the category toggles.\n",
+	},
+	show = {
+		type = "toggle", order = 2, name = "Show the panel with the character sheet", width = "full",
+		desc = "The panel opens and closes with the character sheet. /lode character toggles it.",
+		get = function() return Character.db.profile.show end,
+		set = function(_, v) Character.db.profile.show = v; Character:UpdatePanel() end,
 	},
 	catHeader = { type = "header", order = 10, name = "Categories" },
 	catMelee = categoryToggle(11, "melee", "Melee", "Melee hit with miss chances vs +0..+3, melee crit, melee haste, attack speed, DPS."),
@@ -58,30 +65,34 @@ Character.options = {
 		type = "toggle", order = 21, name = "Hide rows that are zero", width = "full",
 		desc = "Like Blizzard's own hit/crit/haste rows: a stat you don't have is left out instead of showing 0.",
 		get = function() return Character.db.profile.hideZero end,
-		set = function(_, v) Character.db.profile.hideZero = v; Character:RefreshInjection() end,
+		set = function(_, v) Character.db.profile.hideZero = v; Character:RefreshPanel() end,
 	},
-	replaceMax = {
-		type = "toggle", order = 22, name = "Replace Blizzard's Hit / Crit / Haste rows", width = "full",
-		desc = "Blizzard's Modifiers category shows only the highest of melee, ranged and spell for each. Hide those three rows while the split rows above are on.",
-		get = function() return Character.db.profile.replaceBlizzardMaxRows end,
-		set = function(_, v) Character.db.profile.replaceBlizzardMaxRows = v; Character:RefreshInjection() end,
+	locked = {
+		type = "toggle", order = 22, name = "Lock the panel in place", width = "full",
+		desc = "While unlocked the panel can be dragged anywhere; its position is saved in this profile.",
+		get = function() return Character.db.profile.locked end,
+		set = function(_, v) Character.db.profile.locked = v; Character:UpdatePanel() end,
+	},
+	resetPos = {
+		type = "execute", order = 23, name = "Dock it back to the character sheet",
+		func = function() Character:ResetPanelPosition() end,
 	},
 	refresh = {
-		type = "execute", order = 30, name = "Refresh stats pane",
+		type = "execute", order = 30, name = "Refresh the panel",
 		func = function() Character:RequestStatsUpdate(true) end,
 	},
 }
 
 function Character:OnEnable()
-	self:EnableInjection()
+	self:EnablePanel()
 end
 
 function Character:OnDisable()
-	self:DisableInjection()
+	self:DisablePanel()
 end
 
 function Character:OnProfileChanged()
-	if self:IsEnabled() then self:RefreshInjection() end
+	if self:IsEnabled() then self:UpdatePanel() end
 end
 
 Lodestar:RegisterModule(Character)

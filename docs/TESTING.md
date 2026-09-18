@@ -8,8 +8,11 @@ What to run, what to look at, and what to send back. Everything the addon learns
 
 1. `/reload`, then `/lode errors` — should say none. If it lists something, that plus what you were doing is the report.
 2. `/lode probe` then `/reload` — records the client's API answers for the diagnostics.
-3. Open the character sheet: the Lodestar categories (Melee, Ranged, Spell, Regeneration, Defense detail,
-   Weapon skills, Gear, Progress) should appear under Blizzard's. Hover a few rows: tooltips should make sense.
+3. Open the character sheet: the Lodestar stats panel should appear beside it with its categories (Melee,
+   Ranged, Spell, Regeneration, Defense detail, Weapon skills, Gear, Progress). Hover a few rows: tooltips
+   should make sense. Right-click the panel for the category toggles, Lock and Settings; `/lode character`
+   hides and shows it. Blizzard's own stats pane must be exactly as it is without the addon — if opening
+   the sheet ever errors with "execution tainted by 'Lodestar_Character'", that is a bug to report at once.
 
 ## Every session
 

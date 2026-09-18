@@ -14,7 +14,10 @@
   into Data/Forever.lua.
 - Guides: Horde 1-30 (Deathknell/Tirisfal, Durotar, Mulgore, Silverpine, Barrens, Hillsbrad, Stonetalon, Ashenvale,
   Thousand Needles) and Alliance 1-20 (Elwynn, Dun Morogh, Teldrassil, Westfall, Loch Modan, Darkshore) drafts.
-- Lodestar_Character: hidden character-sheet stats inside Blizzard's stats pane.
+- Lodestar_Character: hidden character-sheet stats in a panel of our own beside the character sheet.
+  It does **not** touch `PAPERDOLL_STATCATEGORIES` / `PAPERDOLL_STATINFO`: writing into those taints
+  Blizzard's character frame on Forever and opening the sheet threw
+  `TextStatusBar.lua:110: attempt to compare a secret number value`. `/lode character` toggles the panel.
 - Review fixes across core, leveling, economy, UI and guild (live module toggles, merchant auto-sell, item level,
   map coordinates layering, chat link handler, guild board in combat, comm query storms).
 

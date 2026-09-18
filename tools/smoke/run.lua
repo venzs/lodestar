@@ -5,6 +5,29 @@ if ROOT == "" then ROOT = "./" end
 package.path = ROOT .. "tools/smoke/?.lua;" .. package.path
 local stub = require("wow_stub")
 
+-- Blizzard's stats tables have to stay exactly as the client left them. An addon that writes into
+-- PAPERDOLL_STATCATEGORIES / PAPERDOLL_STATINFO taints every path that reads them, and on Forever that
+-- makes simply opening the character sheet throw ("TextStatusBar.lua:110: attempt to compare a secret
+-- number value (execution tainted by 'Lodestar_Character')"). Snapshot both before a single addon file
+-- is loaded; the Character block compares against this after login and after using the panel.
+local function snapshot(value, seen)
+	if type(value) ~= "table" then return tostring(value) end
+	seen = seen or {}
+	if seen[value] then return "<cycle>" end
+	seen[value] = true
+	local keys = {}
+	for k in pairs(value) do keys[#keys + 1] = k end
+	table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+	local parts = {}
+	for _, k in ipairs(keys) do parts[#parts + 1] = tostring(k) .. "=" .. snapshot(value[k], seen) end
+	seen[value] = nil
+	return "{" .. table.concat(parts, ",") .. "}"
+end
+local function blizzardStatTables()
+	return snapshot(rawget(_G, "PAPERDOLL_STATCATEGORIES")) .. "|" .. snapshot(rawget(_G, "PAPERDOLL_STATINFO"))
+end
+local pristineStatTables = blizzardStatTables()
+
 local function loadLua(path)
 	local chunk, err = loadfile(ROOT .. path)
 	if not chunk then error("load " .. path .. ": " .. tostring(err)) end
@@ -1620,12 +1643,13 @@ try("quest tips", function()
 end)
 
 -- Lodestar_Character
+-- The module draws its own panel; it must never write into Blizzard's stats tables (see Panel.lua).
 try("character", function()
 	local C = Lodestar:GetModule("Character")
 	check(C and C:IsEnabled() and statuses["Lodestar_Character"] == true, "Character module registered and enabled")
 	local S = C.Stats
-	local st = C:GetInjectionState()
-	check(st.injected == true and st.fallback == false, "categories injected into PAPERDOLL_STATCATEGORIES")
+	check(blizzardStatTables() == pristineStatTables, "PAPERDOLL_STATCATEGORIES / PAPERDOLL_STATINFO untouched after login")
+	check(rawget(_G, "LodestarCharacterStatsFrame") == nil and C:GetPanel() == nil, "no panel until the character sheet is opened")
 	-- fixed character state for the numbers below
 	stub.level, stub.xp, stub.xpMax, stub.rested = 12, 4000, 10000, 500
 	stub.manaMax, stub.shield, stub.holyResist, stub.swimSpeed, stub.legacyRenown, stub.pvpRank, stub.meleeHaste = 1000, true, 15, 3.5, 12, 3, 0
@@ -1634,18 +1658,7 @@ try("character", function()
 		local sub = ({ [2001] = Enum.ItemWeaponSubclass.Sword1H, [2002] = Enum.ItemWeaponSubclass.Dagger, [2003] = Enum.ItemWeaponSubclass.Bows })[id]
 		return id, "Weapon", "Sub", "INVTYPE_WEAPON", 134, Enum.ItemClass.Weapon, sub
 	end
-	-- placement and names
-	local cats = C:InjectedCategories()
-	local names = {}
-	for i, cat in ipairs(cats) do names[i] = cat.categoryName end
-	check(table.concat(names, ",") == "Melee,Ranged,Spell,Regeneration,Defense detail,Weapon skills,Gear,Progress", "eight categories in order: " .. table.concat(names, ","))
-	check(PAPERDOLL_STATCATEGORIES[2].categoryName == "Modifiers" and PAPERDOLL_STATCATEGORIES[3].lodestar and PAPERDOLL_STATCATEGORIES[#PAPERDOLL_STATCATEGORIES].unit == "pet", "inserted after Blizzard's player categories, before the pet one")
-	local meleeStats = {}
-	for i, s in ipairs(cats[1].stats) do meleeStats[i] = s.stat end
-	check(table.concat(meleeStats, ",") == "LODESTAR_MELEE_HIT,LODESTAR_MELEE_CRIT,LODESTAR_MELEE_HASTE,LODESTAR_ATTACK_SPEED,LODESTAR_MELEE_DPS", "melee rows: " .. table.concat(meleeStats, ","))
-	check(cats[1].stats[1].hideAt == 0 and cats[1].stats[4].hideAt == nil, "hideZero applies to hit but never to attack speed")
-	check(PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT and PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT.lodestar, "PAPERDOLL_STATINFO entries registered")
-	-- every row's update runs on a Blizzard-style stat frame and produces text
+	-- every row's update runs against a panel row (Label / Value / tooltip) and produces text
 	local frame = stub.newFrame("Frame")
 	frame.Label, frame.Value = frame:CreateFontString(), frame:CreateFontString()
 	local texts, numerics = {}, {}
@@ -1679,94 +1692,127 @@ try("character", function()
 	check(texts.LODESTAR_SWIM_SPEED == "50%", "swim speed shown when it differs from run speed")
 	check(texts.LODESTAR_XP == "40.0%" and texts.LODESTAR_RESTED == "500 (5%)", "xp and rested: " .. tostring(texts.LODESTAR_XP) .. " " .. tostring(texts.LODESTAR_RESTED))
 	check(texts.LODESTAR_TALENTS == "3" and texts.LODESTAR_LEGACY == "12 (5 free)" and texts.LODESTAR_PVP_RANK == "PVP_RANK_7_0", "talents, legacy and pvp rank rows")
-	-- off-hand with the same skill as the main hand collapses into one row
-	C_Item.GetItemInfoInstant = function(id) return id, "Weapon", "Sub", "INVTYPE_WEAPON", 134, Enum.ItemClass.Weapon, Enum.ItemWeaponSubclass.Sword1H end
-	check(S.rowByStat.LODESTAR_WEAPON_SKILL_OH.update(frame, "player") == nil, "off-hand row hidden when it shares the main-hand skill")
-	-- not applicable -> nil -> hidden through the registered updateFunc
-	stub.holyResist = 0
-	check(PAPERDOLL_STATINFO.LODESTAR_HOLY_RESIST.updateFunc(frame, "player") == 0, "nil from a row becomes the entry's hideAt")
-	check(PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT.updateFunc(frame, "pet") == 0, "pet unit is never ours")
-	-- Blizzard's pane walk: hideZero hides the zero haste row, off shows it
-	CharacterFrame.shown = true
-	local function paneRows()
-		PaperDollFrame_UpdateStats()
-		local byStat = {}
-		for _, r in ipairs(stub.paperDollRows) do byStat[r.stat] = r end
-		return byStat
+
+	-- The panel: created on demand, shown and hidden with the character sheet.
+	CharacterFrame:Show()
+	local panel = rawget(_G, "LodestarCharacterStatsFrame")
+	check(panel ~= nil and panel == C:GetPanel() and panel.shown, "panel created on demand and shown with the character frame")
+	local function panelRows()
+		local out, n = {}, 0
+		for _, r in ipairs(panel.rows) do
+			if r.shown then out[r.Label.text] = r.Value.text n = n + 1 end
+		end
+		return out, n
 	end
-	local rows = paneRows()
-	check(rows.LODESTAR_MELEE_HIT and rows.LODESTAR_MELEE_HIT.value == "5.0%" and rows.LODESTAR_MELEE_HASTE == nil, "pane shows melee hit and drops the zero haste row")
-	check(rows.LODESTAR_MELEE_HIT.tooltip2 and rows.LODESTAR_MELEE_HIT.tooltip2:find("Level 12: 0%.0%%") and rows.LODESTAR_MELEE_HIT.tooltip2:find("Level 15 %(boss%): 2%.7%%"), "miss table vs +3 in the tooltip: " .. tostring(rows.LODESTAR_MELEE_HIT.tooltip2))
-	check(rows.HITCHANCE ~= nil, "Blizzard's Hit row untouched by default")
+	local function panelHeaders()
+		local out = {}
+		for _, h in ipairs(panel.headers) do if h.shown then out[#out + 1] = h.text end end
+		return table.concat(out, ",")
+	end
+	local st = C:GetPanelState()
+	local rows, shownRows = panelRows()
+	check(st.rows >= 20 and st.rows == shownRows and st.rows == panel.shownRows, "panel filled with its rows, got " .. tostring(st.rows) .. "/" .. tostring(shownRows))
+	check(panelHeaders() == "Melee,Ranged,Spell,Regeneration,Defense detail,Weapon skills,Gear,Progress", "eight category headers in order: " .. panelHeaders())
+	check(st.columns == 2, "the full list is laid out in two columns, got " .. tostring(st.columns))
+	check(rows["Melee hit:"] == "5.0%" and rows["Ranged hit:"] == "3.0%" and rows["Spell hit:"] == "4.0%", "hit rows: " .. tostring(rows["Melee hit:"]) .. " " .. tostring(rows["Ranged hit:"]) .. " " .. tostring(rows["Spell hit:"]))
+	check(rows["Attack speed:"] == "2.60 / 1.80" and rows["Melee DPS:"] == "19.2 / 13.9", "attack speed and dps rows: " .. tostring(rows["Attack speed:"]))
+	check(rows["Swords:"] == "87/100 |cff20ff20+5|r" and rows["Daggers:"] ~= nil and rows["Bows:"] ~= nil, "weapon skill rows, one per equipped weapon: " .. tostring(rows["Swords:"]))
+	check(rows["Durability:"] == "62%" and rows["Item level (equipped):"] == "23", "gear rows: " .. tostring(rows["Durability:"]))
+	check(rows["Experience:"] == "40.0%" and rows["Rested XP:"] == "500 (5%)", "progress rows: " .. tostring(rows["Experience:"]))
+	-- tooltips come off the row itself, the same three slots Stats.lua fills
+	local meleeHit
+	for _, r in ipairs(panel.rows) do if r.shown and r.Label.text == "Melee hit:" then meleeHit = r end end
+	check(meleeHit and type(meleeHit.tooltip) == "string" and meleeHit.tooltip:find("Melee hit", 1, true) ~= nil, "row tooltip header: " .. tostring(meleeHit and meleeHit.tooltip))
+	check(meleeHit.tooltip2:find("Level 12: 0%.0%%") and meleeHit.tooltip2:find("Level 15 %(boss%): 2%.7%%"), "miss table vs +0..+3 in the row tooltip: " .. tostring(meleeHit.tooltip2))
+	meleeHit:GetScript("OnEnter")(meleeHit)
+	check(GameTooltip:GetOwner() == meleeHit and GameTooltip.text == meleeHit.tooltip, "hovering a row opens GameTooltip with its lines")
+	meleeHit:GetScript("OnLeave")(meleeHit)
+	-- hide-zero: melee haste is 0 on this character
+	check(rows["Melee haste:"] == nil, "hideZero drops the zero haste row")
 	C.db.profile.hideZero = false
-	C:RefreshInjection()
-	rows = paneRows()
-	check(rows.LODESTAR_MELEE_HASTE and rows.LODESTAR_MELEE_HASTE.value == "0.0%", "hideZero off shows the zero haste row")
-	check(rows.LODESTAR_SPELL_FIRE == nil and rows.LODESTAR_HOLY_RESIST == nil, "rows with a fixed hideAt stay hidden regardless")
+	C:RefreshPanel()
+	rows = panelRows()
+	check(rows["Melee haste:"] == "0.0%", "hideZero off shows the zero haste row")
+	check(rows["Fire damage:"] == nil and rows["Holy resistance:"] ~= nil, "rows with a fixed hideAt stay hidden regardless")
 	C.db.profile.hideZero = true
-	-- category toggle removes the category
+	C:RefreshPanel()
+	check(panelRows()["Melee haste:"] == nil, "hideZero back on hides it again")
+	-- category toggles
 	C.db.profile.categories.gear = false
-	C:RefreshInjection()
-	local found = false
-	for _, cat in ipairs(C:InjectedCategories()) do if cat.key == "gear" then found = true end end
-	check(#C:InjectedCategories() == 7 and not found, "gear category removed when toggled off")
+	C:RefreshPanel()
+	rows = panelRows()
+	check(rows["Durability:"] == nil and rows["Item level (equipped):"] == nil, "gear rows gone when the category is off")
+	check(panelHeaders():find("Gear") == nil, "gear header gone too: " .. panelHeaders())
 	C.db.profile.categories.gear = true
-	C:RefreshInjection()
-	check(#C:InjectedCategories() == 8, "gear category back when toggled on")
-	-- replacing Blizzard's max-only rows wraps their showFunc and restores it
-	C.db.profile.replaceBlizzardMaxRows = true
-	C:RefreshInjection()
-	rows = paneRows()
-	check(rows.HITCHANCE == nil and rows.CRITCHANCE == nil and rows.HEALTH ~= nil, "Blizzard's Hit/Crit rows hidden while replaced")
-	C.db.profile.replaceBlizzardMaxRows = false
-	C:RefreshInjection()
-	rows = paneRows()
-	check(rows.HITCHANCE ~= nil and PAPERDOLL_STATCATEGORIES[2].stats[1].showFunc == nil, "Blizzard's rows restored, showFunc back to nil")
-	-- refresh throttle: only while the character frame is shown, coalesced
-	CharacterFrame.shown = false
-	local before = stub.paperDollUpdates
-	stub.fire("PLAYER_XP_UPDATE", "player")
-	stub.advance(1)
-	check(stub.paperDollUpdates == before, "no stats update while the character frame is hidden")
-	CharacterFrame.shown = true
+	C:RefreshPanel()
+	check(panelRows()["Durability:"] == "62%", "gear rows back when the category is on")
+	for key in pairs(C.db.profile.categories) do C.db.profile.categories[key] = (key == "melee") end
+	C:RefreshPanel()
+	check(st.columns == 1 and st.rows == 4 and panelHeaders() == "Melee", "one small category: four rows in a single column, got " .. tostring(st.rows) .. "/" .. tostring(st.columns))
+	for key in pairs(C.db.profile.categories) do C.db.profile.categories[key] = false end
+	C:RefreshPanel()
+	check(st.rows == 0 and panel.empty.shown, "nothing enabled: the empty note")
+	for key in pairs(C.db.profile.categories) do C.db.profile.categories[key] = true end
+	C:RefreshPanel()
+	check(st.rows >= 20 and not panel.empty.shown, "everything back on")
+	-- refresh throttle: our own events, coalesced, only while the panel is up
+	local before = st.refreshes
 	stub.fire("PLAYER_XP_UPDATE", "player")
 	stub.fire("UPDATE_INVENTORY_DURABILITY")
 	stub.fire("UNIT_DEFENSE", "player")
-	check(stub.paperDollUpdates == before, "update is deferred, not immediate")
+	check(st.refreshes == before, "refresh is deferred, not immediate")
 	stub.advance(1)
-	check(stub.paperDollUpdates == before + 1, "three events coalesced into one PaperDollFrame_UpdateStats, got +" .. (stub.paperDollUpdates - before))
+	check(st.refreshes == before + 1, "three events coalesced into one refresh, got +" .. (st.refreshes - before))
 	stub.fire("UNIT_DEFENSE", "target")
 	stub.advance(1)
-	check(stub.paperDollUpdates == before + 1, "other units' UNIT_ events ignored")
-	-- fallback panel when the camelot tables are missing
+	check(st.refreshes == before + 1, "other units' UNIT_ events ignored")
+	stub.fire("COMBAT_RATING_UPDATE")
+	stub.fire("UNIT_STATS", "player")
+	stub.fire("SKILL_LINES_CHANGED")
+	stub.fire("PLAYER_EQUIPMENT_CHANGED")
+	stub.advance(1)
+	check(st.refreshes == before + 2, "stat / rating / skill / equipment events drive the panel too")
+	C:RequestStatsUpdate(true)
+	check(st.refreshes == before + 3, "an explicit refresh runs straight away")
+	-- closing the sheet closes the panel and stops the events
 	CharacterFrame:Hide()
-	local savedCats = PAPERDOLL_STATCATEGORIES
-	PAPERDOLL_STATCATEGORIES = nil
-	C:DisableInjection()
-	C:EnableInjection()
-	st = C:GetInjectionState()
-	check(st.fallback == true and st.injected == false, "fallback panel path taken without PAPERDOLL_STATCATEGORIES")
-	check(LodestarCharacterStatsFrame and not LodestarCharacterStatsFrame.shown, "fallback panel created, hidden while the character frame is")
+	check(not panel.shown, "panel hides with the character frame")
+	local afterHide = st.refreshes
+	stub.fire("PLAYER_XP_UPDATE", "player")
+	stub.fire("UNIT_STATS", "player")
+	stub.advance(1)
+	check(st.refreshes == afterHide, "no refresh while the character frame is closed")
+	check(blizzardStatTables() == pristineStatTables, "Blizzard's stats tables still untouched after opening and closing the panel")
+	-- /lode character toggles it
+	stub.slash("/lode character")
+	check(C.db.profile.show == false, "/lode character turns the panel off")
 	CharacterFrame:Show()
-	check(LodestarCharacterStatsFrame.shown and (LodestarCharacterStatsFrame.shownRows or 0) > 0, "fallback panel shows and fills with the character frame's OnShow")
-	local shown = C:RefreshFallbackPanel()
-	check(shown >= 20, "fallback panel lists the rows, got " .. tostring(shown))
-	local labels = {}
-	for _, r in ipairs(LodestarCharacterStatsFrame.rows) do if r.shown then labels[r.Label.text] = r.Value.text end end
-	check(labels["Melee hit:"] == "5.0%" and labels["Durability:"] == "62%", "fallback rows carry the same label/value")
-	CharacterFrame.shown = false
-	CharacterFrame:Hide()
-	check(not LodestarCharacterStatsFrame.shown, "fallback panel hides with the character frame")
-	PAPERDOLL_STATCATEGORIES = savedCats
-	C:DisableInjection()
-	C:EnableInjection()
-	st = C:GetInjectionState()
-	check(st.injected == true and st.fallback == false and not LodestarCharacterStatsFrame.shown, "injection back once the tables return")
-	-- module disable removes everything, enable restores
+	check(not panel.shown, "panel stays closed while it is turned off")
+	stub.slash("/lode character")
+	check(C.db.profile.show == true and panel.shown, "/lode character turns it back on")
+	-- right-click menu, drag and position
+	stub.menuShown = false
+	panel:GetScript("OnMouseUp")(panel, "RightButton")
+	check(stub.menuShown, "right-click builds the context menu")
+	C:ShowPanelMenu()
+	panel:GetScript("OnDragStart")(panel)
+	panel:GetScript("OnDragStop")(panel)
+	check(type(C.db.profile.pos) == "table" and C.db.profile.pos.point == "TOP", "dragging saves the position in the profile")
+	C:ResetPanelPosition()
+	check(C.db.profile.pos == nil, "docking clears the saved position")
+	-- module disable / enable
 	Lodestar:SetModuleEnabled("Character", false)
-	check(#C:InjectedCategories() == 0 and PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT == nil and statuses["Lodestar_Character"] == false, "disable removed categories and stat infos")
+	check(statuses["Lodestar_Character"] == false and not panel.shown, "disable hides the panel")
+	check(blizzardStatTables() == pristineStatTables, "disable leaves Blizzard's tables alone")
 	Lodestar:SetModuleEnabled("Character", true)
-	check(#C:InjectedCategories() == 8 and PAPERDOLL_STATINFO.LODESTAR_MELEE_HIT ~= nil, "re-enable injected again")
+	check(statuses["Lodestar_Character"] == true and panel.shown, "re-enable brings it back with the sheet open")
+	CharacterFrame:Hide()
+	-- off-hand with the same skill as the main hand collapses into one row
+	C_Item.GetItemInfoInstant = function(id) return id, "Weapon", "Sub", "INVTYPE_WEAPON", 134, Enum.ItemClass.Weapon, Enum.ItemWeaponSubclass.Sword1H end
+	check(S.rowByStat.LODESTAR_WEAPON_SKILL_OH.update(frame, "player") == nil, "off-hand row hidden when it shares the main-hand skill")
+	-- a row that throws is dropped, the panel survives
+	local broken = { stat = "LODESTAR_BROKEN", update = function() error("boom") end }
+	check(C:RunRow(broken, frame) == nil, "a row that errors comes back as nil instead of blowing up the panel")
 	-- options page
 	local opts = Lodestar:BuildOptions()
 	for _, opt in pairs(opts.args.Character.args) do
@@ -1776,6 +1822,7 @@ try("character", function()
 		elseif opt.type == "execute" then opt.func()
 		end
 	end
+	check(blizzardStatTables() == pristineStatTables, "Blizzard's stats tables untouched after every option was exercised")
 	C_Item.GetItemInfoInstant = instant
 	stub.level = 3
 end)
