@@ -8,7 +8,17 @@ local Guild = Lodestar:GetModule("Guild")
 
 Guild.presence = {}   -- [shortName] = { l, z, s, x, m, c, n, v = version, t = GetTime() of last update }
 
+local QUERY_INTERVAL = 60 -- seconds between guild-wide "who's here" queries
+
 local lastSent = {}
+local lastQuery = 0
+local pendingReplies = {} -- [sender] = true: queriers waiting for our presence
+
+--- True while addon messages are silently dropped (instances, PvP, encounters): sending would
+--- only burn throttle budget and wrongly mark the state as delivered.
+local function chatLocked()
+	return C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() or false
+end
 
 local function ownState()
 	local xp, xpMax = UnitXP("player"), UnitXPMax("player")
@@ -32,22 +42,28 @@ local function stateChanged(state)
 end
 
 function Guild:Broadcast(force)
-	if not self.db.profile.share or not IsInGuild() then return end
+	if not self.db.profile.share or not IsInGuild() or chatLocked() then return end
 	local state = ownState()
 	if not force and not stateChanged(state) then return end
+	-- Only remember the state as sent when it actually left the client.
 	if Lodestar:SendComm(state, "GUILD", nil, "BULK") then
 		lastSent = state
 	end
 end
 
 function Guild:Query()
-	if not IsInGuild() then return end
-	Lodestar:SendComm({ t = "Q" }, "GUILD", nil, "BULK")
+	if not IsInGuild() or chatLocked() then return end
+	-- Every Q costs each Lodestar guildmate a reply; opening and closing the board must not re-ask.
+	if GetTime() - lastQuery < QUERY_INTERVAL then return end
+	if Lodestar:SendComm({ t = "Q" }, "GUILD", nil, "BULK") then
+		lastQuery = GetTime()
+	end
 end
 
 -- Incoming ------------------------------------------------------------------------------
 
 local function onPresence(sender, msg)
+	if not Guild:IsEnabled() then return end
 	local name = Lodestar.ShortName(sender)
 	local prev = Guild.presence[name]
 	local entry = {
@@ -69,14 +85,34 @@ local function onPresence(sender, msg)
 	Guild:RefreshBoard()
 end
 
-local function onQuery()
+--- Whisper our presence to everyone who asked since the last reply. One timer covers every Q in the
+--- window, and the answer goes only to the querier: a guild-wide reply per Q is O(N^2) traffic at login.
+local function sendReplies()
+	Guild.replyTimer = nil
+	local recipients = pendingReplies
+	pendingReplies = {}
+	if not Guild:IsEnabled() or not Guild.db.profile.share or not IsInGuild() or chatLocked() then return end
+	local state = ownState()
+	for target in pairs(recipients) do
+		Lodestar:SendComm(state, "WHISPER", target, "BULK")
+	end
+end
+
+local function onQuery(sender)
+	if not Guild:IsEnabled() or type(sender) ~= "string" then return end
+	pendingReplies[sender] = true
+	if Guild.replyTimer then return end
 	-- Spread replies so a big guild doesn't burst the channel.
-	Guild:ScheduleTimer(function() Guild:Broadcast(true) end, math.random() * 4)
+	Guild.replyTimer = Guild:ScheduleTimer(sendReplies, 1 + math.random() * 4)
 end
 
 -- LFG note -------------------------------------------------------------------------------
 
 function Guild:SetLFGNote(text)
+	if not self:IsEnabled() then
+		Lodestar:Say("The Guild module is disabled.")
+		return
+	end
 	text = strtrim(text or "")
 	if text == "" or text:lower() == "clear" or text:lower() == "off" then
 		self.db.char.lfgNote = nil
@@ -101,9 +137,10 @@ end
 function Guild:EnablePresence()
 	Lodestar:RegisterCommHandler("P", onPresence)
 	Lodestar:RegisterCommHandler("Q", onQuery)
+	self.currentGuild = GetGuildInfo("player")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnStateEvent")
 	self:RegisterEvent("PLAYER_LEVEL_UP", "OnStateEvent")
-	self:RegisterEvent("PLAYER_GUILD_UPDATE", "OnStateEvent")
+	self:RegisterEvent("PLAYER_GUILD_UPDATE", "OnGuildUpdate")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnteringWorld")
 	self:RestartHeartbeat()
 	if not self.lfgSlash then
@@ -123,10 +160,31 @@ function Guild:OnEnteringWorld(_, isLogin, isReload)
 	self:OnStateEvent()
 end
 
+--- Joining or leaving a guild: the old guild's presence is meaningless and the new one has never
+--- heard of us. Also covers login, where guild info can arrive after the module enabled.
+function Guild:OnGuildUpdate(_, unit)
+	if unit and unit ~= "player" then return end
+	local guild = GetGuildInfo("player")
+	if guild == self.currentGuild then return end
+	self.currentGuild = guild
+	wipe(self.presence)
+	wipe(pendingReplies)
+	lastSent = {}
+	lastQuery = 0
+	if guild then
+		self:ScheduleTimer(function() self:Broadcast(true) self:Query() end, 2)
+	end
+	self:RefreshBoard()
+end
+
 function Guild:DisablePresence()
+	Lodestar:RegisterCommHandler("P", nil)
+	Lodestar:RegisterCommHandler("Q", nil)
 	self:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:UnregisterEvent("PLAYER_LEVEL_UP")
 	self:UnregisterEvent("PLAYER_GUILD_UPDATE")
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	if self.heartbeat then self:CancelTimer(self.heartbeat) self.heartbeat = nil end
+	if self.replyTimer then self:CancelTimer(self.replyTimer) self.replyTimer = nil end
+	wipe(pendingReplies)
 end

@@ -333,6 +333,116 @@ end)
 -- Module toggling and profile change. AceAddon.statuses is the "actually running" flag that OnEnable /
 -- OnDisable flip; module:IsEnabled() only reports the desired state.
 local statuses = LibStub("AceAddon-3.0").statuses
+-- Guild: query replies are unicast and coalesced, queries are rate-limited
+local function countSent(dist)
+	local n = 0
+	for _, s in ipairs(stub.sent) do if s.dist == dist then n = n + 1 end end
+	return n
+end
+try("query replies", function()
+	local G = Lodestar:GetModule("Guild")
+	local q = Lodestar:Serialize({ t = "Q", v = "0.1.0" })
+	local sentBefore, whispersBefore, guildBefore = #stub.sent, countSent("WHISPER"), countSent("GUILD")
+	Lodestar:OnCommReceived("Lodestar", q, "GUILD", "Someone")
+	Lodestar:OnCommReceived("Lodestar", q, "GUILD", "Someone")
+	Lodestar:OnCommReceived("Lodestar", q, "GUILD", "Other-ClassicBetaPvP2")
+	stub.advance(6)
+	local targets = {}
+	for i = sentBefore + 1, #stub.sent do
+		local s = stub.sent[i]
+		if s.dist == "WHISPER" then targets[s.target] = (targets[s.target] or 0) + 1 end
+	end
+	check(countSent("WHISPER") - whispersBefore == 2, "three Qs from two senders got two whispered replies, got " .. (countSent("WHISPER") - whispersBefore))
+	check(targets["Someone"] == 1 and targets["Other-ClassicBetaPvP2"] == 1, "one reply per querier")
+	check(countSent("GUILD") == guildBefore, "queries were not answered guild-wide")
+	check(G.replyTimer == nil, "reply timer cleared after sending")
+	-- Q rate limit: the login query was under a minute ago, so this one is dropped
+	local before = #stub.sent
+	G:Query()
+	check(#stub.sent == before, "query rate-limited within a minute")
+	stub.advance(60)
+	before = #stub.sent
+	G:Query()
+	check(#stub.sent == before + 1 and stub.sent[#stub.sent].dist == "GUILD", "query sent again after the interval")
+end)
+
+-- Guild: disabling the module stops comm handling and notifications
+try("guild disable", function()
+	local G = Lodestar:GetModule("Guild")
+	Lodestar:SetModuleEnabled("Guild", false)
+	check(not G:IsEnabled(), "Guild disabled live")
+	local chatBefore, sentBefore = #stub.chat, #stub.sent
+	local p = Lodestar:Serialize({ t = "P", v = "0.1.0", l = 30, z = "Duskwood", s = "", x = 10, m = 47, c = "MAGE", n = "Stockades healer" })
+	Lodestar:OnCommReceived("Lodestar", p, "GUILD", "Quiet")
+	local q = Lodestar:Serialize({ t = "Q", v = "0.1.0" })
+	Lodestar:OnCommReceived("Lodestar", q, "GUILD", "Quiet")
+	stub.advance(6)
+	check(G.presence["Quiet"] == nil, "presence ignored while disabled")
+	check(#stub.chat == chatBefore, "no LFG notification while disabled")
+	check(#stub.sent == sentBefore, "no reply sent while disabled")
+	stub.slash("/lode lfg Nope") -- prints a "module is disabled" notice, sends nothing
+	check(#stub.sent == sentBefore and G.db.char.lfgNote ~= "Nope", "/lode lfg does nothing while disabled")
+	Lodestar:SetModuleEnabled("Guild", true)
+	check(G:IsEnabled(), "Guild re-enabled live")
+	chatBefore = #stub.chat
+	Lodestar:OnCommReceived("Lodestar", p, "GUILD", "Quiet")
+	check(G.presence["Quiet"] and G.presence["Quiet"].l == 30, "presence handled again after re-enable")
+	check(#stub.chat == chatBefore + 1 and stub.chat[#stub.chat]:find("Stockades healer", 1, true), "LFG notification printed again after re-enable")
+	stub.advance(15) -- re-enable announce timer
+end)
+
+-- Guild: chat-messaging lockdown skips the (secret) roster, guild change wipes presence
+try("guild lockdown + guild change", function()
+	local G = Lodestar:GetModule("Guild")
+	stub.chatLockdown = true
+	local rows = G:CollectRows()
+	local fromRoster = false
+	for _, r in ipairs(rows) do if r.rank then fromRoster = true end end
+	check(#rows >= 1 and not fromRoster, "lockdown: presence-only rows, roster skipped (" .. #rows .. " rows)")
+	local before = #stub.sent
+	G:Broadcast(true)
+	G:Query()
+	check(#stub.sent == before, "lockdown: nothing sent")
+	stub.slash("/lode guild")
+	check(LodestarGuildBoard.shown, "board opened under lockdown without error")
+	stub.slash("/lode guild")
+	stub.chatLockdown = false
+	rows = G:CollectRows()
+	fromRoster = false
+	for _, r in ipairs(rows) do if r.rank then fromRoster = true end end
+	check(fromRoster, "roster merged again once lockdown lifts")
+	-- roster refresh request honours canRequestRosterUpdate only while the board is shown
+	local requested = stub.rosterRequested or 0
+	stub.fire("GUILD_ROSTER_UPDATE", true)
+	check((stub.rosterRequested or 0) == requested, "no roster request while the board is hidden")
+	stub.slash("/lode guild")
+	requested = stub.rosterRequested or 0
+	stub.fire("GUILD_ROSTER_UPDATE", true)
+	check((stub.rosterRequested or 0) == requested + 1, "roster re-requested when the server says it is stale")
+	stub.fire("GUILD_ROSTER_UPDATE", false)
+	check((stub.rosterRequested or 0) == requested + 1, "no roster request when the server says it is fresh")
+	stub.fire("CLUB_MEMBER_PRESENCE_UPDATED", 42, 2, 1)
+	stub.advance(1.5)
+	stub.slash("/lode guild")
+	-- guild change
+	check(next(G.presence) ~= nil, "presence populated before guild change")
+	stub.fire("PLAYER_GUILD_UPDATE", "target")
+	check(next(G.presence) ~= nil, "another unit's guild update is ignored")
+	local realGetGuildInfo = GetGuildInfo
+	GetGuildInfo = function() return "Another Guild", "Initiate", 9 end
+	before = #stub.sent
+	stub.fire("PLAYER_GUILD_UPDATE", "player")
+	check(next(G.presence) == nil, "presence wiped on guild change")
+	stub.advance(3)
+	check(#stub.sent == before + 2 and stub.sent[#stub.sent].dist == "GUILD", "announced to and queried the new guild, sent " .. (#stub.sent - before))
+	stub.fire("PLAYER_GUILD_UPDATE", "player")
+	check(#stub.sent == before + 2, "same guild again: nothing re-sent")
+	GetGuildInfo = realGetGuildInfo
+	stub.fire("PLAYER_GUILD_UPDATE", "player")
+	stub.advance(3)
+end)
+
+-- Module toggling and profile change
 try("toggle module", function()
 	Lodestar:SetModuleEnabled("UI", false)
 	check(not Lodestar:GetModule("UI"):IsEnabled(), "UI disabled live")
