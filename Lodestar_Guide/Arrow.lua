@@ -206,6 +206,7 @@ local function onUpdate(self, elapsed)
 		self.arrow:Hide()
 		self.title:SetText("|cff888888No target|r")
 		self.dist:SetText("")
+		if Guide.DrawMinimapLine then Guide:DrawMinimapLine(nil) end
 		return
 	end
 	local dist, bearing
@@ -218,6 +219,7 @@ local function onUpdate(self, elapsed)
 		self.arrow:Hide()
 		self.title:SetText(target.title or "")
 		self.dist:SetText(bearing == "continent" and "|cff888888other continent|r" or "|cff888888no position|r")
+		if Guide.DrawMinimapLine then Guide:DrawMinimapLine(nil) end
 		return
 	end
 	local arrived = dist <= (target.radius or Guide.db.profile.arrow.arrivalYards or 10)
@@ -239,6 +241,7 @@ local function onUpdate(self, elapsed)
 	local relative = bearing - facing
 	self.arrow:Show()
 	self.arrow:SetRotation(relative)
+	if Guide.DrawMinimapLine then Guide:DrawMinimapLine(target, dist, facing) end
 	if arrived then self.arrow:SetVertexColor(0.3, 1, 0.3) else self.arrow:SetVertexColor(colorFor(relative)) end
 	self.title:SetText(target.title or "")
 
@@ -267,11 +270,35 @@ local function onUpdate(self, elapsed)
 end
 
 local ARROW_ATLAS = "Navigation-Tracked-Arrow"
+local ARROW_TEXTURE = "Interface\\AddOns\\Lodestar_Guide\\Textures\\Arrow"
 local SIZES = { { "Small", 48 }, { "Normal", 72 }, { "Large", 100 }, { "Huge", 140 } }
+local STYLES = { { "lodestar", "Lodestar (default)" }, { "classic", "Classic minimap arrow" }, { "blizzard", "Blizzard navigation arrow" } }
+
+--- Apply the configured art: our own 256px arrow (crisp at any size), the classic minimap arrow, or
+--- Blizzard's navigation atlas.
+local function applyStyle(tex)
+	local style = Guide.db.profile.arrow.style or "lodestar"
+	if style == "blizzard" then
+		local atlas = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(ARROW_ATLAS)
+		if atlas and atlas.width and atlas.height and atlas.height > 0 then
+			tex:SetAtlas(ARROW_ATLAS)
+			return atlas.width / atlas.height
+		end
+		style = "classic"
+	end
+	if style == "classic" then
+		tex:SetTexture("Interface\\Minimap\\MinimapArrow")
+	else
+		tex:SetTexture(ARROW_TEXTURE)
+	end
+	tex:SetTexCoord(0, 1, 0, 1)
+	return 1
+end
 
 --- Apply the configured arrow size: the art, the text widths and the frame follow it.
 local function layoutArrow()
 	local size = Guide.db.profile.arrow.size or 72
+	arrow.aspect = applyStyle(arrow.arrow)
 	arrow.arrow:SetSize(size * (arrow.aspect or 1), size)
 	local width = math.max(260, size * 2.5)
 	arrow.title:SetWidth(width)
@@ -295,15 +322,7 @@ local function createArrow()
 
 	arrow.arrow = arrow:CreateTexture(nil, "ARTWORK")
 	arrow.arrow:SetPoint("TOP", 0, -2)
-	-- Blizzard's own navigation arrow art when the client has it (crisp at any size), else the minimap arrow.
-	local atlas = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(ARROW_ATLAS)
-	if atlas and atlas.width and atlas.height and atlas.height > 0 then
-		arrow.arrow:SetAtlas(ARROW_ATLAS)
-		arrow.aspect = atlas.width / atlas.height
-	else
-		arrow.arrow:SetTexture("Interface\\Minimap\\MinimapArrow")
-		arrow.aspect = 1
-	end
+	arrow.aspect = applyStyle(arrow.arrow)
 
 	arrow.title = arrow:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	arrow.title:SetPoint("TOP", arrow.arrow, "BOTTOM", 0, -4)
@@ -361,6 +380,16 @@ function Guide:ShowArrowMenu()
 					function() self.db.profile.arrow.size = px self:UpdateArrowFrame() end)
 			end
 		end
+		local styleMenu = root:CreateButton("Style")
+		if styleMenu and styleMenu.CreateRadio then
+			for _, entry in ipairs(STYLES) do
+				local key, label = entry[1], entry[2]
+				styleMenu:CreateRadio(label, function() return (self.db.profile.arrow.style or "lodestar") == key end,
+					function() self.db.profile.arrow.style = key self:UpdateArrowFrame() end)
+			end
+		end
+		root:CreateCheckbox("Line on the minimap", function() return self.db.profile.arrow.minimapLine ~= false end,
+			function() self.db.profile.arrow.minimapLine = (self.db.profile.arrow.minimapLine == false) self:UpdateMinimapLine() end)
 		root:CreateCheckbox("Locked", function() return self.db.profile.arrow.locked end,
 			function() self.db.profile.arrow.locked = not self.db.profile.arrow.locked end)
 		root:CreateButton("Hide arrow", function() self.db.profile.arrow.show = false self:UpdateArrowFrame() end)
@@ -412,4 +441,5 @@ function Guide:DisableArrow()
 	if retargetTimer then self:CancelTimer(retargetTimer) retargetTimer = nil end
 	target = nil
 	if arrow then arrow:Hide() end
+	if self.DrawMinimapLine then self:DrawMinimapLine(nil) end
 end

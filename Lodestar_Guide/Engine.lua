@@ -133,16 +133,25 @@ function Guide:LoadGuide(name, stepIndex)
 	self.finished = nil
 	self.db.char.currentGuide = guide.name
 	local saved = self.db.char.progress[guide.name]
-	if not stepIndex and not saved then
-		local start, skipped = self:SuggestStartIndex(guide)
-		if skipped > 0 then Lodestar:Msg("Skipped %d completed step%s — starting at step %d.", skipped, skipped == 1 and "" or "s", start) end
-		stepIndex = start
+	local synced
+	if not stepIndex then
+		-- Sync to the character, not to the saved position: a character that is mid-way (or has played
+		-- without the guide) lands on the step after the last one its completed quests account for.
+		local start, _, open = self:SuggestStartIndex(guide)
+		if not saved or start > saved then
+			stepIndex = start
+			synced = { from = saved, open = open }
+		end
 	end
 	self.stepIndex = stepIndex or saved or 1
 	if self.stepIndex < 1 then self.stepIndex = 1 end
 	if self.stepIndex > #guide.steps then self.stepIndex = #guide.steps end
 	self.db.char.progress[guide.name] = self.stepIndex
-	if self.db.profile.steps.announce then
+	if synced and self.stepIndex > 1 then
+		Lodestar:Msg("Synced to step %d of %d from your quest log%s%s.", self.stepIndex, #guide.steps,
+			synced.from and (" (was at " .. synced.from .. ")") or "",
+			synced.open > 0 and (" — " .. synced.open .. " earlier step" .. (synced.open == 1 and "" or "s") .. " still open, press < to see them") or "")
+	elseif self.db.profile.steps.announce then
 		Lodestar:Msg("Guide: %s (step %d of %d)", guide.name, self.stepIndex, #guide.steps)
 	end
 	self:EvaluateStep(true)
@@ -416,19 +425,59 @@ end
 --- Zygor-style "suggested starting point": the step after the last one whose quest actions are all
 --- complete according to the client's completion flags. Returns startIndex, skipped.
 function Guide:SuggestStartIndex(guide)
+	local pf = self:PlayerFilters()
 	local last = 0
+	local openBefore = {}   -- [idx] = true for applicable quest steps that are not complete
 	for idx, step in ipairs(guide.steps) do
-		local questActions, done = 0, 0
-		for _, a in ipairs(step.actions) do
-			if a.questID then
-				questActions = questActions + 1
-				if self:IsActionComplete(a, nil) then done = done + 1 end
+		if self:StepApplies(step, pf) then
+			local questActions, done = 0, 0
+			for _, a in ipairs(step.actions) do
+				if a.questID then
+					questActions = questActions + 1
+					if self:IsActionComplete(a, nil) then done = done + 1 end
+				end
+			end
+			if questActions > 0 then
+				if done == questActions then last = idx else openBefore[idx] = true end
 			end
 		end
-		if questActions > 0 and done == questActions then last = idx end
 	end
 	local start = math.min(last + 1, #guide.steps)
-	return start, math.max(0, start - 1)
+	local open = 0
+	for idx in pairs(openBefore) do if idx < start then open = open + 1 end end
+	return start, math.max(0, start - 1), open
+end
+
+--- Steps before `upto` whose quests are still open (for the window's "earlier steps" hint).
+function Guide:OpenStepsBefore(guide, upto)
+	local pf = self:PlayerFilters()
+	local list = {}
+	for idx = 1, math.min(upto - 1, #guide.steps) do
+		local step = guide.steps[idx]
+		if self:StepApplies(step, pf) then
+			for _, a in ipairs(step.actions) do
+				if a.questID and not self:IsActionComplete(a, nil) then tinsert(list, idx) break end
+			end
+		end
+	end
+	return list
+end
+
+--- Re-sync the current guide to the character's quest log. Returns the new step index.
+function Guide:SyncToQuestLog(silent)
+	if not self.current then return nil end
+	local start, _, open = self:SuggestStartIndex(self.current)
+	if not silent then
+		if start == self.stepIndex then
+			Lodestar:Say("Already in sync: step %d of %d.%s", start, #self.current.steps, open > 0 and (" " .. open .. " earlier step(s) still open.") or "")
+		else
+			Lodestar:Say("Synced: step %d → %d of %d.%s", self.stepIndex or 0, start, #self.current.steps, open > 0 and (" " .. open .. " earlier step(s) still open — press < to see them.") or "")
+		end
+	end
+	self.stepFlags = {}
+	self:SetStep(start, true)
+	self:EvaluateStep()
+	return start
 end
 
 --- Skip steps that don't apply or are already done. `initial` suppresses per-step announcements.
@@ -659,12 +708,7 @@ local function handleGuideSlash(rest)
 		local g = Guide:PickGuide()
 		if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character; using smart mode.") Guide:UnloadGuide() end
 	elseif verb == "sync" then
-		if Guide.current then
-			local start, skipped = Guide:SuggestStartIndex(Guide.current)
-			Lodestar:Say("Sync: %d step%s look done — jumping to step %d.", skipped, skipped == 1 and "" or "s", start)
-			Guide:SetStep(start, true)
-			Guide:EvaluateStep()
-		end
+		if Guide.current then Guide:SyncToQuestLog() else Lodestar:Say("No guide loaded — smart mode is already built from your quest log.") end
 	elseif verb == "smart" or verb == "unload" then
 		Guide:UnloadGuide()
 		Lodestar:Say("Smart mode: nearest turn-ins, objectives and quest givers.")

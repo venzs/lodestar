@@ -43,7 +43,7 @@ local function createFrame()
 	-- Title bar
 	frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	frame.title:SetPoint("TOPLEFT", 10, -8)
-	frame.title:SetPoint("TOPRIGHT", -70, -8)
+	frame.title:SetPoint("TOPRIGHT", -108, -8)
 	frame.title:SetJustifyH("LEFT")
 	frame.title:SetWordWrap(false)
 	frame.title:SetTextColor(0.31, 0.76, 0.97)
@@ -62,6 +62,17 @@ local function createFrame()
 		end)
 		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	end
+	-- Sync: re-read the quest log and jump to the step this character is really at.
+	frame.sync = makeButton(frame, "Sync", 40)
+	frame.sync:SetPoint("TOPRIGHT", -64, -5)
+	frame.sync:SetScript("OnClick", function() Guide:SyncToQuestLog() end)
+	frame.sync:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:AddLine("Sync to your quest log", 1, 1, 1)
+		GameTooltip:AddLine("Finds the step after the last one your completed quests account for. Use it any time the guide seems behind or ahead of you.", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	frame.sync:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 	-- Current step
 	frame.step = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -182,6 +193,7 @@ end
 
 --- Smart mode: the "next up" list built from the quest log and the map.
 local function refreshSmart()
+	if frame.sync then frame.sync:Hide() end
 	local items = Guide:CollectSmartItems()
 	local pinnedItem = Guide:GetPinnedSmartItem()
 	frame.title:SetText("Lodestar  |cffaaaaaasmart mode|r")
@@ -230,6 +242,24 @@ local function trainerBanner()
 	return ("|cffffd700New spells available|r — %s is %d yd away"):format(t.name or "your class trainer", math.floor(t.dist or 0))
 end
 
+--- "Your quest log says you're further along" hint, recomputed at most every 5 s.
+local syncHint = { at = 0 }
+local function syncBanner(guide, stepIndex)
+	local now = GetTime()
+	if now - syncHint.at > 5 or syncHint.guide ~= guide or syncHint.step ~= stepIndex then
+		syncHint.at, syncHint.guide, syncHint.step = now, guide, stepIndex
+		local start, _, open = Guide:SuggestStartIndex(guide)
+		syncHint.start, syncHint.open = start, open
+	end
+	if syncHint.start and syncHint.start > stepIndex + 1 then
+		return ("|cff7fff7fYou look further along|r — quest log points at step %d. Click Sync."):format(syncHint.start)
+	end
+	if syncHint.open and syncHint.open > 0 and syncHint.start and syncHint.start <= stepIndex then
+		return ("|cffaaaaaa%d earlier step%s still open (press <)|r"):format(syncHint.open, syncHint.open == 1 and "" or "s")
+	end
+	return nil
+end
+
 function Guide:RefreshStepFrame()
 	if not frame or not frame:IsShown() then return end
 	local guide, step = self.current, self:CurrentStep()
@@ -237,6 +267,7 @@ function Guide:RefreshStepFrame()
 		refreshSmart()
 		return
 	end
+	if frame.sync then frame.sync:Show() end
 	frame.title:SetText(("%s  |cffaaaaaa%d/%d%s|r"):format(guide.name, step.index, #guide.steps, self.finished and " · done" or ""))
 	frame.step:SetText(self:StepText(step) .. (step.optional and OPTIONAL_TAG or ""))
 	local meta = {}
@@ -246,7 +277,7 @@ function Guide:RefreshStepFrame()
 	local target = self:GetArrowTarget()
 	if dist and target and target.kind == "guide" then tinsert(meta, ("%d yd"):format(dist)) end
 	frame.meta:SetText(table.concat(meta, "  ·  "))
-	local bannerH = setBanner(trainerBanner())
+	local bannerH = setBanner(trainerBanner() or syncBanner(guide, step.index))
 
 	-- Upcoming: the next steps that apply to this character (other classes' and, in speed-run mode,
 	-- optional steps are left out, as the engine will skip them).

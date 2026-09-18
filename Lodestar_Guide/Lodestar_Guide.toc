@@ -16,6 +16,7 @@ Data\Vanilla.lua
 Data\Trainers.lua
 Parser.lua
 Arrow.lua
+MapLine.lua
 Data.lua
 Harvest.lua
 Smart.lua

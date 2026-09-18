@@ -1136,6 +1136,58 @@ try("class trainers", function()
 	stub.level = 10
 	stub.slash("/lode guide auto")
 end)
+try("minimap line", function()
+	stub.slash("/lode guide smart")
+	wipe(G:HarvestDB().npcs) -- the gossip stub's npc offers a quest at 0 yd, which would win the smart list
+	G:PinSmartItem(nil)
+	stub.questLog[3901] = { title = "Rattling the Rattlecages", complete = true, objectives = {}, wp = { map = 18, x = 0.318, y = 0.662 } }
+	G:RetargetArrow()
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	check(LodestarMinimapLine and LodestarMinimapLine.shown, "minimap line shown for a target on this map")
+	-- target 100 yd east: with 140 px for 466 yd the end point is ~30 px to the right, inside the radius
+	local ex, ey, clamped = G:MinimapLineState()
+	check(ex and ex > 20 and ex < 40 and math.abs(ey) < 2 and not clamped, "line end scaled by minimap yards: " .. tostring(ex))
+	stub.questLog[3901].wp = { map = 18, x = 0.5, y = 0.662 }
+	G:RetargetArrow()
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	ex, ey, clamped = G:MinimapLineState()
+	check(ex and math.abs(ex - 64) < 1 and clamped, "far target clamps to the minimap edge: " .. tostring(ex))
+	G.db.profile.arrow.minimapLine = false
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	check(not LodestarMinimapLine.shown, "line hidden when disabled")
+	G.db.profile.arrow.minimapLine = true
+	G.db.profile.arrow.style = "classic" G:UpdateArrowFrame()
+	G.db.profile.arrow.style = "blizzard" G:UpdateArrowFrame()
+	G.db.profile.arrow.style = "lodestar" G:UpdateArrowFrame()
+	stub.questLog[3901] = nil
+end)
+try("sync on load", function()
+	stub.level = 3
+	stub.questLog = {}
+	stub.flagged = { [363] = true, [364] = true }
+	-- saved position behind the quest log -> jumps forward on load
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = 2
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+	check(G.stepIndex == 4, "load synced forward from saved step 2 to 4, at " .. tostring(G.stepIndex))
+	-- saved position ahead of the quest log -> kept (the player may have skipped on purpose)
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = 12
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+	check(G.stepIndex >= 12, "saved progress ahead of the log is kept, at " .. tostring(G.stepIndex))
+	local start, _, open = G:SuggestStartIndex(G.current)
+	check(start == 4 and open == 0, "suggest start 4 with no open earlier steps: " .. tostring(start) .. "/" .. tostring(open))
+	stub.slash("/lode guide sync")
+	check(G.stepIndex == 4, "/lode guide sync jumps back to 4, at " .. tostring(G.stepIndex))
+	-- open earlier step: quest 3901 accepted (step 4 done) but 376 never taken while 3902 (needs 376) is flagged
+	stub.questLog[3901] = { title = "Rattling the Rattlecages", complete = false, objectives = {} }
+	stub.flagged[3902] = true
+	start, _, open = G:SuggestStartIndex(G.current)
+	check(open >= 1, "earlier open steps counted: " .. tostring(open))
+	G:RefreshStepFrame()
+	stub.flagged = {}
+	stub.questLog = {}
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
+end)
 try("guide menus", function() G:ShowGuideMenu() G:ShowArrowMenu() end)
 try("guide options", function()
 	local opts = Lodestar:BuildOptions()

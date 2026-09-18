@@ -314,6 +314,7 @@ function Frame:NumLines() return 1 end
 function Frame:GetNormalizedCursorPosition() return 0.5, 0.5 end
 function Frame:CreateFontString(name, layer, template) return stub.newFrame("FontString", name, self) end
 function Frame:CreateTexture(name) return stub.newFrame("Texture", name, self) end
+function Frame:CreateLine(name) local l = stub.newFrame("Line", name, self) l.SetStartPoint = function() end l.SetEndPoint = function(_, _, _, x, y) l.endX, l.endY = x, y end l.SetThickness = function() end return l end
 function Frame:CreateAnimationGroup(name) return stub.newFrame("AnimationGroup", name, self) end
 function Frame:CreateAnimation(kind) return stub.newFrame(kind or "Animation", nil, self) end
 function Frame:CreateMaskTexture(name) return stub.newFrame("MaskTexture", name, self) end
@@ -364,6 +365,8 @@ WorldFrame = stub.newFrame("Frame", "WorldFrame")
 GameTooltip = stub.newFrame("GameTooltip", "GameTooltip")
 ItemRefTooltip = stub.newFrame("GameTooltip", "ItemRefTooltip")
 Minimap = stub.newFrame("Frame", "Minimap")
+Minimap.GetZoom = function() return stub.minimapZoom or 0 end
+Minimap.GetWidth = function() return 140 end
 MinimapCluster = stub.newFrame("Frame", "MinimapCluster")
 MerchantFrame = stub.newFrame("Frame", "MerchantFrame")
 MerchantFrame.shown = false

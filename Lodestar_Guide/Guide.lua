@@ -17,6 +17,8 @@ Guide.defaults = {
 			locked = false,
 			scale = 1,
 			size = 72,             -- arrow art height in pixels (right-click > Size)
+			style = "lodestar",    -- lodestar | classic | blizzard (right-click > Style)
+			minimapLine = true,    -- line on the minimap from you to the target
 			mode = "AUTO",         -- AUTO | GUIDE | WAYPOINT | QUEST | OFF
 			showETA = true,
 			superTrack = true,     -- also super-track the quest the arrow points at
@@ -82,6 +84,17 @@ Guide.options = {
 		type = "range", order = 16, name = "Arrow size", min = 32, max = 200, step = 4,
 		get = function() return Guide.db.profile.arrow.size or 72 end,
 		set = function(_, v) Guide.db.profile.arrow.size = v; Guide:UpdateArrowFrame() end,
+	},
+	arrowStyle = {
+		type = "select", order = 16.5, name = "Arrow style", values = { lodestar = "Lodestar", classic = "Classic minimap arrow", blizzard = "Blizzard navigation arrow" },
+		get = function() return Guide.db.profile.arrow.style or "lodestar" end,
+		set = function(_, v) Guide.db.profile.arrow.style = v; Guide:UpdateArrowFrame() end,
+	},
+	arrowMinimapLine = {
+		type = "toggle", order = 16.6, name = "Line on the minimap",
+		desc = "Draws a line on the minimap from you to the arrow's target, with a marker at the spot (or at the edge when it is further away).",
+		get = function() return Guide.db.profile.arrow.minimapLine ~= false end,
+		set = function(_, v) Guide.db.profile.arrow.minimapLine = v; Guide:UpdateMinimapLine() end,
 	},
 	arrowScale = {
 		type = "range", order = 17, name = "Text scale", min = 0.5, max = 2, step = 0.1,
