@@ -1378,6 +1378,20 @@ try("trails", function()
 	stub.playerMap.x, stub.playerMap.y = 0.400, 0.400
 	stub.advance(1)
 	check(T[18].l == links, "teleport did not create a link")
+	-- a drop: one cell of map movement but a cliff's worth of height. Linking it would tell A* the
+	-- cliff face is walkable in both directions, which is how the arrow sends you off a bluff.
+	links = T[18].l
+	stub.playerMap.x, stub.playerMap.y, stub.playerZ = 0.600, 0.600, 0
+	stub.advance(1)
+	stub.playerMap.x, stub.playerZ = 0.602, -40
+	stub.advance(1)
+	check(T[18].l == links, "a 40 yd drop between samples did not create a link")
+	-- ... while a bunny-hop over the same ground still links: a jump is a couple of yards, not a fall
+	stub.falling = true
+	stub.playerMap.x, stub.playerZ = 0.604, -38
+	stub.advance(1)
+	check(T[18].l > links, "hopping along a road still links, got +" .. (T[18].l - links))
+	stub.falling, stub.playerZ = false, 0
 	-- dead / taxi / recording off: nothing recorded
 	local cells = T[18].n
 	stub.dead = true walk(0.500, 0.500, 0.001, 0, 4) stub.dead = false

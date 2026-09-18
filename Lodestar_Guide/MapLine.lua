@@ -1,13 +1,14 @@
 -- Lodestar_Guide: the line on the minimap from you to the arrow's target, with a marker at the spot
 -- (or at the minimap edge when the target is further than the minimap shows).
 --
--- Yards per minimap pixel come from the zoom level, the same table HereBeDragons and TomTom use;
--- indoor and outdoor zoom presets differ. The minimap's rotation setting is honoured.
+-- Yards per minimap pixel come from C_Minimap.GetViewRadius() (indoor/outdoor/hybrid aware, the value
+-- Blizzard's own HybridMinimap uses); the HereBeDragons zoom presets remain only as a fallback.
+-- The minimap's rotation setting is honoured, including Blizzard's own override of it.
 local Lodestar = _G.Lodestar
 local Guide = Lodestar:GetModule("Guide")
 
 -- Minimap width in yards per zoom level.
-local YARDS_OUTDOOR = { [0] = 466 + 2 / 3, [1] = 400, [2] = 333 + 1 / 3, [3] = 266 + 2 / 6, [4] = 200, [5] = 133 + 1 / 3 }
+local YARDS_OUTDOOR = { [0] = 466 + 2 / 3, [1] = 400, [2] = 333 + 1 / 3, [3] = 266 + 2 / 3, [4] = 200, [5] = 133 + 1 / 3 }
 local YARDS_INDOOR = { [0] = 300, [1] = 240, [2] = 180, [3] = 120, [4] = 80, [5] = 50 }
 local MARKER_TEXTURE = "Interface\\AddOns\\Lodestar_Guide\\Textures\\Arrow"
 local EDGE_MARGIN = 6
@@ -16,12 +17,23 @@ local holder, line, marker
 local lastEndX, lastEndY, lastRot, lastClamped = nil, nil, nil, false
 
 local function minimapYards()
+	-- The engine knows the real view radius in yards for the current zoom -- indoors, outdoors and
+	-- under the hybrid minimap alike. Blizzard uses it the same way (Blizzard_HybridMinimap.lua).
+	local r = C_Minimap and C_Minimap.GetViewRadius and C_Minimap.GetViewRadius()
+	if type(r) == "number" and r > 0 then return r * 2 end -- x2: radius -> diameter, matching Minimap:GetWidth()
+	-- Fallback only. minimapZoom and minimapInsideZoom both default to 0, so an equal pair says
+	-- nothing about where we are: don't read it as "outdoors".
 	local zoom = Minimap.GetZoom and Minimap:GetZoom() or 0
-	local insideZoom = tonumber(GetCVar and GetCVar("minimapInsideZoom")) or -1
-	local outsideZoom = tonumber(GetCVar and GetCVar("minimapZoom")) or -1
-	local indoors = (zoom == insideZoom and zoom ~= outsideZoom)
-	local table = indoors and YARDS_INDOOR or YARDS_OUTDOOR
-	return table[zoom] or table[0]
+	local insideZoom = tonumber(GetCVar and GetCVar("minimapInsideZoom"))
+	local outsideZoom = tonumber(GetCVar and GetCVar("minimapZoom"))
+	local indoors
+	if insideZoom and outsideZoom and insideZoom ~= outsideZoom then
+		indoors = zoom == insideZoom
+	else
+		indoors = (IsIndoors and IsIndoors()) or false -- best effort when the cvars can't tell us
+	end
+	local preset = indoors and YARDS_INDOOR or YARDS_OUTDOOR
+	return preset[zoom] or preset[0]
 end
 
 local function create()
@@ -58,7 +70,11 @@ function Guide:DrawMinimapLine(target, dist, facing)
 	local pn, pw = UnitPosition("player")
 	if not pn then holder:Hide() return end
 	local north, east = target.wx - pn, -(target.wy - pw)
-	if GetCVar and GetCVar("rotateMinimap") == "1" then
+	-- Blizzard's hybrid minimap calls C_Minimap.SetIgnoreRotateMinimap(true), so the CVar alone is
+	-- not the truth about whether the minimap actually rotates.
+	local rotates = GetCVar and GetCVar("rotateMinimap") == "1"
+		and not (C_Minimap and C_Minimap.IsRotateMinimapIgnored and C_Minimap.IsRotateMinimapIgnored())
+	if rotates then
 		local a = -(facing or 0)
 		local c, s = math.cos(a), math.sin(a)
 		east, north = east * c - north * s, east * s + north * c

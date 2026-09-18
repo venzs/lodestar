@@ -479,6 +479,14 @@ date = os.date
 Ambiguate = function(name) return (name:gsub("%-.*$", "")) end
 strlenutf8 = string.len
 GetMinimapShape = function() return "ROUND" end
+-- The real client answers the view radius in yards for the current zoom, indoors and out; that is the
+-- primary source MapLine.lua uses, so the stub has to provide it or only the fallback gets exercised.
+C_Minimap = {
+	GetViewRadius = function() return stub.minimapViewRadius or 233 + 1 / 3 end,
+	IsRotateMinimapIgnored = function() return stub.rotateIgnored or false end,
+}
+IsIndoors = function() return stub.indoors or false end
+IsFalling = function() return stub.falling or false end
 issecretvalue = function() return false end
 issecurevariable = function() return false end
 ACCEPT, CANCEL, GAME_LOCALE = "Accept", "Cancel", "enUS"
@@ -520,7 +528,7 @@ Enum.AddOnRestrictionType = { Combat = 2, Chat = 1 }
 C_QuestLine = { RequestQuestLinesForMap = function() end, GetAvailableQuestLines = function() return { { questID = 999, questName = "A Fresh Start", questLineName = "Deathknell", x = 0.52, y = 0.85 } } end }
 C_AreaPoiInfo = { GetQuestHubsForMap = function() return { { areaPoiID = 1, name = "Brill", description = "Quest hub", position = { GetXY = function() return 0.6, 0.5 end } } } end }
 UnitOnTaxi = function() return false end
-UnitPosition = function() return -stub.playerMap.y * 10000, -stub.playerMap.x * 10000, 0, 0 end
+UnitPosition = function() return -stub.playerMap.y * 10000, -stub.playerMap.x * 10000, stub.playerZ or 0, 0 end
 -- Harvest / data APIs -----------------------------------------------------------------------
 bit = bit or {}
 if not bit.band then

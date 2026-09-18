@@ -82,30 +82,35 @@ function Guide:ResolveMap(map)
 	if type(map) == "number" then return map end
 	if type(map) ~= "string" then return nil end
 	if not mapByName then
-		local root = C_Map.GetBestMapForUnit("player")
-		if not root then return nil end -- not in the world yet; try again next call
-		mapByName = {}
-		local kinds = {}
+		-- Stable root: the client's own world map, not whatever map the player happens to be standing
+		-- on. Instance and battleground maps are not guaranteed to hang off the Cosmic map, and
+		-- GetMapChildrenInfo may return nothing -- rooting the scan at the player would cache an
+		-- (almost) empty name table for the rest of the session.
+		local root = (C_Map.GetFallbackWorldMapID and C_Map.GetFallbackWorldMapID())
+			or C_Map.GetBestMapForUnit("player")
+		if not root then return nil end -- map data not ready; try again next call
 		local info = C_Map.GetMapInfo(root)
 		while info and info.parentMapID and info.parentMapID > 0 do
 			root = info.parentMapID
 			info = C_Map.GetMapInfo(root)
 		end
-		if root and C_Map.GetMapChildrenInfo then
-			for _, child in ipairs(C_Map.GetMapChildrenInfo(root, nil, true) or {}) do
-				if child.name then
-					local key = child.name:lower()
-					if not mapByName[key] or (kinds[key] ~= ZONE_TYPE and child.mapType == ZONE_TYPE) then
-						mapByName[key] = child.mapID
-						kinds[key] = child.mapType
-					end
+		local children = C_Map.GetMapChildrenInfo and C_Map.GetMapChildrenInfo(root, nil, true)
+		if not children or #children == 0 then return nil end -- never cache an empty tree; retry next call
+		local names, kinds = {}, {}
+		for _, child in ipairs(children) do
+			if child.name then
+				local key = child.name:lower()
+				if not names[key] or (kinds[key] ~= ZONE_TYPE and child.mapType == ZONE_TYPE) then
+					names[key] = child.mapID
+					kinds[key] = child.mapType
 				end
 			end
 		end
-		if info and info.name and not mapByName[info.name:lower()] then mapByName[info.name:lower()] = root end
+		if info and info.name and not names[info.name:lower()] then names[info.name:lower()] = root end
 		-- Common aliases between the 1.12 area names and the modern map names.
 		local alias = { ["stormwind"] = "stormwind city", ["undercity"] = "undercity", ["the undercity"] = "undercity" }
-		for from, to in pairs(alias) do if not mapByName[from] and mapByName[to] then mapByName[from] = mapByName[to] end end
+		for from, to in pairs(alias) do if not names[from] and names[to] then names[from] = names[to] end end
+		mapByName = names
 	end
 	return mapByName[map:lower()]
 end
@@ -372,6 +377,10 @@ local function createArrow()
 		GameTooltip:Show()
 	end)
 	arrow:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	-- A hidden frame gets no OnUpdate, so the minimap line would keep its last end point.
+	arrow:SetScript("OnHide", function()
+		if Guide.DrawMinimapLine then Guide:DrawMinimapLine(nil) end
+	end)
 end
 
 function Guide:UpdateArrowFrame()
@@ -379,6 +388,7 @@ function Guide:UpdateArrowFrame()
 	local cfg = self.db.profile.arrow
 	if not self:IsEnabled() or not cfg.show or cfg.mode == "OFF" then
 		arrow:Hide()
+		if self.DrawMinimapLine then self:DrawMinimapLine(nil) end
 		return
 	end
 	arrow:ClearAllPoints()

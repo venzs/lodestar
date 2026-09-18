@@ -7,7 +7,8 @@
 --   recorder   once a second the player's map position is quantized to a ~20 yd grid cell and kept
 --              per uiMapID in LodestarScanDB.trails (the per-account file, not the shareable one).
 --              Consecutive samples in different cells link the two (a traversable edge). Flights,
---              death and teleports (jumps of more than two cells) do not link.
+--              death, teleports (jumps of more than two cells) and drops (a fall's worth of height
+--              between samples) do not link.
 --   storage    trails[mapID] = { nx, ny, n, l, rows = { [cy] = "<x0 hex3><2 hex per cell>" } }
 --              nx/ny = cells per axis (~20 yd each from C_Map.GetMapWorldSize, else 250 = 0.4 %).
 --              Each cell byte is an 8-neighbour link mask (bit i => linked to NEIGHBOUR i), ".." is a
@@ -29,12 +30,17 @@ local Guide = Lodestar:GetModule("Guide")
 local CELL_YARDS = 20            -- target cell size when the map's world size is known
 local DEFAULT_AXIS = 250         -- 0.4 % cells when it is not
 local MAX_AXIS = 4000            -- packed ids are cx * 4096 + cy
-local MAX_CELLS = 10000          -- per map (~25-50 KB on disk); links between existing cells are still recorded past this
+local MAX_CELLS = 10000          -- per map: walked cells, and separately the ".." padding between them
+                                 -- (~40 KB of cell data on disk); links between existing cells are still recorded past this
 local MAX_JUMP = 2               -- cells; a bigger jump between samples is a teleport, not a walk
+local MAX_DROP = 10              -- yards of height between samples that walkable ground can cover
+local MAX_HOP = 4                -- ... while airborne: a jump clears a couple of yards, a fall far more
 local MAX_EXPAND = 4000          -- A* expansions before giving up (~20 ms of Lua at the cap)
 local HEURISTIC_WEIGHT = 1.5     -- weighted A*: see heuristic()
 local CACHE_SECONDS = 2
 local FAIL_SECONDS = 5           -- do not re-run a failed search for the same goal cell sooner than this
+local FAIL_MAX_SECONDS = 30      -- ... doubling up to this while the same goal keeps failing
+local FAIL_LINKS = 8             -- ... unless this many new links were learned since the last attempt
 local PATH_INTERVAL = 1          -- arrow: seconds between path checks
 local NEAR_YARDS = 25            -- arrow: closer than this, point straight at the target
 local LOOKAHEAD_YARDS = 15       -- arrow: skip path nodes closer than this
@@ -165,8 +171,13 @@ local function mapRecord(mapID)
 	local rec = t[mapID]
 	if not rec then
 		local g = gridFor(mapID)
-		rec = { nx = g.nx, ny = g.ny, n = 0, l = 0, rows = {} }
+		rec = { nx = g.nx, ny = g.ny, n = 0, l = 0, p = 0, rows = {} }
 		t[mapID] = rec
+	end
+	if not rec.p then -- written before padding was budgeted: count what is already on disk
+		local slots = 0
+		for _, row in pairs(rec.rows) do slots = slots + (#row - 3) / 2 end
+		rec.p = max(slots - (rec.n or 0), 0)
 	end
 	return rec
 end
@@ -174,10 +185,26 @@ end
 -- Writing cells ----------------------------------------------------------------------------------------------
 
 --- Mark a cell walked; returns its mask, or nil when the map is full.
+--- Padding (the ".." cells setMask writes between a row's span and a distant new cell) is charged to
+--- the same budget, so bytes on disk are bounded, not just walked cells. Cells that cost nothing --
+--- inside or next to an existing row span -- keep being recorded up to the normal cell cap.
 local function markCell(rec, cx, cy, force)
 	local mask = getMask(rec.rows, cx, cy)
 	if mask then return mask end
-	if not force and rec.n >= MAX_CELLS then return nil end
+	if not force then
+		if rec.n >= MAX_CELLS then return nil end
+		local pad, row = 0, rec.rows[cy]
+		if row then
+			local x0, len = rowX0(row), (#row - 3) / 2
+			if cx < x0 then pad = x0 - cx - 1
+			elseif cx >= x0 + len then pad = cx - x0 - len
+			else rec.p = max((rec.p or 0) - 1, 0) end -- filling a "..": it is a walked cell now
+		end
+		if pad > 0 then
+			if rec.n + (rec.p or 0) + pad >= MAX_CELLS then return nil end
+			rec.p = (rec.p or 0) + pad
+		end
+	end
 	setMask(rec.rows, cx, cy, 0)
 	rec.n = rec.n + 1
 	return 0
@@ -264,7 +291,7 @@ function Guide:TrailSeedFor(mapID) return seedFor(mapID) end
 
 -- Recorder ------------------------------------------------------------------------------------------------------
 
-local lastMap, lastCx, lastCy
+local lastMap, lastCx, lastCy, lastZ
 
 -- Profile flags are read defensively: Guide.defaults.trails may be absent, and neither reader may allocate.
 local function recording()
@@ -282,16 +309,26 @@ local function tick()
 	local x, y = pos:GetXY()
 	if issecretvalue and (issecretvalue(x) or issecretvalue(y)) then lastMap = nil return end
 	if type(x) ~= "number" or type(y) ~= "number" or (x == 0 and y == 0) then lastMap = nil return end
+	local z
+	if UnitPosition then
+		local _, _, pz = UnitPosition("player")
+		if not (issecretvalue and issecretvalue(pz)) and type(pz) == "number" then z = pz end
+	end
 	local g = gridFor(mapID)
 	local cx, cy = cellOf(g, x, y)
-	if mapID == lastMap and cx == lastCx and cy == lastCy then return end
+	if mapID == lastMap and cx == lastCx and cy == lastCy then lastZ = z return end
 	local rec = mapRecord(mapID)
-	if mapID == lastMap and max(abs(cx - lastCx), abs(cy - lastCy)) <= MAX_JUMP then
+	-- Height separates a fall from a slope: a 40 yd drop off a bluff is only a cell or two of map
+	-- movement, and linking it would tell A* the cliff face is walkable in both directions. While
+	-- airborne the bar is a jump's couple of yards, so bunny-hopping along a road still links.
+	local dz = (z and lastZ) and abs(z - lastZ) or 0
+	local limit = (IsFalling and IsFalling()) and MAX_HOP or MAX_DROP
+	if mapID == lastMap and dz <= limit and max(abs(cx - lastCx), abs(cy - lastCy)) <= MAX_JUMP then
 		linkCells(rec, lastCx, lastCy, cx, cy)
 	else
 		markCell(rec, cx, cy)
 	end
-	lastMap, lastCx, lastCy = mapID, cx, cy
+	lastMap, lastCx, lastCy, lastZ = mapID, cx, cy, z
 end
 
 -- Path query ---------------------------------------------------------------------------------------------------------
@@ -430,20 +467,26 @@ local function collinear(g, i, j)
 	return true
 end
 
-local failMap, failG, failAt = nil, nil, -1e9 -- last goal cell a full search could not reach
+local failMap, failG, failAt, failWait, failL = nil, nil, -1e9, FAIL_SECONDS, 0 -- last goal cell a full search could not reach
 
 local function computePath(g, rec, seed, mapID, sx, sy, gx, gy, fromX, fromY, toX, toY)
 	if abs(sx - gx) <= 1 and abs(sy - gy) <= 1 then return nil end
 	if not walkedNear(rec, seed, sx, sy) or not walkedNear(rec, seed, gx, gy) then return nil end
 	local gid = gx * 4096 + gy
 	local now = GetTime()
-	if failMap == mapID and failG == gid and now - failAt < FAIL_SECONDS then return nil end
+	local links = rec and rec.l or 0
+	local same = failMap == mapID and failG == gid
+	-- An exhausted or capped search is the expensive case (~20 ms at the cap) and it keeps failing until
+	-- new ground bridges the two sides, so back off while the same goal fails, and cut the wait back to
+	-- FAIL_SECONDS only once enough new links were learned to plausibly have bridged it.
+	if same and now - failAt < (links - failL >= FAIL_LINKS and FAIL_SECONDS or failWait) then return nil end
 	local found = astar(g, rec, seed, sx, sy, gx, gy)
 	if not found then
-		-- an exhausted or capped search is the expensive case; do not repeat it for every step the player takes
-		failMap, failG, failAt = mapID, gid, now
+		failWait = same and min(failWait + failWait, FAIL_MAX_SECONDS) or FAIL_SECONDS
+		failMap, failG, failAt, failL = mapID, gid, now, links
 		return nil
 	end
+	failWait = FAIL_SECONDS
 	-- cell chain, goal -> start, then reversed
 	local n = 0
 	local id = gx * 4096 + gy
