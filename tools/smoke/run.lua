@@ -1645,6 +1645,54 @@ try("quest waypoints", function()
 	H.quests[8802] = nil
 end)
 
+-- Travel hints: hearth and flight, but only when the detour actually saves something.
+-- The failure mode worth guarding is a hint that sends the player to an inn further from the target
+-- than they already are, so every check here is about the saving rather than about the wording.
+try("travel hints", function()
+	local hearthWas = G.db.char.hearth
+	G.db.profile.travel.hints = true
+	stub.hearthCooldown = nil                       -- ready
+
+	-- The hearth is bound where the player stands; record it the way the client tells us.
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.30, 0.66
+	stub.bindLocation = "Deathknell"
+	stub.fire("HEARTHSTONE_BOUND")
+	local h = G.db.char.hearth
+	check(h and h.map == 18 and h.name == "Deathknell", "hearth position recorded on bind: " .. tostring(h and h.name))
+
+	-- A target far from the player but right next to the inn: hearthing is the answer.
+	local nearHearth = { mapID = 18, x = 0.305, y = 0.664 }
+	local hint = G:TravelHint(nearHearth, 4000)
+	check(hint and hint:find("Hearth", 1, true) and hint:find("Deathknell", 1, true), "hearth suggested for a far target next to the inn: " .. tostring(hint))
+
+	-- The same target while the hearthstone is on cooldown: no suggestion, because it is not an
+	-- option the player has.
+	G:TravelHint(nil, nil)                          -- drop the 5 s cache
+	stub.advance(6)
+	stub.hearthCooldown = { GetTime(), 1800 }
+	check(G:TravelHint(nearHearth, 4000) == nil, "nothing suggested while the hearthstone is on cooldown")
+	stub.hearthCooldown = nil
+	stub.advance(6)
+
+	-- A target the player is already close to: running is fine, say nothing. This is the one that
+	-- matters -- a hint here would send someone to an inn and back.
+	check(G:TravelHint({ mapID = 18, x = 0.30, y = 0.661 }, 120) == nil, "no hint for a target within running distance")
+
+	-- A far target that the inn is no closer to: also nothing.
+	stub.advance(6)
+	check(G:TravelHint({ mapID = 18, x = 0.90, y = 0.90 }, 4000) == nil, "no hint when the inn saves nothing")
+
+	-- Off by option.
+	stub.advance(6)
+	G.db.profile.travel.hints = false
+	G:DisableTravel()
+	G.db.profile.travel.hints = true
+	G:EnableTravel()
+
+	G.db.char.hearth = hearthWas
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.308, 0.662
+end)
+
 try("harvest share", function()
 	local sum = G:HarvestSummary()
 	check(sum.quests > 0 and sum.npcs > 0 and sum.taxi >= 3 and sum.positions > 0, "summary counts the world data")

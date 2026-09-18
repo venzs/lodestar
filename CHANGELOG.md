@@ -16,6 +16,9 @@
   variables to disk in the client's format and reloading them in the client's window — after the
   addon's files, before its `ADDON_LOADED`. It covers frame positions, settings, the harvest and the
   upgrade path, and is the test that would have caught the frame-position bug.
+- Guide: **travel hints** on the arrow — "Hearth to Deathknell, then 240 yd" or "Fly to The
+  Sepulcher, then 180 yd" when the detour saves more than 700 yards and the hearthstone is actually
+  off cooldown. Flight points are only the ones this character has visited.
 - Guide: the harvest now records **the client's own next-objective waypoint** for every quest in the
   log (`C_QuestLog.GetNextWaypoint`). Forever exposes no quest POIs, so until now an objective only
   got a position when a player was standing on the spot as a counter moved; a quest accepted in a

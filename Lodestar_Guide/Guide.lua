@@ -32,6 +32,9 @@ Guide.defaults = {
 		harvest = {
 			share = true,          -- offer newly harvested facts to guild/party over the addon channel (Share.lua)
 		},
+		travel = {
+			hints = true,          -- "Hearth to Brill, then 240 yd" on the arrow when it beats running
+		},
 		steps = {
 			show = true,
 			locked = false,
@@ -83,6 +86,12 @@ Guide.options = {
 		type = "toggle", order = 14, name = "Show time to arrival",
 		get = function() return Guide.db.profile.arrow.showETA end,
 		set = function(_, v) Guide.db.profile.arrow.showETA = v end,
+	},
+	travelHints = {
+		type = "toggle", order = 13.9, name = "Suggest hearth and flight",
+		desc = "When the target is a long way off and hearthing or flying would save more than 700 yards, the arrow says so. Only uses flight points you have actually visited.",
+		get = function() return Guide.db.profile.travel.hints end,
+		set = function(_, v) Guide.db.profile.travel.hints = v; if v then Guide:EnableTravel() else Guide:DisableTravel() end end,
 	},
 	arrowSuperTrack = {
 		type = "toggle", order = 15, name = "Super-track the targeted quest",
@@ -230,11 +239,13 @@ function Guide:OnEnable()
 	self:EnableEngine()
 	self:EnableStepFrame()
 	self:EnableRecorder()
+	self:EnableTravel()
 	for _, event in ipairs(EVENTS) do self:RegisterEvent(event, "OnGameEvent") end
 end
 
 function Guide:OnDisable()
 	for _, event in ipairs(EVENTS) do self:UnregisterEvent(event) end
+	self:DisableTravel()
 	self:DisableRecorder()
 	self:DisableStepFrame()
 	self:DisableEngine()
@@ -251,6 +262,7 @@ function Guide:OnGameEvent(event, ...)
 	self:RecorderOnEvent(event, ...)
 	self:EngineOnEvent(event, ...)
 	self:ArrowOnEvent(event, ...)
+	self:TravelOnEvent(event, ...)
 end
 
 function Guide:OnProfileChanged()

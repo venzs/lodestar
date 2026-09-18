@@ -292,6 +292,13 @@ local frameMethods = {
 	"SetScript", "HookScript", "RegisterEvent", "UnregisterEvent", "UnregisterAllEvents", "Show", "Hide", "SetShown",
 }
 for _, m in ipairs(frameMethods) do Frame[m] = noop end
+--- RegisterUnitEvent narrows an event to named units. The stub records the filter and fire()
+--- honours it, so a handler that relies on only ever seeing "player" is actually tested.
+function Frame:RegisterUnitEvent(event, unit1, unit2)
+	self.events[event] = true
+	self.unitFilter = self.unitFilter or {}
+	self.unitFilter[event] = { unit1, unit2 }
+end
 function Frame:SetScript(name, fn) self.scripts[name] = fn end
 function Frame:HookScript(name, fn) local prev = self.scripts[name] self.scripts[name] = function(...) if prev then prev(...) end fn(...) end end
 function Frame:GetScript(name) return self.scripts[name] end
@@ -403,9 +410,14 @@ AddonCompartmentFrame = { RegisterAddon = function(_, data) stub.compartment = d
 -- Event dispatch and time --------------------------------------------------------------------
 function stub.fire(event, ...)
 	tinsert(stub.events, event)
+	local unit = select(1, ...)
 	for _, f in ipairs(stub.frames) do
 		if f.events[event] and f.scripts.OnEvent then
-			f.scripts.OnEvent(f, event, ...)
+			-- A frame that narrowed this event with RegisterUnitEvent only hears about its units.
+			local filter = f.unitFilter and f.unitFilter[event]
+			if not filter or filter[1] == unit or filter[2] == unit then
+				f.scripts.OnEvent(f, event, ...)
+			end
 		end
 	end
 end
@@ -524,7 +536,13 @@ UnitRace = function() return "Undead", "Scourge", 5 end
 UnitCanAttack = function() return true end
 UnitIsDead = function() return true end
 issecretvalue = function() return false end
-GetBindLocation = function() return "Deathknell" end
+GetBindLocation = function() return stub.bindLocation or "Deathknell" end
+stub.hearthCooldown = nil    -- nil = ready; { start, duration } = on cooldown
+C_Container.GetItemCooldown = function()
+	local c = stub.hearthCooldown
+	if not c then return GetTime(), 0, 1 end
+	return c[1], c[2], 1
+end
 CreateVector2D = function(x, y) return { x = x, y = y, GetXY = function(v) return v.x, v.y end } end
 stub.playerMap = { map = 18, x = 0.308, y = 0.662 }
 C_Map.GetBestMapForUnit = function() return stub.playerMap.map end

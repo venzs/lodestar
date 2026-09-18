@@ -131,6 +131,25 @@ function Guide:TravelOnEvent(event, ...)
 	end
 end
 
+--- UNIT_SPELLCAST_SUCCEEDED fires for every unit in range, which on a busy night is hundreds of
+--- events a second, and the module's shared dispatcher would run the harvest and the engine on each
+--- one. RegisterUnitEvent narrows it to the player at the client level, so nothing else ever
+--- reaches Lua. Where that method is missing the event is simply not registered: the hearth position
+--- still gets recorded on HEARTHSTONE_BOUND, which is the case that matters.
+local castFrame
+
 function Guide:EnableTravel()
-	self.travelEvents = self.travelEvents or { "UNIT_SPELLCAST_SUCCEEDED" }
+	if not self.db.profile.travel.hints then return end
+	if not castFrame then
+		castFrame = CreateFrame("Frame")
+		castFrame:SetScript("OnEvent", function(_, event, ...) Guide:TravelOnEvent(event, ...) end)
+	end
+	if castFrame.RegisterUnitEvent then
+		castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+	end
+end
+
+function Guide:DisableTravel()
+	if castFrame then castFrame:UnregisterAllEvents() end
+	cache.at, cache.target, cache.hint = 0, nil, nil
 end

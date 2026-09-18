@@ -294,12 +294,20 @@ local function onUpdate(self, elapsed)
 		eta = "  ·  " .. FormatDuration(progress / speed)
 	end
 	local sub = target.subtitle and ("|cffaaaaaa" .. target.subtitle .. "|r  ·  ") or ""
+	-- When the target is a long way off, running is often the wrong answer. Travel.lua works out
+	-- whether hearthing or a flight would save enough to be worth the detour and says so here; it
+	-- returns nil far more often than not, and caches, so this costs nothing on a normal step.
+	local travel = ""
+	if Guide.TravelHint and Guide.db.profile.travel.hints then
+		local hint = Guide:TravelHint(target, dist)
+		if hint then travel = "  ·  " .. hint end
+	end
 	if arrived then
 		self.dist:SetText(sub .. "|cff7fff7fhere|r")
 	elseif remaining then
-		self.dist:SetText(("%s%d yd |cff888888· via trail (%d yd)|r%s"):format(sub, dist, remaining, eta))
+		self.dist:SetText(("%s%d yd |cff888888· via trail (%d yd)|r%s%s"):format(sub, dist, remaining, eta, travel))
 	else
-		self.dist:SetText(("%s%d yd%s"):format(sub, dist, eta))
+		self.dist:SetText(("%s%d yd%s%s"):format(sub, dist, eta, travel))
 	end
 end
 
