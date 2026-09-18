@@ -2,6 +2,8 @@
 .release/
 # generated API surface (tools/check.sh recreates it from Blizzard's UI source)
 tools/wow-api/
+# pfQuest source database downloaded by tools/pfquest/fetch.sh (regenerated, MIT upstream)
+tools/pfquest/src/
 # editors / OS
 .vscode/
 .idea/

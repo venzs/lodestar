@@ -505,7 +505,7 @@ C_QuestLog.IsQuestFlaggedCompleted = function(id) return stub.flagged[id] == tru
 C_QuestLog.IsComplete = function(id) local q = stub.questLog[id] return q and q.complete or false end
 C_QuestLog.GetQuestObjectives = function(id) local q = stub.questLog[id] return q and q.objectives or {} end
 C_QuestLog.GetTitleForQuestID = function(id) local q = stub.questLog[id] return q and q.title or ({ [3901] = "Rude Awakening", [364] = "The Mindless Ones" })[id] end
-C_QuestLog.RequestLoadQuestByID = function() end
+C_QuestLog.RequestLoadQuestByID = function(id) stub.requestedQuests = (stub.requestedQuests or 0) + 1 local known = ({ [3901] = true, [364] = true })[id] tinsert(stub.timers, { at = stub.now + 0.1, fn = function() stub.fire("QUEST_DATA_LOAD_RESULT", id, known == true) end }) end
 C_QuestLog.GetNextWaypoint = function(id) local q = stub.questLog[id] if q and q.wp then return q.wp.map, q.wp.x, q.wp.y end end
 C_QuestLog.GetNextWaypointText = function() return "Objective" end
 C_QuestLog.GetQuestDifficultyLevel = function() return 2 end
@@ -518,6 +518,34 @@ C_QuestLine = { RequestQuestLinesForMap = function() end, GetAvailableQuestLines
 C_AreaPoiInfo = { GetQuestHubsForMap = function() return { { areaPoiID = 1, name = "Brill", description = "Quest hub", position = { GetXY = function() return 0.6, 0.5 end } } } end }
 UnitOnTaxi = function() return false end
 UnitPosition = function() return -stub.playerMap.y * 10000, -stub.playerMap.x * 10000, 0, 0 end
+-- Harvest / data APIs -----------------------------------------------------------------------
+bit = bit or {}
+if not bit.band then
+	bit.band = function(a, b) local r, m = 0, 1 while a > 0 and b > 0 do if a % 2 == 1 and b % 2 == 1 then r = r + m end a, b, m = math.floor(a / 2), math.floor(b / 2), m * 2 end return r end
+	bit.bor = function(a, b) local r, m = 0, 1 while a > 0 or b > 0 do if a % 2 == 1 or b % 2 == 1 then r = r + m end a, b, m = math.floor(a / 2), math.floor(b / 2), m * 2 end return r end
+end
+Enum.UIMapType = { Cosmic = 0, World = 1, Continent = 2, Zone = 3, Dungeon = 4, Micro = 5, Orphan = 6 }
+Enum.FlightPathState = { Current = 0, Reachable = 1, Unreachable = 2 }
+UnitClassification = function() return "normal" end
+UnitReaction = function() return 4 end
+UnitCreatureType = function() return "Undead" end
+GetTaxiMapID = function() return 947 end
+C_TaxiMap = { GetAllTaxiNodes = function() return {
+	{ nodeID = 10, name = "Brill, Tirisfal Glades", position = { GetXY = function() return 0.6, 0.5 end }, state = 0 },
+	{ nodeID = 11, name = "The Sepulcher, Silverpine Forest", position = { GetXY = function() return 0.5, 0.6 end }, state = 1 },
+	{ nodeID = 12, name = "Tarren Mill, Hillsbrad", position = { GetXY = function() return 0.7, 0.7 end }, state = 2 },
+} end }
+C_QuestLog.GetQuestsOnMap = function() return stub.questsOnMap or {} end
+C_QuestLog.GetDistanceSqToQuest = function(id) local q = stub.questLog[id] if q and q.distSq then return q.distSq, true end return nil end
+C_QuestLog.GetLogIndexForQuestID = function(id) local n = 0 for qid in pairs(stub.questLog) do n = n + 1 if qid == id then return n end end end
+C_QuestLog.GetQuestTagInfo = function() return nil end
+C_QuestInfoSystem = { GetQuestClassification = function() return 0 end }
+GetActiveQuestID = function() return 5 end
+GetAvailableTitle = function() return "New" end
+GetTitleText = function() return "A Quest" end
+GetRewardXP = function() return 250 end
+GetRewardMoney = function() return 50 end
+QuestGetAutoAccept = function() return false end
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

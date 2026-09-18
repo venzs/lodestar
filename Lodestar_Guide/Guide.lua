@@ -135,9 +135,13 @@ local EVENTS = {
 	"PLAYER_LEVEL_UP", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "USER_WAYPOINT_UPDATED", "PLAYER_ENTERING_WORLD",
 	"HEARTHSTONE_BOUND", "TRAINER_SHOW", "TRAINER_CLOSED", "TAXIMAP_OPENED", "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED",
 	"MERCHANT_SHOW", "MERCHANT_CLOSED", "GOSSIP_SHOW", "QUEST_DETAIL", "QUEST_COMPLETE", "QUEST_DATA_LOAD_RESULT", "QUESTLINE_UPDATE", "AREA_POIS_UPDATED",
+	-- harvest
+	"QUEST_GREETING", "QUEST_PROGRESS", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED",
 }
 
 function Guide:OnEnable()
+	self:EnableHarvest()
+	self:EnableData()
 	self:EnableArrow()
 	self:EnableEngine()
 	self:EnableStepFrame()
@@ -151,9 +155,11 @@ function Guide:OnDisable()
 	self:DisableStepFrame()
 	self:DisableEngine()
 	self:DisableArrow()
+	self:DisableHarvest()
 end
 
 function Guide:OnGameEvent(event, ...)
+	self:HarvestOnEvent(event, ...)
 	self:RecorderOnEvent(event, ...)
 	self:EngineOnEvent(event, ...)
 	self:ArrowOnEvent(event, ...)

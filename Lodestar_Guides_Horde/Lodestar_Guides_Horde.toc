@@ -10,3 +10,4 @@
 ## X-Lodestar-GuidePack: Horde
 
 Undead_Deathknell.lua
+Undead_Tirisfal.lua

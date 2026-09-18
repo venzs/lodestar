@@ -240,7 +240,7 @@ step
 end)
 try("guide pack loaded", function()
 	check(G.guideByName["Horde/Undead 1-5: Deathknell"] ~= nil, "Deathknell sample registered")
-	check(G.current == nil, "level-12 character got smart mode at login, not the 1-5 guide")
+	check(G.current and G.current.name == "Horde/Undead 5-12: Tirisfal Glades", "level-12 character got the 5-12 guide at login: " .. tostring(G.current and G.current.name))
 	stub.level = 3
 	local picked = G:PickGuide()
 	check(picked and picked.name == "Horde/Undead 1-5: Deathknell", "auto-pick chose the undead guide at level 3: " .. tostring(picked and picked.name))
@@ -249,16 +249,16 @@ try("guide pack loaded", function()
 	check(G.stepIndex == 1, "starts at step 1")
 end)
 try("engine advance", function()
-	-- accept 3901 -> step 1 done
-	stub.questLog[3901] = { title = "Rude Awakening", complete = false, objectives = {} }
-	stub.fire("QUEST_ACCEPTED", 3901)
+	-- accept 363 -> step 1 done
+	stub.questLog[363] = { title = "Rude Awakening", complete = false, objectives = {} }
+	stub.fire("QUEST_ACCEPTED", 363)
 	stub.advance(1)
 	check(G.stepIndex == 2, "advanced to step 2 after accept, at " .. tostring(G.stepIndex))
-	-- turn in 3901 and accept 3903 -> step 2 done
-	stub.questLog[3901] = nil stub.flagged[3901] = true
-	stub.fire("QUEST_TURNED_IN", 3901, 250, 0)
-	stub.questLog[3903] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "Rattlecage Skeleton slain: 0/8", finished = false } } }
-	stub.fire("QUEST_ACCEPTED", 3903)
+	-- turn in 363 and accept 364 -> step 2 done
+	stub.questLog[363] = nil stub.flagged[363] = true
+	stub.fire("QUEST_TURNED_IN", 363, 250, 0)
+	stub.questLog[364] = { title = "The Mindless Ones", complete = false, objectives = { { text = "Mindless Zombie slain: 0/8", finished = false } } }
+	stub.fire("QUEST_ACCEPTED", 364)
 	stub.advance(1)
 	check(G.stepIndex == 3, "advanced to step 3, at " .. tostring(G.stepIndex))
 	-- manual next / prev
@@ -279,11 +279,12 @@ try("arrow", function()
 	local dist, bearing = G:VectorTo(18, 0.308, 0.60)
 	check(dist and dist > 0 and bearing, "vector computed: " .. tostring(dist))
 	stub.slash("/lode arrow quest")
-	stub.questLog[3903].wp = { map = 18, x = 0.33, y = 0.66 }
+	wipe(G:HarvestDB().npcs) -- the gossip stub's npc offers quest 6 right here; keep it out of this check
+	stub.questLog[364].wp = { map = 18, x = 0.309, y = 0.661 }
 	G:RetargetArrow()
 	t = G:GetArrowTarget()
-	check(t and t.kind == "quest" and t.questID == 3903, "arrow targets nearest quest waypoint")
-	check(stub.superTrackedQuest == 3903, "super-tracked the quest")
+	check(t and t.kind == "quest" and t.questID == 364, "arrow targets nearest quest waypoint: " .. tostring(t and t.questID))
+	check(stub.superTrackedQuest == 364, "super-tracked the quest")
 	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
 	check(LodestarArrow.dist.text and LodestarArrow.dist.text:find("yd"), "distance text rendered: " .. tostring(LodestarArrow.dist.text))
 	stub.slash("/lode arrow auto")
@@ -332,22 +333,23 @@ try("recorder", function()
 end)
 try("engine sync + abandon", function()
 	stub.level = 3
-	-- fresh load with no saved progress: quests 3901 + 3903 done/on -> suggested start skips step 1 and 2
+	-- fresh load with no saved progress: quests 363 + 364 done -> suggested start skips the first three steps
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
-	stub.flagged[3901] = true
-	stub.questLog[3903] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "x: 0/8", finished = false } } }
+	stub.flagged[363] = true stub.flagged[364] = true
+	stub.questLog[364] = nil
 	G:LoadGuide("Horde/Undead 1-5: Deathknell")
-	check(G.stepIndex >= 3, "suggested starting point skipped completed steps, at " .. tostring(G.stepIndex))
+	check(G.stepIndex == 4, "suggested starting point skipped completed steps, at " .. tostring(G.stepIndex))
 	-- turn-in grace: flag not yet set, event just fired -> still counts as turned in
 	stub.fire("QUEST_TURNED_IN", 4444, 100, 0)
 	check(G:IsActionComplete({ type = "turnin", questID = 4444 }), "recent turn-in counts before the flag lands")
 	stub.advance(10)
 	check(not G:IsActionComplete({ type = "turnin", questID = 4444 }), "turn-in grace expires")
-	-- abandon 3903 -> regress to its accept step (step 2)
-	G:SetStep(4, true)
-	stub.questLog[3903] = nil
-	stub.fire("QUEST_REMOVED", 3903, false)
-	check(G.stepIndex == 2, "abandon regressed to the accept step, at " .. tostring(G.stepIndex))
+	-- abandon 3901 (accepted at step 4) while at step 16 -> regress to step 4
+	stub.questLog[3901] = { title = "Rattling the Rattlecages", complete = false, objectives = {} }
+	G:SetStep(16, true)
+	stub.questLog[3901] = nil
+	stub.fire("QUEST_REMOVED", 3901, false)
+	check(G.stepIndex == 4, "abandon regressed to the accept step, at " .. tostring(G.stepIndex))
 	-- vendor completes on close, not open
 	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
 	stub.fire("MERCHANT_SHOW")
@@ -357,13 +359,13 @@ try("engine sync + abandon", function()
 	stub.slash("/lode guide sync")
 end)
 try("smart mode", function()
-	stub.questLog[3903] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "x: 0/8", finished = false } }, wp = { map = 18, x = 0.33, y = 0.66 } }
+	stub.questLog[3901] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "x: 0/8", finished = false } }, wp = { map = 18, x = 0.33, y = 0.66 } }
 	stub.slash("/lode guide smart")
 	check(G.current == nil, "guide unloaded")
 	local items = G:CollectSmartItems(true)
 	local kinds = {}
 	for _, it in ipairs(items) do kinds[it.kind] = (kinds[it.kind] or 0) + 1 end
-	check(kinds.available == 1 and kinds.hub == 1 and (kinds.objective or 0) >= 1, "smart items include log, available and hub: " .. tostring(#items))
+	check((kinds.available or 0) >= 1 and kinds.hub == 1 and (kinds.objective or 0) >= 1, "smart items include log, available and hub: " .. tostring(#items))
 	stub.slash("/lode guide nextup")
 	G:RetargetArrow()
 	local t = G:GetArrowTarget()
@@ -372,11 +374,90 @@ try("smart mode", function()
 	check(G:GetArrowTarget() and G:GetArrowTarget().title == items[#items].title, "pinned item becomes the arrow target")
 	G:RefreshStepFrame()
 	check(LodestarGuideFrame.title.text and LodestarGuideFrame.title.text:find("smart mode"), "window shows smart mode")
-	-- level 10 with only a 1-5 guide installed: auto-pick must not load it
+	-- level 10 picks the 5-12 guide; level 20 has nothing and must not load an outleveled guide
 	stub.level = 10
-	check(G:PickGuide() == nil, "outleveled guide is not auto-picked")
+	check(G:PickGuide() and G:PickGuide().name == "Horde/Undead 5-12: Tirisfal Glades", "level 10 picks the Tirisfal guide")
+	stub.level = 20
+	check(G:PickGuide() == nil, "outleveled guides are not auto-picked")
+	stub.level = 10
 	stub.slash("/lode guide load Deathknell")
 	stub.slash("/lode guide auto")
+end)
+try("vanilla data", function()
+	wipe(G:HarvestDB().npcs) wipe(G:HarvestDB().quests)
+	check(G.VanillaData and G.VanillaData.quests[3901] and G.VanillaData.quests[3901].t == "Rattling the Rattlecages", "Vanilla data loaded with quest 3901")
+	local mapID, x, y, how = G:DataQuestPosition(3901, true)
+	check(mapID == 18 and math.abs(x - 0.308) < 0.001 and math.abs(y - 0.662) < 0.001, "turn-in position for 3901 resolves to Sarvis via zone name: " .. tostring(mapID))
+	check(how and how:find("Sarvis", 1, true), "turn-in subtitle names the NPC: " .. tostring(how))
+	local omap = G:DataQuestPosition(3901, false)
+	check(omap == 18, "objective position for 3901 (Rattlecage Skeleton) found")
+	stub.level = 3
+	stub.questLog = {}
+	stub.flagged = { [363] = true }
+	local items = {}
+	G:DataAvailableItems(items, 18)
+	local titles = {}
+	for _, it in ipairs(items) do titles[it.title] = it end
+	check(titles["The Damned"] ~= nil, "pick-up list offers The Damned at level 3 in Deathknell")
+	check(titles["The Mindless Ones"] ~= nil, "pick-up list offers The Mindless Ones once Rude Awakening is flagged")
+	check(titles["Rattling the Rattlecages"] == nil, "pick-up list withholds Rattling the Rattlecages until The Mindless Ones is done")
+	check(titles["Simple Scroll"] == nil, "pick-up list hides other classes' scrolls")
+	stub.slash("/lode quest 363")
+	stub.slash("/lode quest rattl")
+	stub.slash("/lode quest")
+	-- smart mode with no client waypoint at all: data must still give the arrow a target
+	stub.questLog[3901] = { title = "Rattling the Rattlecages", complete = true, objectives = { { text = "Rattlecage Skeleton slain: 8/8", finished = true } } }
+	stub.slash("/lode guide smart")
+	local smart = G:CollectSmartItems(true)
+	local lead = smart[1]
+	check(lead and lead.questID == 3901 and lead.kind == "turnin" and lead.source == "data", "smart mode falls back to data for a turn-in: " .. tostring(lead and lead.source))
+	G:PinSmartItem(nil)
+	G:RetargetArrow()
+	check(G:GetArrowTarget() and G:GetArrowTarget().questID == 3901, "arrow points at the data turn-in")
+	stub.slash("/lode guide diag")
+	check(LodestarProbeDB.guideDiag and LodestarProbeDB.guideDiag.quests[3901], "diag saved per-quest details")
+	stub.slash("/lode guide next")
+	stub.slash("/lode guide prev")
+end)
+try("harvest", function()
+	local H = G:HarvestDB()
+	check(H and H.npcs, "LodestarScanDB initialised")
+	stub.fire("GOSSIP_SHOW")
+	local npc = H.npcs[6]
+	check(npc and npc.gives and npc.gives[6] and npc.ends and npc.ends[5], "gossip harvested offered/accepted quests for npc 6")
+	check(npc.map == 18 and npc.exact, "interaction position stored as exact")
+	stub.fire("QUEST_DETAIL")
+	check(H.quests[7] and H.quests[7].giver == 6 and H.quests[7].xp and H.quests[7].xp[2] == 250, "quest detail recorded giver and reward xp")
+	stub.fire("QUEST_COMPLETE")
+	check(H.quests[7].ender == 6, "quest complete recorded ender")
+	stub.fire("TAXIMAP_OPENED")
+	check(H.taxi[10] and H.taxi[10].state == "current" and H.taxi[11] and H.taxi[11].state == "reachable" and H.taxi[10].links and H.taxi[10].links[11], "taxi nodes and links harvested")
+	stub.fire("PLAYER_TARGET_CHANGED")
+	check(H.npcs[6].minL == stub.level, "target level harvested")
+	stub.fire("PLAYER_LEVEL_UP", 4)
+	stub.advance(2)
+	check(H.levels[stub.level] == stub.xpMax, "xp max per level harvested")
+	-- census
+	stub.slash("/lode scan quests 360 366")
+	stub.advance(3)
+	check(H.scan.found and H.scan.found >= 1 and H.quests[364] and H.quests[364].scanned, "quest scan found 364: " .. tostring(H.scan.found))
+	check(H.scan.next and H.scan.next > 366, "scan ran to the end of the range")
+	stub.slash("/lode scan status")
+	stub.slash("/lode scan stop")
+	stub.slash("/lode scan npc")
+	stub.slash("/lode scan wipe")
+	stub.slash("/lode scan rate 40")
+	stub.slash("/lode scan")
+	-- harvest read-back: a quest not in the vanilla data gets its position from the harvest
+	stub.questLog[77777] = { title = "New Forever Quest", complete = true, objectives = {} }
+	H.quests[77777] = { t = "New Forever Quest", ender = 6 }
+	local hmap, _, _, how = G:HarvestQuestPosition(77777, true)
+	check(hmap == 18 and how == "ender", "harvest gives a turn-in position for an unknown quest")
+	local smart = G:CollectSmartItems(true)
+	local found
+	for _, it in ipairs(smart) do if it.questID == 77777 then found = it end end
+	check(found and found.source and found.source:find("harvest", 1, true), "smart mode uses the harvest for new quests: " .. tostring(found and found.source))
+	stub.questLog[77777] = nil
 end)
 try("guide menus", function() G:ShowGuideMenu() G:ShowArrowMenu() end)
 try("guide options", function()

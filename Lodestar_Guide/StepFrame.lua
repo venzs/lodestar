@@ -54,6 +54,14 @@ local function createFrame()
 	frame.next = makeButton(frame, ">")
 	frame.next:SetPoint("TOPRIGHT", -8, -5)
 	frame.next:SetScript("OnClick", function() Guide:NextStep() end)
+	for _, b in ipairs({ frame.prev, frame.next }) do
+		b:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_TOP")
+			GameTooltip:AddLine(Guide:InSmartMode() and "Point the arrow at the previous / next thing in the list" or "Previous / next step", 1, 1, 1)
+			GameTooltip:Show()
+		end)
+		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	end
 
 	-- Current step
 	frame.step = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -159,26 +167,30 @@ local function refreshSmart()
 	local lead = pinnedShown or top
 	if lead then
 		frame.step:SetText(("%s %s"):format(KIND_LABEL[lead.kind] or "", lead.title))
-		frame.meta:SetText(("%s%s"):format(lead.subtitle or "", lead.dist and ("  ·  " .. math.floor(lead.dist) .. " yd") or ""))
+		frame.meta:SetText(("%s%s"):format(lead.subtitle or "", lead.dist and ("  ·  " .. math.floor(lead.dist) .. " yd") or (lead.noPosition and "  ·  |cff888888location unknown|r" or "")))
 	else
 		frame.step:SetText("Nothing to do here yet. Pick up quests at the nearest hub, or /lode record start and play.")
 		frame.meta:SetText("")
 	end
 	local shown = 0
-	for i = 1, 8 do
-		local row = upcomingLines[i]
-		local it = items[i + (lead == top and 1 or 0)]
-		if it == pinnedShown then it = items[i + 1] end
-		row.item, row.stepIndex = nil, nil
-		if it and i <= 8 then
-			row.item = it
-			row:SetText(("%s %s%s"):format(KIND_LABEL[it.kind] or "", it.title, it.dist and ("  |cff666666" .. math.floor(it.dist) .. " yd|r") or ""))
+	local n = 0
+	for _, it in ipairs(items) do
+		if it ~= lead then
+			n = n + 1
+			if n > 8 then break end
+			local row = upcomingLines[n]
+			row.item, row.stepIndex = it, nil
+			row:SetText(("%s %s%s"):format(KIND_LABEL[it.kind] or "", it.title,
+				it.dist and ("  |cff666666" .. math.floor(it.dist) .. " yd|r") or (it.noPosition and "  |cff666666?|r" or "")))
 			row:Show()
 			shown = shown + 1
-		else
-			row:SetText("")
-			row:Hide()
 		end
+	end
+	for i = shown + 1, 8 do
+		local row = upcomingLines[i]
+		row.item, row.stepIndex = nil, nil
+		row:SetText("")
+		row:Hide()
 	end
 	local height = 32 + frame.step:GetStringHeight() + 4 + 14 + 10 + shown * 16 + 10
 	frame:SetHeight(math.max(70, height))
@@ -191,9 +203,10 @@ function Guide:RefreshStepFrame()
 		refreshSmart()
 		return
 	end
-	frame.title:SetText(("%s  |cffaaaaaa%d/%d|r"):format(guide.name, step.index, #guide.steps))
+	frame.title:SetText(("%s  |cffaaaaaa%d/%d%s|r"):format(guide.name, step.index, #guide.steps, self.finished and " · done" or ""))
 	frame.step:SetText(self:StepText(step))
 	local meta = {}
+	if self.finished then tinsert(meta, "|cff7fff7fGuide finished|r — > for smart mode, right-click for other guides") end
 	if step.go then tinsert(meta, ("%s %.1f, %.1f"):format(self:MapName(step.go.map), step.go.x, step.go.y)) end
 	local dist = self:GetArrowDistance()
 	local target = self:GetArrowTarget()
@@ -241,19 +254,29 @@ function Guide:ShowGuideMenu()
 	MenuUtil.CreateContextMenu(UIParent, function(_, root)
 		root:CreateTitle("Lodestar Guide")
 		local applicable = self:ApplicableGuides(true)
+		local level = UnitLevel("player")
 		if #applicable == 0 then
 			root:CreateButton("|cff888888No guides for this character|r", function() end)
 		end
 		for _, g in ipairs(applicable) do
-			root:CreateRadio(g.name .. (g.minLevel and (" (" .. g.minLevel .. "-" .. g.maxLevel .. ")") or ""),
+			local outleveled = g.maxLevel and level > g.maxLevel
+			local label = g.name .. (g.minLevel and (" (" .. g.minLevel .. "-" .. g.maxLevel .. ")") or "")
+			if outleveled then label = "|cff888888" .. label .. " · outleveled|r" end
+			root:CreateRadio(label,
 				function() return self.current and self.current.name == g.name end,
 				function() self:LoadGuide(g.name) end)
 		end
-		root:CreateRadio("Smart mode (no guide)", function() return self.current == nil end, function() self:UnloadGuide() end)
+		root:CreateRadio("Smart mode (no guide) — nearest turn-ins, objectives and pick-ups", function() return self.current == nil end, function() self:UnloadGuide() end)
 		root:CreateDivider()
-		root:CreateButton("Next step", function() self:NextStep() end)
-		root:CreateButton("Previous step", function() self:PrevStep() end)
-		root:CreateButton("Restart this guide", function() if self.current then self:LoadGuide(self.current.name, 1) end end)
+		if self.current then
+			root:CreateButton("Next step", function() self:NextStep() end)
+			root:CreateButton("Previous step", function() self:PrevStep() end)
+			root:CreateButton("Restart this guide", function() self:LoadGuide(self.current.name, 1) end)
+		else
+			root:CreateButton("Point at the next thing in the list", function() self:NextStep() end)
+			root:CreateButton("Point at the previous thing", function() self:PrevStep() end)
+			root:CreateButton("Print the list to chat", function() self:PrintNextUp() end)
+		end
 		root:CreateDivider()
 		root:CreateCheckbox("Locked", function() return self.db.profile.steps.locked end,
 			function() self.db.profile.steps.locked = not self.db.profile.steps.locked self:UpdateStepFrame() end)

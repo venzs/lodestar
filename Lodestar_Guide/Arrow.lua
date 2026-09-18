@@ -68,25 +68,43 @@ function Guide:VectorTo(mapID, x, y)
 	return vectorToWorld(tc, twx, twy)
 end
 
---- Resolve a map given as a uiMapID or a zone name. Names are looked up once from the map tree.
+--- Distance in yards from the player to a world point (nil on another continent).
+function Guide:DistanceToWorld(continent, wx, wy)
+	return (vectorToWorld(continent, wx, wy))
+end
+
+--- Resolve a map given as a uiMapID or a zone name. Names are looked up once from the whole map
+--- tree (both continents); zone maps win over dungeons/micro maps that share a name.
 local mapByName
+local ZONE_TYPE = (Enum and Enum.UIMapType and Enum.UIMapType.Zone) or 3
 function Guide:ResolveMap(map)
 	if type(map) == "number" then return map end
 	if type(map) ~= "string" then return nil end
 	if not mapByName then
-		mapByName = {}
 		local root = C_Map.GetBestMapForUnit("player")
-		local info = root and C_Map.GetMapInfo(root)
+		if not root then return nil end -- not in the world yet; try again next call
+		mapByName = {}
+		local kinds = {}
+		local info = C_Map.GetMapInfo(root)
 		while info and info.parentMapID and info.parentMapID > 0 do
 			root = info.parentMapID
 			info = C_Map.GetMapInfo(root)
 		end
 		if root and C_Map.GetMapChildrenInfo then
 			for _, child in ipairs(C_Map.GetMapChildrenInfo(root, nil, true) or {}) do
-				if child.name and not mapByName[child.name:lower()] then mapByName[child.name:lower()] = child.mapID end
+				if child.name then
+					local key = child.name:lower()
+					if not mapByName[key] or (kinds[key] ~= ZONE_TYPE and child.mapType == ZONE_TYPE) then
+						mapByName[key] = child.mapID
+						kinds[key] = child.mapType
+					end
+				end
 			end
 		end
-		if info and info.name then mapByName[info.name:lower()] = root end
+		if info and info.name and not mapByName[info.name:lower()] then mapByName[info.name:lower()] = root end
+		-- Common aliases between the 1.12 area names and the modern map names.
+		local alias = { ["stormwind"] = "stormwind city", ["undercity"] = "undercity", ["the undercity"] = "undercity" }
+		for from, to in pairs(alias) do if not mapByName[from] and mapByName[to] then mapByName[from] = mapByName[to] end end
 	end
 	return mapByName[map:lower()]
 end

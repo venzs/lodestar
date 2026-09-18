@@ -82,6 +82,14 @@ Tag `vX.Y.Z` and push the tag. `.github/workflows/release.yml` runs the BigWigs 
 `@project-version@` in the TOCs, zips the five folders and publishes to GitHub Releases (and CurseForge /
 Wago / WoWInterface once the API-key secrets are set).
 
+## Data sources
+
+`Lodestar_Guide/Data/Vanilla.lua` is generated from the Vanilla database of
+[pfQuest](https://github.com/shagu/pfQuest) by Shagu (MIT, Copyright (c) 2017-2021 Eric Mauser; the notice is in
+`Lodestar_Guide/Data/LICENSE-pfQuest.txt`), itself built from [VMaNGOS](https://github.com/vmangos). It gives the
+arrow and the router quest givers, turn-in NPCs, objective mobs/objects, quest-item drop sources and their positions
+for every Vanilla quest ID. Regenerate with `tools/pfquest/fetch.sh && python3 tools/pfquest/import.py`.
+
 ## License
 
 MIT for Lodestar. Bundled libraries keep their own licenses (see `LICENSE`).

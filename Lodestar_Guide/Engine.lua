@@ -111,6 +111,7 @@ function Guide:LoadGuide(name, stepIndex)
 	end
 	self.current = guide
 	self.stepFlags = {}
+	self.finished = nil
 	self.db.char.currentGuide = guide.name
 	local saved = self.db.char.progress[guide.name]
 	if not stepIndex and not saved then
@@ -136,6 +137,7 @@ function Guide:UnloadGuide()
 	self.current = nil
 	self.stepIndex = nil
 	self.stepFlags = {}
+	self.finished = nil
 	self.db.char.currentGuide = nil
 	self:RefreshStepFrame()
 	self:ArrowOnEvent("LODESTAR_STEP_CHANGED")
@@ -151,6 +153,7 @@ function Guide:SetStep(index, silent)
 	index = math.max(1, math.min(#self.current.steps, index))
 	if index == self.stepIndex then return end
 	self.stepIndex = index
+	self.finished = nil
 	self.db.char.progress[self.current.name] = index
 	if not silent and self.db.profile.steps.announce then
 		Lodestar:Msg("Step %d: %s", index, self:StepText(self.current.steps[index]))
@@ -159,10 +162,27 @@ function Guide:SetStep(index, silent)
 	self:ArrowOnEvent("LODESTAR_STEP_CHANGED")
 end
 
+--- In smart mode, next/prev move the arrow through the list instead of through steps.
+local function cycleSmart(delta)
+	local items = Guide:CollectSmartItems(true)
+	if #items == 0 then return end
+	local pinnedItem = Guide:GetPinnedSmartItem() or Guide:SmartTarget()
+	local at = 1
+	for i, it in ipairs(items) do
+		if pinnedItem and it.kind == pinnedItem.kind and it.questID == pinnedItem.questID and it.x == pinnedItem.x then at = i break end
+	end
+	local n = #items
+	for _ = 1, n do
+		at = ((at - 1 + delta) % n) + 1
+		if items[at].mapID then break end
+	end
+	Guide:PinSmartItem(items[at])
+end
+
 function Guide:NextStep()
-	if not self.current then return end
+	if not self.current then cycleSmart(1) return end
 	if self.stepIndex >= #self.current.steps then
-		self:FinishGuide()
+		self:FinishGuide(true)
 	else
 		self.stepFlags[self.stepIndex] = { manual = true }
 		self:SetStep(self.stepIndex + 1)
@@ -171,22 +191,32 @@ function Guide:NextStep()
 end
 
 function Guide:PrevStep()
-	if not self.current then return end
+	if not self.current then cycleSmart(-1) return end
 	self.stepFlags[self.stepIndex - 1] = nil
 	self:SetStep(self.stepIndex - 1)
 end
 
-function Guide:FinishGuide()
+--- The last step is done. Chain to the next guide when installed; otherwise stay on the last step
+--- (marked finished) unless the player asked to move on, so choosing an old guide from the menu
+--- doesn't silently bounce back to smart mode.
+function Guide:FinishGuide(manual)
 	local guide = self.current
 	if not guide then return end
 	self.db.char.progress[guide.name] = #guide.steps
 	if guide.next and self.guideByName[guide.next] then
 		Lodestar:Msg("Finished %s — loading %s.", guide.name, guide.next)
 		self:LoadGuide(guide.next, 1)
-	else
+	elseif manual then
 		Lodestar:Msg("Finished %s. %s Switching to smart mode: the window now lists your nearest turn-ins, objectives and quest givers.",
 			guide.name, guide.next and ("Next guide '" .. guide.next .. "' is not installed.") or "")
 		self:UnloadGuide()
+	else
+		if not self.finished then
+			Lodestar:Msg("%s is finished for this character.%s Click > for smart mode, or pick another guide from the right-click menu.",
+				guide.name, guide.next and (" The next guide, '" .. guide.next .. "', is not installed.") or "")
+		end
+		self.finished = true
+		self:RefreshStepFrame()
 	end
 end
 
@@ -476,8 +506,10 @@ local function handleGuideSlash(rest)
 		Lodestar:Say("Smart mode: nearest turn-ins, objectives and quest givers.")
 	elseif verb == "nextup" or verb == "up" then
 		Guide:PrintNextUp()
+	elseif verb == "diag" then
+		Guide:Diagnose()
 	else
-		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | sync | auto | smart | nextup]")
+		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | sync | auto | smart | nextup | diag]")
 	end
 end
 
