@@ -13,7 +13,7 @@ if not exist "%ADDONS%" (
   pause
   exit /b 1
 )
-for %%M in (Lodestar Lodestar_Leveling Lodestar_Economy Lodestar_UI Lodestar_Guild Lodestar_Guide Lodestar_Guides_Horde Lodestar_Character) do (
+for %%M in (Lodestar Lodestar_Leveling Lodestar_Economy Lodestar_UI Lodestar_Guild Lodestar_Guide Lodestar_Guides_Horde Lodestar_Guides_Alliance Lodestar_Character) do (
   if exist "%ADDONS%\%%M" (
     fsutil reparsepoint query "%ADDONS%\%%M" >nul 2>&1 && (
       echo already linked: %%M

@@ -10,7 +10,8 @@ A suite of addons for **World of Warcraft: Forever**. One core, four modules, in
 | **Lodestar_UI** | Item/spell/NPC IDs and target-of-target in tooltips, map + minimap coordinates, clickable chat links, timestamps, copy-chat, fast loot |
 | **Lodestar_Guild** | Live guild board: who is online, where, what level, who wants a group (`/lode guild`, `/lode lfg`). On realms that restrict addon messages (the Forever beta) it shows the guild roster and `/lode lfg` drafts a guild chat line for you to send |
 | **Lodestar_Guide** | Navigation arrow (points at the guide step, your `/way` pin, or the nearest quest objective/turn-in), step-by-step guide window, and a route recorder that turns your playthrough into a guide (`/lode record`) |
-| **Lodestar_Guides_Horde** | Guide data pack (routes in the text format below). Alliance pack to follow. |
+| **Lodestar_Guides_Horde** | Guide data pack: Horde routes in the text format below (Deathknell/Tirisfal, Durotar, Mulgore, Silverpine, the Barrens). |
+| **Lodestar_Guides_Alliance** | Guide data pack: Alliance routes (Elwynn, Dun Morogh, Teldrassil, Westfall, Loch Modan, Darkshore) — drafts from the Vanilla database and the route optimizer, to be verified in play. |
 | **Lodestar_Character** | The character-sheet stats Blizzard hides, rendered inside the standard stats pane: melee/ranged/spell hit with miss tables vs +0..+3, crit and haste split, spell power per school, MP5/HP5, attack speed and DPS, weapon skills, enemy miss/crit/crush, block value, armor reduction, item level, durability, XP/rested, talent and Legacy points, PvP rank |
 
 `/lode` opens settings. `/lode help` lists every command.

@@ -42,7 +42,7 @@ local function loadToc(addon)
 	stub.fire("ADDON_LOADED", addon)
 end
 
-local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild", "Lodestar_Guide", "Lodestar_Guides_Horde", "Lodestar_Character" }
+local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild", "Lodestar_Guide", "Lodestar_Guides_Horde", "Lodestar_Guides_Alliance", "Lodestar_Character" }
 for _, a in ipairs(addons) do loadToc(a) end
 -- Data/Trainers.lua belongs in the Guide TOC after Data/Vanilla.lua; load it here while that line is pending.
 if not _G.Lodestar:GetModule("Guide").TrainerData then loadLua("Lodestar_Guide/Data/Trainers.lua") end
