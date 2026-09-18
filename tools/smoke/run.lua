@@ -3221,6 +3221,54 @@ end)
 -- Deliberately near the end: this toggles every module off and on and runs every command, so it
 -- leaves windows open, guides loaded and panels rebuilt. Anything that asserts on that state has to
 -- have run already.
+-- Every settings entry in every module, read and written back.
+-- A broken option is user-visible and silent: the settings page renders, the row is there, and
+-- clicking it throws into Blizzard's error frame instead of doing anything. There are well over a
+-- hundred of them across the suite and they were covered for exactly one module. Values are
+-- round-tripped -- read, then written back unchanged -- so this exercises every get and set without
+-- actually changing what the player has configured.
+try("every settings option", function()
+	local opts = Lodestar:BuildOptions()
+	local seen, failures = 0, {}
+
+	local function exercise(where, key, opt)
+		if type(opt) ~= "table" then return end
+		if opt.type == "group" and type(opt.args) == "table" then
+			for k, child in pairs(opt.args) do exercise(where .. "/" .. tostring(key), k, child) end
+			return
+		end
+		local name = where .. "/" .. tostring(key)
+		-- Anything that asks for confirmation is destructive by design (wiping a harvest, resetting
+		-- guide progress); running those here would be testing that we can throw work away.
+		if opt.confirm then return end
+		seen = seen + 1
+		local ok, err = pcall(function()
+			if opt.type == "execute" and opt.func then
+				opt.func({})
+			elseif opt.get then
+				local v = opt.get({})
+				if opt.set then opt.set({}, v) end
+			end
+			-- A select's values table has to exist and be indexable, or the dropdown is empty.
+			if opt.type == "select" then
+				local values = type(opt.values) == "function" and opt.values({}) or opt.values
+				if type(values) ~= "table" then error("select has no values table", 0) end
+			end
+			-- A range with no bounds renders as a slider that cannot be moved.
+			if opt.type == "range" and not (opt.min and opt.max) then error("range has no min/max", 0) end
+		end)
+		if not ok then failures[#failures + 1] = name .. ": " .. tostring(err) end
+	end
+
+	for key, group in pairs(opts.args) do
+		-- AceDBOptions' own profile tab is Ace's, not ours, and its handlers expect a live dialog.
+		if key ~= "profiles" then exercise("", key, group) end
+	end
+
+	check(seen > 100, "the whole settings tree was walked: " .. seen .. " entries")
+	check(#failures == 0, ("%d of %d settings entries failed: %s"):format(#failures, seen, table.concat(failures, " | ")))
+end)
+
 -- Every slash verb, with every module both on and off.
 -- A command whose module has been turned off is a standing trap: the handler is still registered
 -- (they are registered once, at first enable, and never unregistered) but the state it reads is
