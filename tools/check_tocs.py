@@ -52,8 +52,10 @@ for toc in sorted(glob.glob(os.path.join(ROOT, "*", "*.toc"))):
                         problems.append("%s: %r is not a valid global name" % (rel, name))
                     if name.endswith("DB") and name not in ADOPTED:
                         problems.append(
-                            "%s: %r ends in 'DB' -- Forever's beta client writes those at logout and "
-                            "hands back nil at login, silently. See Lodestar/Core/Saved.lua." % (rel, name))
+                            "%s: %r ends in 'DB'. Lodestar moved off that suffix while chasing saved "
+                            "variables that never came back; whether the name was ever the cause is "
+                            "still open (see Lodestar/Core/Saved.lua), but the suite uses one "
+                            "convention and this is it." % (rel, name))
         if line.startswith("## Version:") and "@" in line:
             problems.append("%s: unreplaced packager token in %r" % (rel, line.strip()))
         if line.startswith("## Interface:") and not re.search(r"\d", line):

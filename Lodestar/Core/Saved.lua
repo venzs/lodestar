@@ -1,27 +1,25 @@
 -- Lodestar core: which global a saved variable actually lives in.
 --
--- Forever's beta client does not hand back every saved variable it writes. Four probe addons,
--- installed side by side in one account and read across several sessions, split cleanly:
+-- Forever's beta client does not hand back the saved variables it writes. Every session Lodestar's
+-- four -- and four standalone probe addons installed alongside them -- were serialised faithfully at
+-- logout and came back nil at login, at file scope and at ADDON_LOADED alike. That is what lost the
+-- harvest, reset every frame to its default position and restarted guide progress on each relog.
 --
---   declared            written at logout   handed back at login
---   ZZTwoA, ZZTwoB      yes                 yes
---   ZZNSA, ZZNSB        yes                 yes
---   ZZMinDB             yes                 NEVER
---   ZZLodeDB            yes                 NEVER
+-- The first reading of the evidence was that the NAME was the problem: everything that came back
+-- had a short name, everything that did not ended in "DB", six addons for six. The next session
+-- broke it. ZZTwoA and ZZTwoB, which had been surviving reliably, came back nil as well -- and the
+-- sessions where anything had survived turned out to be the ones that began a second or two after
+-- the previous one ended. Those are /reloads, where the client can keep the table in memory without
+-- reading anything. The sessions that began minutes later, after the game was actually closed, got
+-- nothing back whatever the name. So the likeliest explanation now is that this build is not
+-- reading addon saved variables from disk at all, and the name was a coincidence of which addons
+-- happened to be installed mid-session. ZZNames and ZZOne are deployed to settle it.
 --
--- Lodestar's own four -- LodestarDB, LodestarProbeDB, LodestarScanDB, LodestarShareDB -- behaved
--- like the second group: the client serialised them faithfully on every logout and handed back nil
--- at every login, at file scope and at ADDON_LOADED alike. That is what lost the harvest and reset
--- every frame to its default position on every relog. The variable that separates the two groups is
--- the name: the ones that end in "DB" are the ones that never come back. Length is not it --
--- Blizzard's own DamageMeterPerCharacterSettings is thirty-one characters and persists fine -- and
--- neither is the count, the comma spacing, nor the line endings, all of which were tested and ruled
--- out one at a time.
---
--- Why the client behaves that way is not something an addon can see from the inside, and it may
--- well change before launch. So this does not try to explain it: it keeps the names off the shape
--- that is known to fail, and adopts whatever the old name still holds on the way past, so a player
--- who did get data back loses nothing in the move.
+-- The rename stays either way, and it is cheap: the names it moves away from are the ones that
+-- never came back under either theory, nothing depends on the old spellings, and whatever the
+-- client turns out to be doing, a saved variable is not more likely to load because it is called
+-- LodestarShareDB. What matters more is the adoption below -- on a client that does load from disk,
+-- a player upgrading must not have their data quietly replaced by an empty table.
 local Lodestar = _G.Lodestar
 
 --- The table for a saved-variable slot, adopting a legacy global if the new one came back empty.

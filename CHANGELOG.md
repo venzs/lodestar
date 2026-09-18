@@ -2,13 +2,20 @@
 
 ## Unreleased
 
-- **Saved variables renamed.** Forever's beta client writes a saved variable whose name ends in `DB`
-  at logout and hands back `nil` at login, every session — which threw away the harvest, reset every
-  frame to its default position and restarted guide progress on each relog. `LodestarDB`,
-  `LodestarProbeDB`, `LodestarScanDB` and `LodestarShareDB` are now `LodestarCore`, `LodestarProbes`,
-  `LodestarScans` and `LodestarHarvest`; the old names stay declared for one release and are adopted
-  on first login. `tools/smoke/persist.lua` runs two real sessions in two Lua states and checks what
-  survives the file; `tools/check_tocs.py` rejects a `DB` suffix.
+- **Saved variables are not coming back on the beta client.** Lodestar's four, and four standalone
+  probe addons alongside them, are written faithfully at logout and handed back `nil` at login —
+  which threw away the harvest, reset every frame to its default position and restarted guide
+  progress on each relog. The sessions where anything did survive were `/reload`s, where the client
+  can keep the table in memory; every session that began after the game was actually closed got
+  nothing back. Two probes are deployed to confirm that this build simply does not read addon saved
+  variables from disk. Meanwhile `LodestarDB`, `LodestarProbeDB`, `LodestarScanDB` and
+  `LodestarShareDB` are renamed to `LodestarCore`, `LodestarProbes`, `LodestarScans` and
+  `LodestarHarvest` (the old names stay declared for one release and are adopted on first login),
+  and Lodestar says so loudly, once, when a harvest comes back empty.
+- `tools/smoke/persist.lua` runs two real sessions in two Lua states, serialising the saved
+  variables to disk in the client's format and reloading them in the client's window — after the
+  addon's files, before its `ADDON_LOADED`. It covers frame positions, settings, the harvest and the
+  upgrade path, and is the test that would have caught the frame-position bug.
 - Economy: **bags and repairs** — `/lode bags` and a minimap tooltip line give free slots, what a
   vendor would pay for what you are carrying, and what a full repair would cost. The repair figure
   calibrates itself: the client only quotes a cost while a repair vendor is open, so the
