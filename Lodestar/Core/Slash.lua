@@ -48,9 +48,9 @@ function Lodestar:SetupSlash()
 	end, "show version")
 	self:RegisterSlashVerb("errors", function(rest)
 		if rest == "clear" then
-			local db = _G.LodestarProbeDB
-			if type(db) == "table" then db.blocked = nil db.errors = nil end
-			self:Say("Recorded errors cleared.")
+			local hidden = #self:GetRecordedErrors()
+			self:ClearRecordedErrors()
+			self:Say("Cleared: %d recorded Lodestar error(s) hidden. Blizzard's own list still holds them until /reload.", hidden)
 			return
 		end
 		self:PrintErrors()

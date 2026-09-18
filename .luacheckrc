@@ -10,6 +10,7 @@ exclude_files = {
 	"Lodestar/Libs/**",
 	"tools/**",
 	".release/**",
+	"data/**",   -- captured SavedVariables and scan exports, not source
 }
 
 ignore = {

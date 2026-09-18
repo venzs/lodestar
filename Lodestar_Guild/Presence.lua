@@ -120,7 +120,10 @@ end
 function Guild:DraftChat(text)
 	local open = (ChatFrameUtil and ChatFrameUtil.OpenChat) or _G.ChatFrame_OpenChat
 	if not open then return false end
-	open(text, DEFAULT_CHAT_FRAME)
+	-- A slash handler runs inside the edit box's ParseText, which clears the box (SetText("") + Hide())
+	-- on the very next statement; OpenChat only queues the text for the box's OnUpdate, which does not
+	-- run while the box is hidden. Open it next frame so the draft survives.
+	C_Timer.After(0, function() open(text, DEFAULT_CHAT_FRAME) end)
 	return true
 end
 

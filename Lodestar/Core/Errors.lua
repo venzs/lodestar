@@ -29,9 +29,11 @@ local function isOurs(text)
 end
 
 --- Lodestar-related entries from Blizzard's error store: { message, stack, count, time }.
+--- Entries at or below the count recorded by ClearRecordedErrors are skipped.
 function Lodestar:GetRecordedErrors()
 	local list = {}
 	local frame = _G.ScriptErrorsFrame
+	local baseline = self.errorBaseline
 	if frame and frame.GetCount and frame.GetErrorData then
 		local ok, count = pcall(frame.GetCount, frame)
 		if ok and type(count) == "number" then
@@ -39,12 +41,42 @@ function Lodestar:GetRecordedErrors()
 				local ok2, data = pcall(frame.GetErrorData, frame, i)
 				if ok2 and type(data) == "table" and accessible(data.message) and accessible(data.stack)
 					and (isOurs(data.message) or isOurs(data.stack)) then
-					tinsert(list, { message = data.message, stack = data.stack, count = data.count, time = data.time })
+					local seen = (accessible(data.count) and tonumber(data.count)) or 1
+					local n = seen - (baseline and baseline[i] or 0)
+					if n > 0 then
+						tinsert(list, { message = data.message, stack = data.stack, count = n, time = data.time })
+					end
 				end
 			end
 		end
 	end
 	return list
+end
+
+--- ScriptErrorsFrame's list is append-only for the session (created in OnLoad, only ever inserted
+--- into, no Clear method) and insecure code must not touch it, so "clear" remembers each entry's
+--- occurrence count instead. A plain index floor would not do: Blizzard dedupes on message..stack,
+--- so a repeat of an older error bumps the count at its original index rather than appending, and
+--- would stay hidden forever.
+function Lodestar:ClearRecordedErrors()
+	local baseline = {}
+	local frame = _G.ScriptErrorsFrame
+	if frame and frame.GetCount and frame.GetErrorData then
+		local ok, count = pcall(frame.GetCount, frame)
+		if ok and type(count) == "number" then
+			for i = 1, count do
+				local ok2, data = pcall(frame.GetErrorData, frame, i)
+				if ok2 and type(data) == "table" and accessible(data.count) then
+					baseline[i] = tonumber(data.count) or 0
+				end
+			end
+		end
+	end
+	self.errorBaseline = baseline
+	local db = probeDB()
+	db.blocked = nil
+	db.errors = nil
+	db.errorsAt = nil
 end
 
 function Lodestar:SnapshotErrors()

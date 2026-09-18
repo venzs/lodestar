@@ -64,6 +64,15 @@ local SYMBOLS = {
 	},
 }
 
+-- Symbols that only exist once their load-on-demand Blizzard addon is loaded.
+-- A nil result for these means "not loaded yet", not "this client lacks it".
+local LOD_OWNER = { ["AuctionHouseFrame"] = "Blizzard_AuctionHouseUI" }
+
+local function ownerLoaded(addon)
+	if not (C_AddOns and C_AddOns.IsAddOnLoaded) then return false end
+	return C_AddOns.IsAddOnLoaded(addon) and true or false
+end
+
 local function resolve(path)
 	local node = _G
 	for part in path:gmatch("[^%.]+") do
@@ -97,6 +106,7 @@ function Lodestar:RunProbe()
 		gameRules = {},
 		checks = {},
 		missing = {},
+		notLoaded = {},
 		counts = {},
 	}
 
@@ -120,7 +130,6 @@ function Lodestar:RunProbe()
 		end
 	end
 	if C_CombatLog and C_CombatLog.IsCombatLogRestricted then probe.checks.combatLogRestricted = safe(C_CombatLog.IsCombatLogRestricted) end
-	probe.blocked = _G.LodestarProbeDB and _G.LodestarProbeDB.blocked or nil
 	probe.errors = self:GetRecordedErrors()
 
 	-- Live feature checks (things that exist but may be disabled by rules).
@@ -160,21 +169,41 @@ function Lodestar:RunProbe()
 			total = total + 1
 			local value = resolve(path)
 			local present = value ~= nil
-			probe.checks[path] = present and type(value) or false
-			if not present then
-				missing = missing + 1
-				tinsert(probe.missing, group .. ":" .. path)
+			local owner = LOD_OWNER[path]
+			if not present and owner and not ownerLoaded(owner) then
+				-- Its load-on-demand addon hasn't loaded yet; absence proves nothing.
+				probe.checks[path] = "lod:" .. owner
+				tinsert(probe.notLoaded, group .. ":" .. path)
+			else
+				-- Owner loaded (or not load-on-demand at all): a nil here is a real absence.
+				probe.checks[path] = present and type(value) or false
+				if not present then
+					missing = missing + 1
+					tinsert(probe.missing, group .. ":" .. path)
+				end
 			end
 			n = n + 1
 		end
 		probe.counts[group] = n
 	end
 	table.sort(probe.missing)
+	table.sort(probe.notLoaded)
 
+	-- Carry the keys this probe does not own: /lode guide diag writes guideDiag here and promises the
+	-- player it lands on the next /reload, and Errors.lua accumulates `blocked` into the same table.
+	-- Keys the probe does own (checks/missing/restrictions/errors/...) are intentionally replaced.
+	local existing = _G.LodestarProbeDB
+	if type(existing) == "table" then
+		probe.guideDiag = existing.guideDiag
+		probe.blocked = existing.blocked
+	end
 	_G.LodestarProbeDB = probe
 	self:Say(L["Probe written to LodestarProbeDB (%d symbols checked, %d missing). Log out or /reload to flush it to disk."], total, missing)
 	if missing > 0 then
 		self:Say("Missing: " .. table.concat(probe.missing, ", "))
+	end
+	if #probe.notLoaded > 0 then
+		self:Say("Not loaded yet (re-run with that UI open): " .. table.concat(probe.notLoaded, ", "))
 	end
 	self:Say(("Client %s (%s) toc %s · project %s · gameMode %s"):format(tostring(version), tostring(build), tostring(toc),
 		tostring(_G.WOW_PROJECT_ID), tostring(probe.gameRules.activeGameMode)))

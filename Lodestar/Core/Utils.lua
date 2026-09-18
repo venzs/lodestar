@@ -36,13 +36,18 @@ function Lodestar.FormatMoney(copper)
 	return neg and ("-" .. text) or text
 end
 
---- Compact money for tight spaces: 12g34s, 45s, 3c
+--- Compact money for tight spaces: 12g34s, 45s, 3c (negatives render as -12g34s)
 function Lodestar.FormatMoneyShort(copper)
 	copper = math.floor(tonumber(copper) or 0)
+	-- Lua 5.1's % and integer division both round toward negative infinity, so a negative copper
+	-- amount without this produced "0c" -- a silent zero wherever a cost or a loss is shown.
+	local neg = copper < 0
+	if neg then copper = -copper end
+	local sign = neg and "-" or ""
 	local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
-	if g > 0 then return ("|cffffd700%dg|r|cffc7c7cf%02ds|r"):format(g, s) end
-	if s > 0 then return ("|cffc7c7cf%ds|r|cffeda55f%02dc|r"):format(s, c) end
-	return ("|cffeda55f%dc|r"):format(c)
+	if g > 0 then return sign .. ("|cffffd700%dg|r|cffc7c7cf%02ds|r"):format(g, s) end
+	if s > 0 then return sign .. ("|cffc7c7cf%ds|r|cffeda55f%02dc|r"):format(s, c) end
+	return sign .. ("|cffeda55f%dc|r"):format(c)
 end
 
 --- 1h 12m / 12m 05s / 45s
@@ -64,7 +69,9 @@ function Lodestar.FormatNumberShort(n)
 end
 
 function Lodestar.ClassColor(classFile)
-	local c = classFile and (RAID_CLASS_COLORS[classFile] or (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[classFile]))
+	-- The CUSTOM_CLASS_COLORS convention is that the custom palette wins; checking Blizzard's table
+	-- first meant colourblind users' class colours never took effect anywhere in the suite.
+	local c = classFile and ((CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[classFile]) or RAID_CLASS_COLORS[classFile])
 	if c then return c end
 	return NORMAL_FONT_COLOR
 end
@@ -72,7 +79,10 @@ end
 function Lodestar.ClassColorText(text, classFile)
 	local c = Lodestar.ClassColor(classFile)
 	if c.WrapTextInColorCode then return c:WrapTextInColorCode(text) end
-	return ("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, text)
+	if c.colorStr then return ("|c%s%s|r"):format(c.colorStr, text) end
+	-- %02x truncates a float in Lua 5.1 (0.78 * 255 = 198.9 -> "c6"), so round first.
+	return ("|cff%02x%02x%02x%s|r"):format(
+		math.floor(c.r * 255 + 0.5), math.floor(c.g * 255 + 0.5), math.floor(c.b * 255 + 0.5), text)
 end
 
 local function normalizeRealm(realm)

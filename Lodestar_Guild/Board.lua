@@ -8,6 +8,7 @@ local ROW_HEIGHT = 18
 local COLS = { name = 150, level = 36, zone = 170, xp = 40, note = 120 }
 local PRESENCE_TTL = 20 * 60 -- seconds before a presence entry is considered stale
 local HEADER_TOP = 72        -- title, summary and the (optional) restriction notice sit above the columns
+local FOOTER = 52            -- column header (18) + its 2px gap, then the hint line and the bottom border inset
 
 local RESTRICTED_NOTICE = "Addon messages are restricted on this realm — showing the guild roster only"
 local RESTRICTED_SHORT = "roster only (addon messages restricted)"
@@ -15,7 +16,7 @@ local RESTRICTED_SHORT = "roster only (addon messages restricted)"
 local board
 local rows = {}
 local offset = 0
-local refreshQueued = false
+local refreshTimer
 
 local function classFileFromID(classID)
 	if not classID then return nil end
@@ -132,7 +133,7 @@ end
 
 local function createBoard()
 	board = CreateFrame("Frame", "LodestarGuildBoard", UIParent, "BackdropTemplate")
-	board:SetSize(COLS.name + COLS.level + COLS.zone + COLS.xp + COLS.note + 40, ROWS * ROW_HEIGHT + HEADER_TOP + 32)
+	board:SetSize(COLS.name + COLS.level + COLS.zone + COLS.xp + COLS.note + 40, ROWS * ROW_HEIGHT + HEADER_TOP + FOOTER)
 	board:SetFrameStrata("HIGH")
 	board:SetMovable(true)
 	board:EnableMouse(true)
@@ -248,9 +249,11 @@ end
 function Guild:RefreshBoard(immediate)
 	if not board or not board:IsShown() then return end
 	if not immediate then
-		if refreshQueued then return end
-		refreshQueued = true
-		self:ScheduleTimer(function() refreshQueued = false self:RefreshBoard(true) end, 1)
+		-- Track the handle, not a bare flag: AceAddon runs OnDisable before AceTimer cancels our
+		-- timers, so a flag set by a queued refresh would never clear and every later RefreshBoard
+		-- would return early for the rest of the session.
+		if refreshTimer then return end
+		refreshTimer = self:ScheduleTimer(function() refreshTimer = nil self:RefreshBoard(true) end, 1)
 		return
 	end
 	-- Protected so one unreadable (secret) roster value cannot take the whole window down.
@@ -304,5 +307,6 @@ function Guild:DisableBoard()
 	self:UnregisterEvent("GUILD_ROSTER_UPDATE")
 	self:UnregisterEvent("CLUB_MEMBER_UPDATED")
 	self:UnregisterEvent("CLUB_MEMBER_PRESENCE_UPDATED")
+	if refreshTimer then self:CancelTimer(refreshTimer) refreshTimer = nil end
 	if board then board:Hide() end
 end

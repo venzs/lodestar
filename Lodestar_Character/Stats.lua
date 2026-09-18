@@ -19,6 +19,7 @@ local SPELL_MISS = { 4.0, 5.0, 6.0, 17.0 }
 local SPELL_MISS_FLOOR = 1.0               -- spells keep a 1% chance to miss
 local DUAL_WIELD_MISS = 19.0               -- auto-attack penalty (DUAL_WIELD_HIT_PENALTY)
 local SKILL_PER_LEVEL = 5
+local SPIRIT_STANDING_PENALTY = 0.75       -- PaperDollFrameStats applies this before display (assume standing)
 local BASE_ENEMY_MISS, BASE_ENEMY_CRIT, CRUSH_MIN_DIFF = 5.0, 5.0, 15
 local HOLY_SCHOOL, LAST_SCHOOL = 2, 7      -- GetSpellBonusDamage school indices (MAX_SPELL_SCHOOLS)
 local SCHOOL_NAMES = { [2] = "Holy", [3] = "Fire", [4] = "Nature", [5] = "Frost", [6] = "Shadow", [7] = "Arcane" }
@@ -376,7 +377,10 @@ local function hp5Row(statFrame)
 	local spirit = safe(GetHealthRegenFromSpirit)
 	local lines = ("Out of combat: %s\nIn combat: %s"):format(num(base), num(combat))
 	if spirit then
-		lines = lines .. ("\n\nFrom spirit: %s (x0.75 while standing)"):format(num(spirit * 5))
+		-- Blizzard's Spirit tooltip applies the standing penalty before display; show its number
+		-- first so this row agrees with the Spirit tooltip on the same sheet.
+		lines = lines .. ("\n\nFrom spirit: %s while standing (%s before the x%.2f standing penalty)")
+			:format(num(spirit * SPIRIT_STANDING_PENALTY * 5), num(spirit * 5), SPIRIT_STANDING_PENALTY)
 	end
 	return fill(statFrame, "Health per 5 s", num(base) .. " / " .. num(combat), base, lines)
 end
@@ -568,18 +572,21 @@ local function restedRow(statFrame)
 	return fill(statFrame, "Rested XP", text, rested, lines)
 end
 
---- Unspent talent points: the Classic API when the client has it, the trait-tree currency otherwise.
+--- Unspent talent points: the trait-tree currency Forever's own talent frame shows, with the
+--- undocumented legacy Classic global only as a fallback when the trait path yields nothing.
 function Stats.UnspentTalents()
-	local n = safe(_G.GetNumUnspentTalents)
-	if type(n) == "number" then return n end
 	local configID = safe(C_ClassTalents.GetActiveConfigID)
-	if not configID then return nil end
-	local config = safe(C_Traits.GetConfigInfo, configID)
-	local treeID = type(config) == "table" and type(config.treeIDs) == "table" and config.treeIDs[1]
-	if not treeID then return nil end
-	local currencies = safe(C_Traits.GetTreeCurrencyInfo, configID, treeID, true)
-	local first = type(currencies) == "table" and currencies[1]
-	return type(first) == "table" and first.quantity or nil
+	if configID then
+		local config = safe(C_Traits.GetConfigInfo, configID)
+		local treeID = type(config) == "table" and type(config.treeIDs) == "table" and config.treeIDs[1]
+		if treeID then
+			local currencies = safe(C_Traits.GetTreeCurrencyInfo, configID, treeID, true)
+			local first = type(currencies) == "table" and currencies[1]
+			if type(first) == "table" and type(first.quantity) == "number" then return first.quantity end
+		end
+	end
+	local n = safe(_G.GetNumUnspentTalents) -- legacy client global, only if the trait path gave nothing
+	return type(n) == "number" and n or nil
 end
 
 local function talentsRow(statFrame)

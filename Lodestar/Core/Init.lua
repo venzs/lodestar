@@ -69,9 +69,10 @@ function Lodestar:OnEnable()
 end
 
 function Lodestar:PLAYER_ENTERING_WORLD(_, isLogin, isReload)
+	-- Instance in and out flips the Chat restriction, and the realm's restriction may only be
+	-- readable once we are in the world. Either way the state is settled by the time this fires.
+	self:CheckCommAvailability()
 	if isLogin or isReload then
-		-- The realm's addon-message restriction may only be reported once we are in the world.
-		self:CheckCommAvailability()
 		self:ScheduleTimer("BroadcastVersion", 8)
 	end
 end

@@ -524,7 +524,10 @@ C_SuperTrack.SetSuperTrackedQuestID = function(id) stub.superTrackedQuest = id e
 C_CombatLog = { GetCurrentEventInfo = function() return 0, "UNIT_DIED", false, nil, nil, 0, 0, stub.diedGUID end }
 ScriptErrorsFrame = { errorData = {}, GetCount = function(self) return #self.errorData end, GetErrorData = function(self, i) return self.errorData[i] end }
 C_RestrictedActions = { IsAddOnRestrictionActive = function() return false end }
-Enum.AddOnRestrictionType = { Combat = 2, Chat = 1 }
+-- Real client values. The state enum matters: the event fires with Activating BEFORE the
+-- restriction is enforced, so every "is it active?" query still answers no during that dispatch.
+Enum.AddOnRestrictionType = { Combat = 0, Encounter = 1, ChallengeMode = 2, PvPMatch = 3, Map = 4, Chat = 5 }
+Enum.AddOnRestrictionState = { Inactive = 0, Activating = 1, Active = 2 }
 C_QuestLine = { RequestQuestLinesForMap = function() end, GetAvailableQuestLines = function() return { { questID = 999, questName = "A Fresh Start", questLineName = "Deathknell", x = 0.52, y = 0.85 } } end }
 C_AreaPoiInfo = { GetQuestHubsForMap = function() return { { areaPoiID = 1, name = "Brill", description = "Quest hub", position = { GetXY = function() return 0.6, 0.5 end } } } end }
 UnitOnTaxi = function() return false end
@@ -662,10 +665,15 @@ C_MajorFactions = {
 }
 C_Traits = {
 	GetConfigIDByTreeID = function() return 77 end,
-	GetTreeCurrencyInfo = function() return { { traitCurrencyID = 4225, quantity = 5, spent = 7 } } end,
+	GetTreeCurrencyInfo = function()
+		if stub.noTraitCurrency then return nil end
+		return { { traitCurrencyID = 4225, quantity = stub.traitCurrency or 5, spent = 7 } }
+	end,
 	GetConfigInfo = function() return { treeIDs = { 1 } } end,
 }
-C_ClassTalents = { GetActiveConfigID = function() return nil end }
+-- The trait path is what Forever's own talent frame reads, so it is the default here; set
+-- stub.noTraitConfig to fall through to the legacy Classic global instead.
+C_ClassTalents = { GetActiveConfigID = function() if stub.noTraitConfig then return nil end return 77 end }
 -- Camelot/PaperDollFrameConstants.lua + PaperDollFrame.lua, reduced to what the injection touches.
 STAT_CATEGORY_GENERAL, STAT_CATEGORY_MODIFIERS = "General", "Modifiers"
 PAPERDOLL_STATCATEGORIES = {

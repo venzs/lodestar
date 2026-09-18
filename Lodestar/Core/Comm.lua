@@ -17,7 +17,7 @@ local handlers = {}
 function Lodestar:SetupComm()
 	self:RegisterComm(self.COMM_PREFIX, "OnCommReceived")
 	self.commAvailable = self:CanSendComm()
-	self:RegisterEvent("ADDON_RESTRICTION_STATE_CHANGED", "CheckCommAvailability")
+	self:RegisterEvent("ADDON_RESTRICTION_STATE_CHANGED", "OnRestrictionStateChanged")
 end
 
 function Lodestar:RegisterCommHandler(msgType, fn)
@@ -36,14 +36,32 @@ function Lodestar:CanSendComm()
 	return true
 end
 
---- Re-read the restriction state (ADDON_RESTRICTION_STATE_CHANGED, or any time a caller suspects a
---- change) and notify modules when it differs from what they last heard. The event payload is not
---- trusted for the decision: CanSendComm() is the single source of truth.
+--- Re-read the restriction state and notify modules when it differs from what they last heard.
+--- Accurate outside ADDON_RESTRICTION_STATE_CHANGED dispatch; see OnRestrictionStateChanged.
 function Lodestar:CheckCommAvailability()
 	local available = self:CanSendComm()
 	if available == self.commAvailable then return end
 	self.commAvailable = available
 	self:OnCommAvailabilityChanged(available)
+end
+
+--- ADDON_RESTRICTION_STATE_CHANGED fires BEFORE a restriction becomes active (payload state ==
+--- Activating) and only AFTER one is lifted. For the whole of that dispatch every "is it active?"
+--- query still answers no -- Blizzard documents this for IsAddOnRestrictionActive, and
+--- C_ChatInfo.InChatMessagingLockdown() reports the same not-yet-enforced restriction. So the
+--- activating edge has to come from the payload; anything else is safe to re-read once dispatch
+--- has finished.
+function Lodestar:OnRestrictionStateChanged(_, restrictionType, state)
+	local types = Enum and Enum.AddOnRestrictionType
+	local states = Enum and Enum.AddOnRestrictionState
+	if types and states and restrictionType == types.Chat and state == states.Activating then
+		if self.commAvailable then
+			self.commAvailable = false
+			self:OnCommAvailabilityChanged(false)
+		end
+		return
+	end
+	self:ScheduleTimer("CheckCommAvailability", 0) -- next frame: the queries only tell the truth after dispatch
 end
 
 --- Fan-out for availability changes. Modules implement M:OnCommAvailabilityChanged(available) (the

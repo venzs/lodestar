@@ -18,6 +18,7 @@ move-folders:
 ignore:
   - tools
   - docs
+  - data
   - README.md
   - CHANGELOG.md
   - .luacheckrc

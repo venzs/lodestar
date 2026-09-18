@@ -91,13 +91,14 @@ end
 -- Turn-ins to ding -------------------------------------------------------------------
 
 --- Sum the reward XP of every quest in the log that is ready to turn in. GetQuestLogRewardXP is an
---- undocumented global on this client that reads the selected quest (Blizzard's QuestInfo pattern),
---- so each quest is selected in turn and the previous selection put back afterwards; the questID is
---- also passed for clients whose version takes it directly.
+--- undocumented global on this client, but camelot loads the Mainline UI and every call site outside
+--- QuestInfo passes the questID directly, including for quests that are never the quest-log
+--- selection. Only the no-argument form reads the selection, so do not touch it: Blizzard's detail
+--- pane drives Abandon and Track off it, and moving it under the player is how an addon gets someone
+--- to abandon the wrong quest.
 ---
 --- The reward XP is only re-read when the set of ready quests (or the player's level, which scales
---- quest XP in Classic rules) changes: selecting quests is not free, and if SetSelectedQuest itself
---- raised QUEST_LOG_UPDATE an unconditional rescan would feed back into itself every second.
+--- quest XP in Classic rules) changes, so a QUEST_LOG_UPDATE burst costs one string compare.
 --- Returns total, count, signature.
 local function scanTurnIns(force)
 	local ql = C_QuestLog
@@ -115,13 +116,10 @@ local function scanTurnIns(force)
 	local sig = tostring(UnitLevel("player")) .. ":" .. table.concat(ids, ",")
 	if not force and sig == turnIns.sig then return turnIns.xp, turnIns.count, sig end
 	local total = 0
-	local previous = ql.GetSelectedQuest and ql.GetSelectedQuest()
 	for _, questID in ipairs(ids) do
-		if ql.SetSelectedQuest then ql.SetSelectedQuest(questID) end
 		local xp = rewardXP(questID)
 		if type(xp) == "number" and xp > 0 then total = total + xp end
 	end
-	if #ids > 0 and ql.SetSelectedQuest and type(previous) == "number" then pcall(ql.SetSelectedQuest, previous) end
 	return total, #ids, sig
 end
 

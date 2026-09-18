@@ -487,7 +487,11 @@ try("comm fallback", function()
 	check(Lodestar:SendComm({ t = "V" }, "GUILD") == false and #stub.sent == before, "SendComm refuses without queueing")
 	Lodestar:BroadcastVersion()
 	check(#stub.sent == before, "BroadcastVersion is a silent no-op")
-	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, true)
+	-- The client fires Activating BEFORE enforcement, while the queries still answer "not restricted",
+	-- so the activating edge has to be taken from the payload, not from a live re-read.
+	stub.commRestricted = false
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, Enum.AddOnRestrictionState.Activating)
+	stub.commRestricted = true
 	check(Lodestar.commAvailable == false, "core noticed the restriction")
 	check(G.heartbeat == nil, "heartbeat stopped when comms went away")
 	stub.advance(301) -- a full heartbeat interval
@@ -499,6 +503,8 @@ try("comm fallback", function()
 	-- /lode lfg: drafted into the chat box with the /g prefix, never sent
 	stub.openChat = nil
 	stub.slash("/lode lfg Deadmines tank")
+	-- Opened next frame: a slash handler runs inside ParseText, which clears the box immediately after.
+	stub.advance(0.1)
 	check(stub.openChat == "/g LFG: Deadmines tank", "lfg drafted into the chat box: " .. tostring(stub.openChat))
 	check(#stub.sent == before, "lfg sent nothing")
 	check(G.db.char.lfgNote == "Deadmines tank", "note kept for when comms return")
@@ -524,7 +530,9 @@ try("comm fallback", function()
 	-- comms come back (a launch realm without the restriction): announce + query, heartbeat on
 	stub.commRestricted = false
 	before = #stub.sent
-	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, false)
+	-- Lifting is reported after the fact, so the re-read is authoritative -- one frame later.
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, Enum.AddOnRestrictionState.Inactive)
+	stub.advance(0.1)
 	check(Lodestar.commAvailable == true, "core noticed comms are back")
 	check(G.heartbeat ~= nil, "heartbeat restarted")
 	stub.advance(3)
@@ -537,7 +545,7 @@ try("comm fallback", function()
 	check(kinds.P and kinds.Q, "presence and query both went to the guild")
 	check(kinds.P and kinds.P:find("Deadmines", 1, true) ~= nil, "the kept note rides along in the presence") -- AceSerializer escapes the space
 	-- same event again with no change: no second announce
-	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, false)
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, Enum.AddOnRestrictionState.Inactive)
 	stub.advance(3)
 	check(#stub.sent == before + 2, "unchanged state does not re-announce")
 	-- lfg broadcasts again instead of drafting
@@ -651,8 +659,8 @@ try("status strip", function()
 end)
 
 -- Turn-ins to ding
--- Reward XP of quests ready to turn in, summed through SetSelectedQuest + GetQuestLogRewardXP,
--- with "(ding!)" once the sum covers the rest of the level.
+-- Reward XP of quests ready to turn in, read by questID (never via the quest-log selection, which
+-- Blizzard's detail pane drives Abandon and Track off), with "(ding!)" once the sum covers the level.
 try("turn-ins to ding", function()
 	local Lv = Lodestar:GetModule("Leveling")
 	local savedLog = stub.questLog
@@ -663,25 +671,25 @@ try("turn-ins to ding", function()
 		[503] = { title = "Not yet", complete = false, objectives = {}, xp = 5000 },
 	}
 	stub.selectedQuest = 503
-	local scanned = false
+	local touched = false
 	local realSet = C_QuestLog.SetSelectedQuest
-	C_QuestLog.SetSelectedQuest = function(id) scanned = true stub.selectedQuest = id end
+	C_QuestLog.SetSelectedQuest = function(id) touched = true stub.selectedQuest = id end
 	stub.fire("QUEST_LOG_UPDATE")
 	stub.fire("QUEST_LOG_UPDATE")
-	check(not scanned, "scan waits for the 1 s throttle")
+	check(select(2, Lv:GetTurnInXP()) == 0, "scan waits for the 1 s throttle")
 	stub.advance(1)
 	C_QuestLog.SetSelectedQuest = realSet
 	local xp, count = Lv:GetTurnInXP()
-	check(scanned and xp == 1240 and count == 2, "two ready quests summed: " .. tostring(xp) .. " xp / " .. tostring(count))
-	check(stub.selectedQuest == 503, "previous quest selection restored, got " .. tostring(stub.selectedQuest))
-	-- same set of ready quests: no re-selection (a SetSelectedQuest -> QUEST_LOG_UPDATE echo must not loop)
+	check(xp == 1240 and count == 2, "two ready quests summed: " .. tostring(xp) .. " xp / " .. tostring(count))
+	check(not touched and stub.selectedQuest == 503, "quest-log selection untouched, got " .. tostring(stub.selectedQuest))
+	-- same set of ready quests: served from the cache
 	local selections = 0
 	C_QuestLog.SetSelectedQuest = function(id) selections = selections + 1 stub.selectedQuest = id end
 	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
 	check(selections == 0 and select(1, Lv:GetTurnInXP()) == 1240, "unchanged ready set served from the cache")
 	stub.questLog[504] = { title = "Done C", complete = true, objectives = {}, xp = 100 }
 	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
-	check(selections == 4 and select(1, Lv:GetTurnInXP()) == 1340, "new ready quest rescans (3 selections + restore), got " .. selections .. " / " .. tostring(Lv:GetTurnInXP()))
+	check(selections == 0 and select(1, Lv:GetTurnInXP()) == 1340, "new ready quest rescans without selecting, got " .. selections .. " selections / " .. tostring(Lv:GetTurnInXP()))
 	stub.questLog[504] = nil
 	stub.fire("QUEST_LOG_UPDATE") stub.advance(1)
 	C_QuestLog.SetSelectedQuest = realSet
@@ -1205,8 +1213,8 @@ try("harvest sync", function()
 	local H = G:HarvestDB()
 	G.db.profile.harvest.share = true
 	G:StartHarvestSync()
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, Enum.AddOnRestrictionState.Activating)
 	stub.commRestricted = true
-	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, true)
 	check(not G:HarvestSyncStats().running, "the delta ticker is off while comms are restricted")
 	local before = #stub.sent
 	H.npcs[4242] = { name = "Delta Test", seen = 1, map = 18, x = 12.5, y = 34.5, exact = true }
@@ -1217,7 +1225,8 @@ try("harvest sync", function()
 	check(#stub.sent == before, "and nothing leaks out of a timer either")
 	-- comms come back: the core fans out to Guide:OnCommAvailabilityChanged, no reload needed
 	stub.commRestricted = false
-	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, false)
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, Enum.AddOnRestrictionState.Inactive)
+	stub.advance(0.1)
 	check(G:HarvestSyncStats().running, "the delta ticker started when availability flipped")
 	check(G:FlushHarvestDelta() == true, "the queued delta goes out once comms are available")
 	local msg = stub.sent[#stub.sent]
@@ -2249,7 +2258,7 @@ try("character", function()
 	check(texts.LODESTAR_DURABILITY == "62%", "durability = lowest slot: " .. tostring(texts.LODESTAR_DURABILITY))
 	check(texts.LODESTAR_SWIM_SPEED == "50%", "swim speed shown when it differs from run speed")
 	check(texts.LODESTAR_XP == "40.0%" and texts.LODESTAR_RESTED == "500 (5%)", "xp and rested: " .. tostring(texts.LODESTAR_XP) .. " " .. tostring(texts.LODESTAR_RESTED))
-	check(texts.LODESTAR_TALENTS == "3" and texts.LODESTAR_LEGACY == "12 (5 free)" and texts.LODESTAR_PVP_RANK == "PVP_RANK_7_0", "talents, legacy and pvp rank rows")
+	check(texts.LODESTAR_TALENTS == "5" and texts.LODESTAR_LEGACY == "12 (5 free)" and texts.LODESTAR_PVP_RANK == "PVP_RANK_7_0", "talents, legacy and pvp rank rows: " .. tostring(texts.LODESTAR_TALENTS))
 
 	-- The panel: created on demand, shown and hidden with the character sheet.
 	CharacterFrame:Show()
@@ -2277,6 +2286,13 @@ try("character", function()
 	check(rows["Swords:"] == "87/100 |cff20ff20+5|r" and rows["Daggers:"] ~= nil and rows["Bows:"] ~= nil, "weapon skill rows, one per equipped weapon: " .. tostring(rows["Swords:"]))
 	check(rows["Durability:"] == "62%" and rows["Item level (equipped):"] == "23", "gear rows: " .. tostring(rows["Durability:"]))
 	check(rows["Experience:"] == "40.0%" and rows["Rested XP:"] == "500 (5%)", "progress rows: " .. tostring(rows["Experience:"]))
+	-- Unspent talents come from the trait-tree currency Forever's own talent frame reads; the
+	-- undocumented Classic global is only a fallback, and it disagrees (3) with the trait path (5).
+	local Stats = Lodestar:GetModule("Character").Stats
+	check(Stats.UnspentTalents() == 5, "unspent talents read from the trait currency, got " .. tostring(Stats.UnspentTalents()))
+	stub.noTraitConfig = true
+	check(Stats.UnspentTalents() == 3, "falls back to the legacy global when there is no trait config")
+	stub.noTraitConfig = nil
 	-- tooltips come off the row itself, the same three slots Stats.lua fills
 	local meleeHit
 	for _, r in ipairs(panel.rows) do if r.shown and r.Label.text == "Melee hit:" then meleeHit = r end end

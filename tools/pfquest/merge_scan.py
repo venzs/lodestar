@@ -40,7 +40,12 @@ JUNK = re.compile(r"<nyi>|<txt>|<unused>|test quest|do not use|test copy", re.I)
 
 
 def lua_str(s):
-    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    # A raw LF or CR ends a Lua 5.1 quoted literal ("unfinished string"), which would make the whole
+    # generated Forever.lua unloadable. Quest and objective text is prose the client builds from "$B"
+    # markup, so a line break can appear in it. import.py's lua_str guards the same way.
+    s = s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    s = re.sub(r"[\x00-\x1f\x7f]", lambda m: "\\%03d" % ord(m.group(0)), s)
+    return '"' + s + '"'
 
 
 def lua_value(v):
@@ -118,7 +123,7 @@ def merge(exports):
             cur = contributors.get(k)
             if not cur or (v.get("last") or 0) >= (cur.get("last") or 0):
                 contributors[k] = v
-        for k, v in (raw.get("npcs") or {}).items():
+        for k, v in index_map(raw.get("npcs")).items():
             e = npcs.setdefault(int(k), {"name": None, "positions": [], "samples": [], "secondhand": [], "gives": set(), "ends": set(), "kind": {}, "minL": None, "maxL": None, "trains": None})
             second = v.get("via") == "comm"
             if v.get("name") and not (second and e["name"]):
@@ -136,7 +141,7 @@ def merge(exports):
             for key in ("minL", "maxL"):
                 if v.get(key) is not None:
                     e[key] = v[key] if e[key] is None else (min if key == "minL" else max)(e[key], v[key])
-        for k, v in (raw.get("objects") or {}).items():
+        for k, v in index_map(raw.get("objects")).items():
             e = objects.setdefault(int(k), {"name": None, "positions": [], "gives": set(), "ends": set()})
             if v.get("name"):
                 e["name"] = v["name"]
@@ -144,7 +149,7 @@ def merge(exports):
                 e["positions"].append((v["map"], v["x"], v["y"]))
             e["gives"].update(int(q) for q in (v.get("gives") or {}))
             e["ends"].update(int(q) for q in (v.get("ends") or {}))
-        for k, v in (raw.get("quests") or {}).items():
+        for k, v in index_map(raw.get("quests")).items():
             q = quests.setdefault(int(k), {})
             second = v.get("via") == "comm"
             for key in QUEST_KEYS:
@@ -154,7 +159,7 @@ def merge(exports):
                     q[key] = v[key]
                 elif key in RESCAN_KEYS and not second:
                     q[key] = v[key]
-        for k, v in (raw.get("taxi") or {}).items():
+        for k, v in index_map(raw.get("taxi")).items():
             # Edges accumulate across exports the same way they accumulate in the client: a flight map
             # only ever shows the destinations reachable from where you are standing.
             t = taxi.setdefault(int(k), {})
@@ -163,7 +168,7 @@ def merge(exports):
             t.update(v)
             if links:
                 t["links"] = links
-        for k, v in (raw.get("levels") or {}).items():
+        for k, v in index_map(raw.get("levels")).items():
             levels[int(k)] = v
     return npcs, objects, quests, taxi, levels, contributors
 
