@@ -35,8 +35,19 @@ end
 local function ensureWorldMap()
 	if mapText or not WorldMapFrame then return end
 	local anchor = WorldMapFrame.ScrollContainer or WorldMapFrame
-	mapText = anchor:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	mapText:SetPoint("BOTTOM", anchor, "BOTTOM", 0, 6)
+	-- The map canvas (tiles, pins) lives in ScrollContainer.Child at a higher frame level than the container,
+	-- so a region created on the container is drawn underneath the map. Blizzard parents every canvas
+	-- overlay to BorderFrame (strata HIGH); do the same, falling back to the container's parent with an
+	-- explicit strata when BorderFrame is not there.
+	local border = WorldMapFrame.BorderFrame
+	local parent = type(border) == "table" and border or anchor:GetParent() or WorldMapFrame
+	local holder = CreateFrame("Frame", nil, parent)
+	holder:SetFrameStrata("HIGH")
+	holder:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT")
+	holder:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT")
+	holder:SetHeight(16)
+	mapText = holder:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	mapText:SetPoint("BOTTOM", holder, "BOTTOM", 0, 6)
 	mapText:SetJustifyH("CENTER")
 	mapText:SetShadowOffset(1, -1)
 	WorldMapFrame:HookScript("OnUpdate", function(_, elapsed)

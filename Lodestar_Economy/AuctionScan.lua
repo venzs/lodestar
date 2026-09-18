@@ -56,7 +56,9 @@ function Economy:ITEM_SEARCH_RESULTS_UPDATED(_, itemKey)
 	if not (itemKey and C_AuctionHouse.GetNumItemSearchResults) then return end
 	local n = C_AuctionHouse.GetNumItemSearchResults(itemKey)
 	local best
-	for i = 1, math.min(n or 0, 50) do
+	-- Walk every row: the list is sorted by the user's persisted column choice, so the first rows
+	-- are not necessarily the cheapest. The results are already resident and the call is cheap.
+	for i = 1, n or 0 do
 		local info = C_AuctionHouse.GetItemSearchResultInfo(itemKey, i)
 		local buyout = info and info.buyoutAmount
 		if buyout and buyout > 0 and (not best or buyout < best) then best = buyout end

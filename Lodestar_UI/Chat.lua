@@ -41,10 +41,27 @@ function UI:ShowCopyBox(text, title)
 	Lodestar:ShowCopyBox(text, title)
 end
 
+-- The URL is everything after the first colon of the link data (it carries colons of its own).
+local function urlFromLink(link, linkData)
+	if type(linkData) == "table" and linkData.options then return linkData.options end
+	local kind, url = strsplit(":", link or "", 2)
+	if kind == LINK_TYPE then return url end
+end
+
+-- 12.x link-handler registry entry: runs instead of Blizzard's ItemRefTooltip fallthrough.
+local function onLodeUrl(link, _, linkData)
+	local url = urlFromLink(link, linkData)
+	if UI:IsEnabled() and url and url ~= "" then
+		UI:ShowCopyBox(url)
+	end
+	return LinkProcessorResponse.Handled
+end
+
+-- Fallback for clients without LinkUtil.RegisterLinkHandler: a post-hook on SetItemRef.
 local function onHyperlink(link)
 	if not UI:IsEnabled() then return end
-	local kind, url = strsplit(":", link or "", 2)
-	if kind == LINK_TYPE and url then
+	local url = urlFromLink(link)
+	if url and url ~= "" then
 		UI:ShowCopyBox(url)
 	end
 end
@@ -63,7 +80,15 @@ local function copyChat(chatFrame)
 	local n = chatFrame:GetNumMessages()
 	for i = math.max(1, n - 300), n do
 		local text = chatFrame:GetMessageInfo(i)
-		if text then tinsert(lines, stripMarkup(text)) end
+		if text then
+			-- Lines received under chat-messaging lockdown (dungeons, raids, PvP) are secret values;
+			-- string operations on them raise an error, so placeholder them instead.
+			if canaccessvalue(text) then
+				tinsert(lines, stripMarkup(text))
+			else
+				tinsert(lines, "[message hidden by chat restrictions]")
+			end
+		end
 	end
 	UI:ShowCopyBox(table.concat(lines, "\n"))
 end
@@ -108,10 +133,16 @@ end
 function UI:EnableChat()
 	if not self.chatHooked then
 		self.chatHooked = true
+		-- ChatFrame_AddMessageEventFilter only exists via the deprecation shim (loadDeprecationFallbacks CVar).
+		local addFilter = (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter) or ChatFrame_AddMessageEventFilter
 		for _, event in ipairs(URL_EVENTS) do
-			ChatFrame_AddMessageEventFilter(event, urlFilter)
+			addFilter(event, urlFilter)
 		end
-		hooksecurefunc("SetItemRef", onHyperlink)
+		if LinkUtil and LinkUtil.RegisterLinkHandler and not LinkUtil.IsLinkHandlerRegistered(LINK_TYPE) then
+			LinkUtil.RegisterLinkHandler(LINK_TYPE, onLodeUrl)
+		else
+			hooksecurefunc("SetItemRef", onHyperlink)
+		end
 	end
 	self:ApplyTimestamps()
 	self:UpdateCopyButton()

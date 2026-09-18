@@ -101,15 +101,65 @@ try("paused", function() stub.shift = true stub.accepted = 0 stub.fire("QUEST_DE
 try("escort", function() stub.fire("QUEST_ACCEPT_CONFIRM", "Bob", "Escort") check(stub.confirmed, "escort confirmed") end)
 
 -- Economy: merchant
+local function countChat(pattern)
+	local n = 0
+	for _, line in ipairs(stub.chat) do if line:find(pattern) then n = n + 1 end end
+	return n
+end
 try("merchant", function()
 	stub.slash("/lode keep 1234") -- undo the protection toggled above
-	MerchantFrame.shown = true
+	-- MerchantFrame stays hidden during MERCHANT_SHOW on this client (the interaction manager shows it later);
+	-- auto-sell must not gate on the frame.
+	check(not MerchantFrame:IsShown(), "merchant frame hidden while MERCHANT_SHOW is handled")
 	stub.fire("MERCHANT_SHOW")
 	stub.advance(2)
 	check(stub.repaired == "self", "auto-repaired")
 	check(stub.sold == 1, "sold exactly the one junk stack, got " .. tostring(stub.sold))
+	check(countChat("Sold 1 junk item for") == 1, "single-item sale announced")
 	stub.fire("MERCHANT_CLOSED")
-	MerchantFrame.shown = false
+end)
+try("merchant re-show", function()
+	-- A second MERCHANT_SHOW while the queue is draining must not leave a timer behind that spams the summary.
+	for slot = 3, 5 do
+		stub.bags[0][slot] = { hyperlink = "|Hitem:777::::::::1:::::|h[Grey Thing]|h", quality = 0, stackCount = 1, itemID = 777, hasNoValue = false, isLocked = false }
+	end
+	stub.sold = 0
+	stub.fire("MERCHANT_SHOW")
+	stub.fire("MERCHANT_SHOW")
+	stub.advance(2)
+	check(stub.sold == 3, "all three junk items sold across the re-show, got " .. tostring(stub.sold))
+	stub.fire("MERCHANT_CLOSED")
+	local before = countChat("Sold %d+ junk item")
+	stub.advance(3)
+	check(countChat("Sold %d+ junk item") == before, "no orphaned sell timer after re-show")
+end)
+try("guild repair", function()
+	local E = Lodestar:GetModule("Economy")
+	local cfg = E.db.profile.merchant
+	cfg.guildRepair = true
+	CanGuildBankRepair = function() return true end
+	-- empty guild bank: personal gold pays, no "(guild funds)" claim
+	stub.guildBankMoney = 0 stub.repaired = nil
+	E:AutoRepair()
+	check(stub.repaired == "self", "empty guild bank falls back to personal repair, got " .. tostring(stub.repaired))
+	check(countChat("guild funds") == 0, "no guild-funds announcement without guild money")
+	-- partial guild bank: split, announced as such
+	stub.guildBankMoney = 1000 stub.repaired = nil
+	E:AutoRepair()
+	check(stub.repaired == "guild" and countChat("0g 10s 0c guild funds, 0g 2s 34c personal") == 1, "partial guild bank repair announces the split")
+	-- partial guild bank but the player cannot cover the rest: no repair
+	local money = stub.money
+	stub.money = 100 stub.repaired = nil
+	E:AutoRepair()
+	check(stub.repaired == nil and countChat("not enough gold") == 1, "short on both guild and personal gold: no repair")
+	stub.money = money
+	-- guild bank covers it all
+	stub.guildBankMoney = 5000 stub.repaired = nil
+	E:AutoRepair()
+	check(stub.repaired == "guild" and countChat("%(guild funds%)") == 1, "full guild bank repair announced")
+	cfg.guildRepair = false
+	CanGuildBankRepair = function() return false end
+	stub.guildBankMoney = nil
 end)
 try("money", function() stub.money = 200000 stub.fire("PLAYER_MONEY") check(Lodestar:GetModule("Economy"):GetSessionGoldDelta() == 76544, "session gold delta") end)
 try("auction", function()
@@ -131,17 +181,72 @@ try("tooltips", function()
 		for _, fn in ipairs(list) do fn(GameTooltip, { id = 1234, guid = "Creature-0-1-2-3-6-000ABC" }) end
 	end
 end)
+try("tooltip item level", function()
+	-- equipLoc is the 4th return of GetItemInfoInstant; the tooltip must read that slot.
+	local UI = Lodestar:GetModule("UI")
+	local lines = {}
+	GameTooltip.AddDoubleLine = function(_, left, right) lines[left] = right end
+	local instant = C_Item.GetItemInfoInstant
+	C_Item.GetItemInfoInstant = function() return 1234, "Weapon", "Swords", "INVTYPE_WEAPON", 134, 2, 7 end
+	UI.db.profile.tooltip.itemLevel = true
+	for _, fn in ipairs(stub.tooltipCalls[Enum.TooltipDataType.Item]) do fn(GameTooltip, { id = 1234 }) end
+	check(lines["Item level"] == "10", "item level line added for gear, got " .. tostring(lines["Item level"]))
+	check(lines["Item ID"] == "1234", "item id line added")
+	-- unit path goes through TooltipUtil.GetDisplayedUnit
+	for _, fn in ipairs(stub.tooltipCalls[Enum.TooltipDataType.Unit]) do fn(GameTooltip, { guid = "Creature-0-1-2-3-6-000ABC" }) end
+	check(lines["Targeting"] ~= nil and lines["NPC ID"] == "6", "unit tooltip decorated via TooltipUtil.GetDisplayedUnit")
+	UI.db.profile.tooltip.itemLevel = false
+	C_Item.GetItemInfoInstant = instant
+	GameTooltip.AddDoubleLine = nil
+end)
 
 -- UI: chat filter, loot, coordinates
+local function chatFilterFor(event)
+	for _, entry in ipairs(stub.chatFilters or {}) do
+		if entry.event == event then return entry.fn end
+	end
+end
 try("url filter", function()
-	local fn = stub.filters.CHAT_MSG_SAY[1]
+	-- filters are registered through ChatFrameUtil.AddMessageEventFilter, not the deprecation shim
+	check(stub.filters.CHAT_MSG_SAY == nil, "legacy ChatFrame_AddMessageEventFilter not used")
+	local fn = chatFilterFor("CHAT_MSG_SAY")
+	check(fn ~= nil, "url filter registered via ChatFrameUtil")
 	local _, msg = fn(nil, "CHAT_MSG_SAY", "see https://example.com/x?y=1 now", "Bob")
 	check(msg and msg:find("|Hlodeurl:https://example.com/x?y=1|h", 1, true), "url linkified: " .. tostring(msg))
-	SetItemRef("lodeurl:https://example.com")
+	-- lodeurl links go through the 12.x link-handler registry, short-circuiting SetItemRef
+	check(LinkUtil.IsLinkHandlerRegistered("lodeurl"), "lodeurl link handler registered")
+	local handler = LinkUtil.handlers.lodeurl
+	local response = handler("lodeurl:https://example.com/a:b", "[https://example.com/a:b]", { type = "lodeurl", options = "https://example.com/a:b" })
+	check(response == LinkProcessorResponse.Handled, "link handler reports Handled")
 	check(LodestarCopyFrame and LodestarCopyFrame.shown, "copy box opened from link")
+	check(LodestarCopyFrame.edit.text == "https://example.com/a:b", "copy box holds the full url, got " .. tostring(LodestarCopyFrame.edit.text))
+end)
+try("copy chat secrets", function()
+	-- a secret (lockdown) chat line is placeholdered rather than passed to string functions
+	local access = canaccessvalue
+	canaccessvalue = function(v) return v ~= "SECRET LINE" end
+	tinsert(stub.chat, "|cff00ff00visible|r line")
+	tinsert(stub.chat, "SECRET LINE")
+	LodestarCopyChatButton.scripts.OnClick(LodestarCopyChatButton)
+	local text = LodestarCopyFrame.edit.text or ""
+	check(text:find("visible line", 1, true) and text:find("[message hidden by chat restrictions]", 1, true), "secret chat line placeholdered")
+	check(not text:find("SECRET LINE", 1, true), "secret chat line not copied")
+	canaccessvalue = access
 end)
 try("loot", function() stub.fire("LOOT_READY", true) check(stub.looted == 2, "fast loot took both slots") end)
-try("coords", function() WorldMapFrame.shown = true stub.advance(0.5) check(LodestarCoordsFrame ~= nil, "minimap coords frame exists") end)
+try("coords", function()
+	WorldMapFrame.shown = true stub.advance(0.5)
+	check(LodestarCoordsFrame ~= nil, "minimap coords frame exists")
+	-- the world-map readout sits on an overlay frame above the canvas, not as a region of ScrollContainer
+	local readout
+	for _, f in ipairs(stub.frames) do
+		if f.kind == "FontString" and f.text and f.text:find("Player|r 30.8, 66.2", 1, true) then readout = f end
+	end
+	check(readout ~= nil, "world-map coordinates rendered")
+	local holder = readout and readout.parent
+	check(holder and holder.kind == "Frame" and holder ~= WorldMapFrame.ScrollContainer, "readout is on its own holder frame")
+	check(holder and holder.parent == WorldMapFrame, "holder falls back to the container's parent when BorderFrame is absent")
+end)
 try("timestamps", function() check(stub.cvars.showTimestamps == "%H:%M ", "timestamp cvar applied: " .. tostring(stub.cvars.showTimestamps)) end)
 
 -- Guild: incoming presence and board
