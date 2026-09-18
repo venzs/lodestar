@@ -242,8 +242,21 @@ local function levelSuffix(level)
 	return ""
 end
 
+--- True when the data itself starts `qid` at this exact giver, i.e. DataAvailableFrom already
+--- considered it (and may have filtered it out on level, race, class or prerequisites, deliberately).
+--- Knowing the quest is not enough: the Forever overlay ships titles and levels for quests whose
+--- giver it never recorded, and those land in `d.quests` with no `start` at all.
+local function dataStartsHere(d, qid, kind, id)
+	local q = d and d.quests[qid]
+	local s = q and q.start
+	for _, sid in ipairs(s and s[kind] or {}) do
+		if sid == id then return true end
+	end
+	return false
+end
+
 --- "Starts:" lines: the Vanilla data's quest givers filtered like the pick-up list, then quests the
---- harvest saw this NPC offer that the data does not know ("(new)").
+--- harvest saw this NPC offer that the data does not start here ("(new)").
 local function startLines(lines, kind, id, harvestEntry, label)
 	local n = 0
 	for _, s in ipairs(Guide:DataAvailableFrom(kind, id)) do
@@ -257,10 +270,15 @@ local function startLines(lines, kind, id, harvestEntry, label)
 	local level = UnitLevel("player")
 	local extra = {}
 	for qid in pairs(harvestEntry.gives) do
-		if not (d and d.quests[qid]) and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) then
+		if not dataStartsHere(d, qid, kind, id) and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) then
 			local hq = H.quests[qid]
-			local trivial = hq and hq.lvl and (level - hq.lvl) >= TRIVIAL_BELOW
-			if not (hq and hq.done) and not trivial then tinsert(extra, qid) end
+			local dq = d and d.quests[qid]
+			-- `done` is account-wide and says nothing about this character; the flag check above is
+			-- what decides eligibility. The level falls back to the overlay, which is where the
+			-- levels for these quests actually live.
+			local lvl = (hq and hq.lvl) or (dq and dq.lvl)
+			local trivial = lvl and (level - lvl) >= TRIVIAL_BELOW
+			if not trivial then tinsert(extra, qid) end
 		end
 	end
 	table.sort(extra)
@@ -268,7 +286,8 @@ local function startLines(lines, kind, id, harvestEntry, label)
 		if n >= MAX_START_LINES then break end
 		n = n + 1
 		local hq = H.quests[qid]
-		line(lines, GOLD .. label .. questTitle(qid) .. levelSuffix(hq and hq.lvl) .. " (new)|r")
+		local dq = d and d.quests[qid]
+		line(lines, GOLD .. label .. questTitle(qid) .. levelSuffix((hq and hq.lvl) or (dq and dq.lvl)) .. " (new)|r")
 	end
 end
 

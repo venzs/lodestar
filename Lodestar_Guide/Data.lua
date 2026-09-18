@@ -96,7 +96,7 @@ function Guide:DataQuestPosition(questID, complete)
 			mapID, x, y, name = nearest(d.npcs, e.npcs)
 			if not mapID then mapID, x, y, name = nearest(d.objs, e.objs) end
 		end
-		if not mapID and q.turninAt and q.turninAt.m then mapID, x, y = q.turninAt.m, q.turninAt[2], q.turninAt[3] end
+		if not mapID and q.turninAt and q.turninAt.m then mapID, x, y = q.turninAt.m, q.turninAt[2] / 100, q.turninAt[3] / 100 end
 		if mapID then return mapID, x, y, name and ("Turn in to " .. name) or "Turn in" end
 		return nil
 	end
@@ -323,7 +323,10 @@ function Guide:DataLookup(arg)
 			local e = store[nid]
 			if e then
 				local c = e.c and e.c[1]
-				tinsert(parts, ("%s%s"):format(e.n or ("#" .. nid), c and (" (" .. (d.zones[c[1]] or c[1]) .. " " .. c[2] .. "," .. c[3] .. ")") or ""))
+				-- Overlay coords carry the uiMapID in `m` and 0 in [1], so the Vanilla zone table
+				-- would print a bare "0" for every Forever entry.
+				local place = c and (c.m and Guide:MapName(c.m) or d.zones[c[1]] or c[1])
+				tinsert(parts, ("%s%s"):format(e.n or ("#" .. nid), c and (" (" .. place .. " " .. c[2] .. "," .. c[3] .. ")") or ""))
 			end
 		end
 		return #parts > 0 and table.concat(parts, ", ") or nil

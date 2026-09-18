@@ -2121,6 +2121,17 @@ try("quest tips", function()
 	text = tip(UNIT, sarvis)
 	check(text:find("|cffffd700Starts: A Forever Quest (lvl 4) (new)|r", 1, true) ~= nil, "harvest-only quest offered as (new): " .. text)
 	check(select(2, text:gsub("Rattling the Rattlecages", "")) == 1, "harvested quest also in the data listed once")
+	-- An overlay quest the data knows (title and level) but attributes to no giver: DataAvailableFrom
+	-- cannot offer it, so the tooltip has to fall back to the harvest, with the level from the data.
+	H.npcs[1569].gives = { [77779] = true }
+	G.VanillaData.quests[77779] = { t = "A Second Home", lvl = 11 }
+	H.quests[77779] = { t = "A Second Home" }
+	stub.fire("QUEST_LOG_UPDATE")
+	text = tip(UNIT, sarvis)
+	check(text:find("Starts: A Second Home (lvl 11) (new)", 1, true) ~= nil, "quest the data knows but starts nowhere is still offered, level from the data: " .. text)
+	G.VanillaData.quests[77779] = nil
+	H.quests[77779] = nil
+	H.npcs[1569].gives = { [77778] = true, [3901] = true }
 	check(text:find("Vendor · Repair", 1, true) ~= nil, "role line from the harvest kinds")
 	T.showLevel = false
 	stub.fire("QUEST_LOG_UPDATE")

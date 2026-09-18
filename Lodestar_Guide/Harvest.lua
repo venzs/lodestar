@@ -842,7 +842,9 @@ function Guide:HarvestAvailableItems(items, mapID)
 						local q = db.quests[qid]
 						local lvl = q and q.lvl
 						local trivial = lvl and (level - lvl) >= 6
-						if not trivial and not (q and q.done) then
+						-- `done` means "some character on this account finished it", which says nothing
+						-- about THIS character. IsQuestFlaggedCompleted above is the eligibility test.
+						if not trivial then
 							seen[qid] = true
 							tinsert(items, { kind = "available", questID = qid, mapID = mapID, x = e.x / 100, y = e.y / 100, source = "harvest",
 								title = (q and q.t) or C_QuestLog.GetTitleForQuestID(qid) or ("Quest " .. qid),
@@ -905,10 +907,19 @@ local function scanRecord(questID)
 	return true
 end
 
+-- `missedCount` is a running mirror of `missed`, so every add and removal goes through this pair;
+-- counting them separately is how the two drifted apart and left a permanent phantom backlog.
 local function markMissed(s, questID)
 	s.missed = s.missed or {}
+	if not s.missed[questID] then s.missedCount = (s.missedCount or 0) + 1 end
 	s.missed[questID] = (s.missed[questID] or 0) + 1
-	s.missedCount = (s.missedCount or 0) + 1
+end
+
+local function clearMissed(s, questID)
+	if s.missed and s.missed[questID] then
+		s.missed[questID] = nil
+		s.missedCount = math.max(0, (s.missedCount or 1) - 1)
+	end
 end
 
 function Guide:ScanOnLoadResult(questID, success)
@@ -919,15 +930,21 @@ function Guide:ScanOnLoadResult(questID, success)
 	if success then
 		if scanRecord(questID) then
 			s.found = (s.found or 0) + 1
-			if s.missed and s.missed[questID] then s.missed[questID] = nil end
+			clearMissed(s, questID)
 		else
 			-- the client said yes but the title is not readable yet: look again shortly
 			self:ScheduleTimer(function()
-				if scanRecord(questID) then s.found = (s.found or 0) + 1 else markMissed(s, questID) end
+				if scanRecord(questID) then
+					s.found = (s.found or 0) + 1
+					clearMissed(s, questID)
+				else
+					markMissed(s, questID)
+				end
 			end, 1)
 		end
 	else
 		s.absent = (s.absent or 0) + 1
+		clearMissed(s, questID)   -- the client answered: stop retrying this id
 	end
 end
 
@@ -989,15 +1006,15 @@ function Guide:RetryScan()
 			self:CancelTimer(scanTicker) scanTicker = nil
 			local left = 0
 			for _ in pairs(s.missed or {}) do left = left + 1 end
+			s.missedCount = left   -- repair a count that drifted in an earlier session
 			Lodestar:Say("Retry finished: %d quests found in total, %d ids still unanswered.", s.found or 0, left)
 			return
 		end
 		i = i + 1
 		local id = list[i]
-		s.missedCount = math.max(0, (s.missedCount or 1) - 1)
 		if scanRecord(id) then
 			s.found = (s.found or 0) + 1
-			s.missed[id] = nil
+			clearMissed(s, id)
 		else
 			scanPending[id] = GetTime()
 			scanPendingCount = scanPendingCount + 1
@@ -1016,6 +1033,7 @@ function Guide:StartScan(from, to)
 		Lodestar:Say("Usage: /lode scan quests <from> <to>   e.g. /lode scan quests 1 10000")
 		return
 	end
+	s.paused = nil                          -- an explicit start or /lode scan resume clears the user's pause
 	s.startedAt = time()
 	scanTicker = self:ScheduleRepeatingTimer(scanTick, SCAN_TICK)
 	Lodestar:Say("Scanning quest ids %d-%d (%d per second). Keep playing; /lode scan status for progress, /lode scan stop to pause.",
@@ -1030,6 +1048,7 @@ function Guide:StopScan(finished)
 		Lodestar:Say("Quest scan finished: %d ids checked, %d quests found. They are saved account-wide; /reload or log out to write them to disk.", s.checked or 0, s.found or 0)
 		s.finishedAt = time()
 	else
+		s.paused = true                     -- a pause the user asked for sticks across /reload and logout
 		Lodestar:Say("Quest scan paused at %d (%d found). /lode scan resume to continue.", s.next or 0, s.found or 0)
 	end
 end
@@ -1039,7 +1058,8 @@ local function scanStatus()
 	local sum = Guide:HarvestSummary()
 	Lodestar:Say("Harvest: %d quests, %d NPCs, %d objects, %d flight nodes.", sum.quests, sum.npcs, sum.objects, sum.taxi)
 	if s.to then
-		Lodestar:Say("Quest scan %s: ids %d-%d, at %d, %d checked, %d found, %d absent, %d unanswered (/lode scan retry).", scanTicker and "running" or "stopped",
+		Lodestar:Say("Quest scan %s: ids %d-%d, at %d, %d checked, %d found, %d absent, %d unanswered (/lode scan retry).",
+			scanTicker and "running" or (s.paused and "paused" or "stopped"),
 			s.from or 0, s.to, s.next or 0, s.checked or 0, s.found or 0, s.absent or 0, s.missedCount or 0)
 	end
 end
@@ -1277,9 +1297,9 @@ function Guide:EnableHarvest()
 		Lodestar:RegisterSlashVerb("scan", handleScan, "quest census: /lode scan quests <from> <to>")
 		Lodestar:RegisterSlashVerb("harvest", handleHarvest, "harvested world data: status, sync, wipe, restore")
 	end
-	-- Resume an interrupted census automatically.
+	-- Resume an interrupted census automatically -- but never one the user paused on purpose.
 	local s = scanDB.scan
-	if s.next and s.to and s.next <= s.to and not s.finishedAt then
+	if s.next and s.to and s.next <= s.to and not s.finishedAt and not s.paused then
 		self:ScheduleTimer(function() if not scanTicker then self:StartScan() end end, 10)
 	end
 end
