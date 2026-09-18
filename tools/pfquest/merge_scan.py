@@ -110,7 +110,7 @@ def index_map(v):
 
 
 QUEST_KEYS = ("t", "lvl", "o", "giver", "ender", "xp", "money", "tag", "acceptAt", "turninAt", "prog", "fin",
-              "done", "auto", "freq", "rep", "src", "item", "group", "req", "races", "classes", "wp")
+              "done", "auto", "freq", "rep", "src", "item", "group", "req", "races", "classes", "wp", "turninWp")
 RESCAN_KEYS = ("o", "prog", "fin", "done")   # a later first-hand export replaces these outright
 TAXI_KEYS = ("name", "map", "x", "y", "state", "npc", "links", "zone")
 
@@ -237,6 +237,10 @@ def build(exports):
             entry["acceptAt"] = coord(q["acceptAt"])
         if forever_only and not entry.get("end") and q.get("turninAt"):
             entry["turninAt"] = coord(q["turninAt"])
+        # The client's arrow for a completed quest points at whoever takes it back. Weaker than a
+        # recorded interaction with the ender, so it only fills a turn-in position nobody has.
+        if forever_only and not entry.get("end") and not entry.get("turninAt") and q.get("turninWp"):
+            entry["turninAt"] = coord(q["turninWp"])
         if len(entry) > (0 if forever_only else 0) and (forever_only or any(k in entry for k in ("start", "end", "spots", "xp"))):
             out_quests[qid] = entry
 

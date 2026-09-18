@@ -14,7 +14,8 @@
 --       objects  [objID]  = same shape, without the creature-only fields
 --       quests   [questID]= { t, lvl, group, tag, cls, freq, rep, req, o, races, classes, giver, ender,
 --                            src, item, acceptAt, turninAt, prog = { [i] = { {map,x,y,zone,sub} … } },
---                            wp = {map,x,y} (the client's own next-objective waypoint, see sweepWaypoints),
+--                            wp / turninWp = {map,x,y} (the client's own waypoint for the next
+--                            objective and, once complete, for the turn-in; see sweepWaypoints),
 --                            fin = { [i] = {map,x,y,zone,sub} }, xp = { level, xp }, money, done, scanned, via }
 --       taxi     [nodeID] = { name, map, x, y, zone, subzone, state, npc, links = { [nodeID] = true } }
 --       levels   [level]  = UnitXPMax at that level
@@ -950,9 +951,15 @@ function sweepWaypoints()
 				and (x > 0 or y > 0) and x <= 1 and y <= 1 then
 				local q = questEntry(qi.questID, qi.title)
 				local px, py = math.floor(x * 1000 + 0.5) / 10, math.floor(y * 1000 + 0.5) / 10
-				local was = q.wp
+				-- Once a quest is complete the "next objective" IS the turn-in, so the same call
+				-- hands over the ender's position -- which is the thing route generation is actually
+				-- short of. Objective waypoints and turn-in waypoints are kept apart: they mean
+				-- different things and a turn-in written over an objective would send the arrow to
+				-- the wrong end of the zone for everyone the data is shared with.
+				local key = (C_QuestLog.IsComplete and C_QuestLog.IsComplete(qi.questID)) and "turninWp" or "wp"
+				local was = q[key]
 				if not (was and was[1] == map and math.abs(was[2] - px) < 0.1 and math.abs(was[3] - py) < 0.1) then
-					q.wp = { map, px, py }
+					q[key] = { map, px, py }
 					added = added + 1
 					if Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("quest", qi.questID, q) end
 				end
@@ -977,6 +984,10 @@ function Guide:HarvestQuestPosition(questID, complete)
 		mapID, x, y = refPosition(q.ender)
 		how = "ender"
 		if not mapID and q.turninAt then mapID, x, y, how = q.turninAt[1], q.turninAt[2], q.turninAt[3], "turnin" end
+		if not mapID and q.turninWp then
+			-- The client's own arrow for a completed quest, which points at whoever takes it back.
+			mapID, x, y, how = q.turninWp[1], q.turninWp[2], q.turninWp[3], "waypoint"
+		end
 		if not mapID then
 			-- Most Classic quests end where they began; say so in the subtitle via `how`.
 			mapID, x, y = refPosition(q.giver)

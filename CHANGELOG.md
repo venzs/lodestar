@@ -29,8 +29,9 @@
 - Guide: the harvest now records **the client's own next-objective waypoint** for every quest in the
   log (`C_QuestLog.GetNextWaypoint`). Forever exposes no quest POIs, so until now an objective only
   got a position when a player was standing on the spot as a counter moved; a quest accepted in a
-  village now knows roughly where to go the moment it is accepted. Ranked below a real sighting, and
-  carried through `merge_scan.py` so generated routes benefit too.
+  village now knows roughly where to go the moment it is accepted. Once a quest is complete the same
+  call points at the turn-in, so it also fills in ender positions — the thing route generation is
+  actually short of. Both are ranked below a real sighting and carried through `merge_scan.py`.
 - Guides: **Skyborne 1-12: Zephras Isle**, the first route generated end to end from the merged
   database rather than hand-authored — 17 quests, ordered by the prerequisite chains and by an
   estimated level so the route does not open with content a level 1 character cannot accept.

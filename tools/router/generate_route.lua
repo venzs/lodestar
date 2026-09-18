@@ -105,6 +105,13 @@ for qid in pairs(ids) do
 		if at and at.m == mapID then gx, gy = at[2], at[3] end
 	end
 	local ex, ey = npcPos(ender)
+	if not ex then
+		-- A recorded turn-in position, even when the ender NPC itself was never identified. This is
+		-- what the client's own arrow for a completed quest gives, so it exists for far more quests
+		-- than a first-hand sighting of the ender does.
+		local at = (fq and fq.turninAt) or (aq and aq.turninAt)
+		if at and at.m == mapID then ex, ey = at[2], at[3] end
+	end
 	local prev = (aq and aq.pre) or (vq and vq.pre) or nil
 	-- objectives: text and count from the harvest, positions from either side
 	local objectives = fq and fq.o or nil

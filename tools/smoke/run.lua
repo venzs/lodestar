@@ -1717,10 +1717,32 @@ try("quest waypoints", function()
 	stub.fire("QUEST_LOG_UPDATE")
 	check(H.quests[8801].wp[2] == 90, "and runs once the throttle has passed: " .. tostring(H.quests[8801].wp[2]))
 
+	-- Once a quest is complete the "next objective" IS the turn-in, so the same call hands over the
+	-- ender's position. That is the thing route generation is short of, so it is kept under its own
+	-- key: a turn-in written over an objective would point the arrow at the wrong end of the zone,
+	-- and the harvest is shared.
+	H.quests[8803] = nil
+	stub.questLog[8803] = { title = "Go Back", complete = true, objectives = {}, wp = { map = 18, x = 0.20, y = 0.30 } }
+	stub.advance(11)
+	G:HarvestWaypoints()
+	local done = H.quests[8803]
+	check(done and done.turninWp and done.turninWp[2] == 20 and done.wp == nil,
+		"a completed quest's waypoint is stored as the turn-in, not as an objective: " .. tostring(done and done.turninWp and done.turninWp[2]))
+	local map2, x2, _, how2 = G:HarvestQuestPosition(8803, true)
+	check(map2 == 18 and how2 == "waypoint" and math.abs(x2 - 0.2) < 0.001, "and it answers for the turn-in: " .. tostring(how2))
+
+	-- The two keys never overwrite each other: a quest that was incomplete and then completed keeps
+	-- both, and asking for the objective still gets the objective.
+	H.quests[8803].wp = { 18, 77, 88 }
+	local map3, x3 = G:HarvestQuestPosition(8803, false)
+	check(map3 == 18 and math.abs(x3 - 0.77) < 0.001, "the objective waypoint survives alongside the turn-in: " .. tostring(x3))
+
 	stub.questLog[8801] = nil
 	stub.questLog[8802] = nil
+	stub.questLog[8803] = nil
 	H.quests[8801] = nil
 	H.quests[8802] = nil
+	H.quests[8803] = nil
 end)
 
 -- Travel hints: hearth and flight, but only when the detour actually saves something.
