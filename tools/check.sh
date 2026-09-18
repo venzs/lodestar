@@ -26,6 +26,8 @@ echo "--- apicheck ---"
 python3 tools/apicheck.py .
 echo "--- tocs ---"
 python3 tools/check_tocs.py
+echo "--- events ---"
+python3 tools/check_events.py
 echo "--- guides ---"
 python3 tools/router/lint_guides.py
 echo "--- smoke ---"

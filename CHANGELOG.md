@@ -16,6 +16,11 @@
   variables to disk in the client's format and reloading them in the client's window — after the
   addon's files, before its `ADDON_LOADED`. It covers frame positions, settings, the harvest and the
   upgrade path, and is the test that would have caught the frame-position bug.
+- Leveling: **quest log hygiene** — a warning when the twenty-slot log is nearly full that names
+  which quests have gone grey, `/lode log` for the full picture, and `/lode log drop <name>` to
+  abandon one. Only grey quests are candidates and nothing is ever abandoned without a confirmation.
+- `tools/check_events.py`: rejects two files in one module registering the same event, which
+  AceEvent silently collapses to one handler.
 - Guide: **corpse run** — while a ghost the arrow points at your body, ahead of the guide, the quest
   log and any pin, since nothing else can be done until you get there.
 - Guide: **travel hints** on the arrow — "Hearth to Deathknell, then 240 yd" or "Fly to The

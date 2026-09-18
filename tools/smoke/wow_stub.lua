@@ -144,7 +144,8 @@ SendChatMessage = function() end
 SlashCmdList = {}
 UISpecialFrames = {}
 StaticPopupDialogs = {}
-StaticPopup_Show = function(which) stub.shownPopup = which end
+StaticPopup_Show = function(which, a) stub.shownPopup = which stub.shownPopupArg = a end
+YES, NO = "Yes", "No"
 NORMAL_FONT_COLOR = { r = 1, g = 0.82, b = 0, WrapTextInColorCode = function(_, t) return t end }
 RAID_CLASS_COLORS = { WARRIOR = { r = 0.78, g = 0.61, b = 0.43, WrapTextInColorCode = function(_, t) return "|cffc79c6e" .. t .. "|r" end } }
 WOW_PROJECT_MAINLINE, WOW_PROJECT_CLASSIC, WOW_PROJECT_ID = 1, 2, 1
@@ -568,6 +569,21 @@ C_QuestLog.IsComplete = function(id) local q = stub.questLog[id] return q and q.
 C_QuestLog.GetQuestObjectives = function(id) local q = stub.questLog[id] return q and q.objectives or {} end
 C_QuestLog.GetTitleForQuestID = function(id) local q = stub.questLog[id] return q and q.title or ({ [3901] = "Rude Awakening", [364] = "The Mindless Ones" })[id] end
 C_QuestLog.RequestLoadQuestByID = function(id) stub.requestedQuests = (stub.requestedQuests or 0) + 1 local known = ({ [3901] = true, [364] = true })[id] tinsert(stub.timers, { at = stub.now + 0.1, fn = function() stub.fire("QUEST_DATA_LOAD_RESULT", id, known == true) end }) end
+stub.maxQuests = 20
+stub.trivial = {}                    -- [questID] = true
+stub.abandoned = {}                  -- questIDs abandoned, in order
+C_QuestLog.GetMaxNumQuestsCanAccept = function() return stub.maxQuests end
+C_QuestLog.IsQuestTrivial = function(id) return stub.trivial[id] or false end
+C_QuestLog.CanAbandonQuest = function(id) return stub.questLog[id] ~= nil end
+C_QuestLog.SetAbandonQuest = function() stub.abandonStaged = stub.selectedQuest end
+C_QuestLog.AbandonQuest = function()
+	local id = stub.abandonStaged
+	if id then
+		tinsert(stub.abandoned, id)
+		stub.questLog[id] = nil
+		stub.abandonStaged = nil
+	end
+end
 C_QuestLog.GetNextWaypoint = function(id) local q = stub.questLog[id] if q and q.wp then return q.wp.map, q.wp.x, q.wp.y end end
 C_QuestLog.GetNextWaypointText = function() return "Objective" end
 C_QuestLog.GetQuestDifficultyLevel = function() return 2 end

@@ -192,6 +192,9 @@ function Leveling:PLAYER_XP_UPDATE(_, unit)
 end
 
 function Leveling:QUEST_TURNED_IN(_, _, xpReward)
+	-- QuestLog.lua wants this event too, and AceEvent keeps one handler per event per object, so it
+	-- is called from here rather than registering a second time and quietly replacing this handler.
+	if self.CheckQuestLog then self:CheckQuestLog() end
 	if not session then return end
 	session.quests = session.quests + 1
 	if type(xpReward) == "number" and xpReward > 0 then

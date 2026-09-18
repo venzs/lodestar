@@ -50,6 +50,9 @@ Leveling.defaults = {
 			foodLow = 5,         -- warn at this many food/drink items or fewer
 			showStock = true,    -- food count on the status strip
 		},
+		questLog = {
+			nagFull = true,      -- say so when the log is nearly full, and name what has gone grey
+		},
 		professions = {
 			enabled = true,
 			nagCap = true,       -- say so when a profession hits its tier cap
@@ -135,6 +138,13 @@ Leveling.options = {
 		desc = "A chat line at most once every five minutes; the strip turns orange (red at 10%).",
 		get = function() return Leveling.db.profile.xp.strip.nagDurability end,
 		set = function(_, v) Leveling.db.profile.xp.strip.nagDurability = v end,
+	},
+
+	logNagFull = {
+		type = "toggle", order = 17.8, name = "Warn when the quest log is nearly full",
+		desc = "Names the quests that have gone grey, so you know what is safe to drop. |cffffff7f/lode log|r lists them any time; nothing is ever abandoned without asking.",
+		get = function() return Leveling.db.profile.questLog.nagFull end,
+		set = function(_, v) Leveling.db.profile.questLog.nagFull = v end,
 	},
 
 	campHeader = { type = "header", order = 18, name = "Camp" },
@@ -287,6 +297,7 @@ function Leveling:OnEnable()
 	self:EnableLevelStats()
 	self:EnableProfessions()
 	self:EnableCamp()
+	self:EnableQuestLog()
 end
 
 function Leveling:PLAYER_LEVEL_UP(_, level)
@@ -303,6 +314,7 @@ function Leveling:OnDisable()
 	self:DisableLevelStats()
 	self:DisableProfessions()
 	self:DisableCamp()
+	self:DisableQuestLog()
 end
 
 function Leveling:OnProfileChanged()

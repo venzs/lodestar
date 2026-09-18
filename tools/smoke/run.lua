@@ -781,6 +781,84 @@ end)
 -- Camp: buff timers, food and drink, and the warnings that ride on them.
 -- The point of a timer warning is to arrive while there is still time to do something about it, so
 -- the thresholds are checked at the boundaries rather than somewhere comfortably inside them.
+-- Quest log hygiene: the twenty-slot cap and what has gone grey.
+-- The rule that matters is that nothing is ever abandoned without being asked, and that only grey
+-- quests are candidates -- "drop a" must never be able to throw away a chain in progress.
+try("quest log", function()
+	local Lv = Lodestar:GetModule("Leveling")
+	local savedLog = stub.questLog
+	stub.questLog = {}
+	stub.trivial = {}
+	stub.abandoned = {}
+	stub.maxQuests = 20
+	for i = 1, 18 do
+		local id = 7100 + i
+		stub.questLog[id] = { title = "Errand " .. i, complete = (i <= 2), objectives = {} }
+	end
+	stub.trivial[7101] = true
+	stub.trivial[7102] = true
+	stub.trivial[7105] = true
+
+	local st = Lv:QuestLogStatus()
+	check(st.count == 18 and st.max == 20 and st.free == 2, "log counted: " .. st.count .. "/" .. st.max)
+	check(#st.trivial == 3 and st.complete == 2, "trivial and complete counted: " .. #st.trivial .. " / " .. st.complete)
+
+	-- Nearly full: one line, naming what has gone grey.
+	local said = {}
+	local realMsg = Lodestar.Msg
+	Lodestar.Msg = function(_, fmt, ...) said[#said + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+	stub.advance(700)
+	Lv:CheckQuestLog()
+	check(#said == 1 and said[1]:find("18/20", 1, true) and said[1]:find("3 trivial", 1, true),
+		"a nearly full log names the trivial ones: " .. table.concat(said, " | "))
+	said = {}
+	Lv:CheckQuestLog()
+	check(#said == 0, "and does not repeat inside the rate limit")
+
+	-- Room again: silence, and the rate limit resets so the next squeeze is reported.
+	for i = 10, 18 do stub.questLog[7100 + i] = nil end
+	said = {}
+	Lv:CheckQuestLog()
+	check(#said == 0, "a log with room says nothing")
+
+	-- Dropping: only trivial quests match, and only with a confirmation.
+	local lines = {}
+	local realSay = Lodestar.Say
+	Lodestar.Say = function(_, fmt, ...) lines[#lines + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+	stub.shownPopup = nil
+	Lv:DropQuest("Errand 3")
+	check(#stub.abandoned == 0 and stub.shownPopup == nil, "a quest that is not grey is not a candidate")
+	check(table.concat(lines, " "):find("No trivial quest matches", 1, true) ~= nil, "and says so: " .. table.concat(lines, " "))
+
+	lines = {}
+	Lv:DropQuest("Errand")
+	check(stub.shownPopup == nil and table.concat(lines, " "):find("Be more specific", 1, true) ~= nil,
+		"an ambiguous name asks for a better one: " .. table.concat(lines, " "))
+
+	lines = {}
+	Lv:DropQuest("Errand 5")
+	check(stub.shownPopup == "LODESTAR_ABANDON_QUEST" and #stub.abandoned == 0,
+		"a single grey match asks before doing anything: " .. tostring(stub.shownPopup))
+	check(stub.shownPopupArg == "Errand 5", "the confirmation names the quest: " .. tostring(stub.shownPopupArg))
+
+	-- Saying no changes nothing.
+	StaticPopupDialogs["LODESTAR_ABANDON_QUEST"].OnCancel()
+	Lv:ConfirmDropQuest()
+	check(#stub.abandoned == 0 and stub.questLog[7105] ~= nil, "declining leaves the quest alone")
+
+	-- Saying yes abandons that one and only that one.
+	Lv:DropQuest("Errand 5")
+	StaticPopupDialogs["LODESTAR_ABANDON_QUEST"].OnAccept()
+	check(#stub.abandoned == 1 and stub.abandoned[1] == 7105, "confirming abandons the matched quest: " .. tostring(stub.abandoned[1]))
+	check(stub.questLog[7101] ~= nil and stub.questLog[7102] ~= nil, "and leaves the other grey ones alone")
+
+	Lodestar.Say = realSay
+	Lodestar.Msg = realMsg
+	stub.questLog = savedLog
+	stub.trivial = {}
+	stub.abandoned = {}
+end)
+
 try("camp", function()
 	local Lv = Lodestar:GetModule("Leveling")
 	local said = {}
