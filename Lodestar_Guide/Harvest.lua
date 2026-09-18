@@ -1,45 +1,72 @@
--- Lodestar_Guide: the harvest — everything the client tells us about the world, kept account-wide.
+-- Lodestar_Guide: the harvest — everything the client tells us about the world.
 --
--- Runs all the time (not only while recording). It is the raw material for routes on a game whose
--- quest data no addon has yet:
---   npcs     every creature you talk to, target or mouse over: id, name, level range, what it is
---            (quest giver / vendor / repair / trainer / flight master / innkeeper), where it stands and
---            which quests it offers or accepts
---   quests   every quest you see: title, level, objectives, giver, ender, XP at your level, and where
---            each objective was worked on and finished
---   taxi     flight nodes seen on the flight map, with positions and whether you had them
---   levels   XP needed per level (UnitXPMax), in case Forever's curve differs from Classic
---   scan     `/lode scan quests [from] [to]` walks quest IDs through RequestLoadQuestByID and keeps the
---            title/objectives of every ID that exists — the census of the game's quests
+-- Forever exposes no quest POIs to addons, so every position the guide can point at comes either from
+-- the imported Vanilla database or from here. The beta census found ~640 quests with no Vanilla
+-- counterpart at all; this file is the data engine that fills them in, and its output is meant to be
+-- handed to other people, so it lives in its own saved variable:
 --
--- Smart mode reads it back (Guide:HarvestQuestPosition / Guide:HarvestAvailableItems) so the arrow
--- and the "Pick up" rows work even where Blizzard's routing does not.
+--   LodestarShareDB   world knowledge worth sending to another player — and the only thing
+--                     `/lode share` talks about:
+--       npcs     [npcID]  = { name, seen, map, x, y, exact, zone, subzone, samples = { {map,x,y,zone,sub} },
+--                            minL, maxL, cls, react, ctype, kind = { quest/vendor/repair/trainer/tradeskill/taxi/inn },
+--                            gives = { [questID] = true }, ends = { … }, sells = { [itemID] = true },
+--                            trains = "<CLASS>", taxiNode, objGuess = { [questID] = ticks }, via = "comm" }
+--       objects  [objID]  = same shape, without the creature-only fields
+--       quests   [questID]= { t, lvl, group, tag, cls, freq, rep, req, o, races, classes, giver, ender,
+--                            src, item, acceptAt, turninAt, prog = { [i] = { {map,x,y,zone,sub} … } },
+--                            fin = { [i] = {map,x,y,zone,sub} }, xp = { level, xp }, money, done, scanned, via }
+--       taxi     [nodeID] = { name, map, x, y, zone, subzone, state, npc, links = { [nodeID] = true } }
+--       levels   [level]  = UnitXPMax at that level
+--       meta              = { v, build, contributors = { ["Name-Realm"] = { faction, race, class, level,
+--                                                                           first, last, sessions } } }
+--       backup            = one slot kept by `/lode harvest wipe`, restored by `/lode harvest restore`
+--
+--   LodestarScanDB    per-account bookkeeping nobody else needs:
+--       trails            learned walkable ground (Trails.lua)
+--       scan              the `/lode scan quests` census cursor
+--       migrated          when the world data was moved out of here into LodestarShareDB
 --
 -- Positions are the player's own position at the moment of the event, so an NPC you talked to is
 -- placed within interaction range (~5 yd) and a mob you targeted is placed within sight of you.
--- Stored as map id + percent coordinates (61.2, 52.3), like the guide format.
+-- Stored as map id + percent coordinates (61.2, 52.3), like the guide format; every coordinate tuple
+-- carries the zone and subzone name after the numbers so the merged data can be eyeballed.
 local Lodestar = _G.Lodestar
 local Guide = Lodestar:GetModule("Guide")
 
+local SHARE_V = 1              -- LodestarShareDB format version (meta.v)
 local MAX_SAMPLES = 6          -- approximate positions kept per creature
 local SAMPLE_MIN_APART = 3     -- percent-of-map units; closer samples are merged
+local OBJ_SAMPLES = 6          -- positions kept per quest objective
+local OBJ_MIN_APART = 2        -- percent-of-map units between two objective samples
+local MERCHANT_MAX = 200       -- merchant pages are small; cap the walk anyway
+local TARGET_LINK_SECONDS = 10 -- an objective tick this long after targeting a mob is weak evidence for a link
 local SCAN_BATCH, SCAN_TICK = 4, 0.25   -- 16 quest ids per second; the first census at 32/s answered ~1 in 4
 local SCAN_MAX_PENDING = 40              -- requests in flight before the ticker waits for answers
 local SCAN_TIMEOUT = 8                   -- seconds without an answer -> counted as missed (retried later)
 
-local db                        -- LodestarScanDB
+local WORLD_KEYS = { "npcs", "objects", "quests", "taxi", "levels" }
+
+local db                        -- LodestarShareDB (world data)
+local scanDB                    -- LodestarScanDB (this account's trails and census cursor)
 local objectiveState = {}       -- [questID] = { [i] = { finished, num } }
 local diffQueued = false
-local lastInteraction           -- { id, kind = "npc"|"object", name, t }
+local lastInteraction           -- { id, kind = "npc"|"object", name, t, live }
+local lastTarget                -- { id, t }: the creature targeted most recently
+local offer                     -- { questID, src, item, t }: what the open quest offer came from
+local shareOffer                -- GetTime() of the last QUEST_ACCEPT_CONFIRM (a party share)
 local scanTicker
 local scanPending = {}          -- [questID] = GetTime() while a load is in flight
 local scanPendingCount = 0
 
+--- Strip anything the client refuses to hand an addon (combat secrets, restricted values).
 local function plain(v)
 	if v == nil then return nil end
 	if issecretvalue and issecretvalue(v) then return nil end
+	if canaccessvalue and not canaccessvalue(v) then return nil end
 	return v
 end
+
+local function pct(v) return math.floor(v * 1000 + 0.5) / 10 end
 
 local function playerXY()
 	local mapID = C_Map.GetBestMapForUnit("player")
@@ -47,27 +74,111 @@ local function playerXY()
 	if not pos then return nil end
 	local x, y = pos:GetXY()
 	if not x or (x == 0 and y == 0) then return nil end
-	return mapID, math.floor(x * 1000 + 0.5) / 10, math.floor(y * 1000 + 0.5) / 10
+	return mapID, pct(x), pct(y)
+end
+
+--- Zone and subzone names for the spot the player is standing on ("" when the client will not say).
+local function zoneText()
+	local zone, sub = "", ""
+	if GetRealZoneText then
+		local ok, z = pcall(GetRealZoneText)
+		z = ok and plain(z) or nil
+		if type(z) == "string" then zone = z end
+	end
+	if GetSubZoneText then
+		local ok, s = pcall(GetSubZoneText)
+		s = ok and plain(s) or nil
+		if type(s) == "string" then sub = s end
+	end
+	return zone, sub
+end
+
+--- A recorded position: { mapID, x, y, zone, subzone }. Kept a pure array so the offline merge keeps
+--- reading the first three entries exactly as it always has.
+local function spot()
+	local mapID, x, y = playerXY()
+	if not mapID then return nil end
+	local zone, sub = zoneText()
+	return { mapID, x, y, zone, sub }
 end
 
 --- Map id and percent coordinates of the player, or nil.
 function Guide:PlayerMapXY() return playerXY() end
 
+-- Saved variables ------------------------------------------------------------------------------------
+
+--- One-time move of the world tables out of LodestarScanDB into LodestarShareDB. Nothing is dropped:
+--- an entry already present in the share DB wins, everything else is carried across.
+local function migrate(local_, share)
+	local moved = false
+	for _, key in ipairs(WORLD_KEYS) do
+		local old = local_[key]
+		if type(old) == "table" then
+			local into = share[key]
+			if type(into) ~= "table" then
+				share[key] = old
+			else
+				for k, v in pairs(old) do if into[k] == nil then into[k] = v end end
+			end
+			local_[key] = nil
+			moved = true
+		end
+	end
+	if moved then local_.migrated = time() end
+	return moved
+end
+
 local function ensureDB()
+	if type(_G.LodestarShareDB) ~= "table" then _G.LodestarShareDB = {} end
 	if type(_G.LodestarScanDB) ~= "table" then _G.LodestarScanDB = {} end
-	db = _G.LodestarScanDB
-	db.v = 1
-	db.build = select(2, GetBuildInfo())
-	db.npcs = db.npcs or {}
-	db.objects = db.objects or {}
-	db.quests = db.quests or {}
-	db.taxi = db.taxi or {}
-	db.levels = db.levels or {}
-	db.scan = db.scan or {}
+	db, scanDB = _G.LodestarShareDB, _G.LodestarScanDB
+	migrate(scanDB, db)
+	local build = select(2, GetBuildInfo())
+	db.v = SHARE_V
+	db.build = build
+	for _, key in ipairs(WORLD_KEYS) do
+		if type(db[key]) ~= "table" then db[key] = {} end
+	end
+	if type(db.meta) ~= "table" then db.meta = {} end
+	db.meta.v = SHARE_V
+	db.meta.build = build
+	if type(db.meta.contributors) ~= "table" then db.meta.contributors = {} end
+	scanDB.v = SHARE_V
+	scanDB.build = build
+	if type(scanDB.scan) ~= "table" then scanDB.scan = {} end
 	return db
 end
 
+--- The shareable world data (npcs / objects / quests / taxi / levels / meta).
 function Guide:HarvestDB() return db or ensureDB() end
+
+--- This account's local-only data: the census cursor and the learned trails.
+function Guide:ScanDB()
+	if not scanDB then ensureDB() end
+	return scanDB
+end
+
+--- (Re)bind both saved variables and run the migration. Called at enable; exposed for the smoke test.
+function Guide:HarvestBindDB() return ensureDB() end
+
+--- Credit the character playing right now, so the offline merge can weight and attribute a harvest.
+local function noteContributor()
+	local name = Lodestar.player and Lodestar.player.fullName
+	if type(name) ~= "string" or name == "" then return end
+	local c = db.meta.contributors[name]
+	if type(c) ~= "table" then
+		c = { first = time(), sessions = 0 }
+		db.meta.contributors[name] = c
+	end
+	c.faction = plain(UnitFactionGroup("player")) or c.faction
+	local race = plain(select(2, UnitRace("player")))
+	if type(race) == "string" then c.race = race end
+	local class = (Lodestar.player and Lodestar.player.class) or plain(select(2, UnitClass("player")))
+	if type(class) == "string" then c.class = class end
+	c.level = tonumber(plain(UnitLevel("player"))) or c.level
+	c.last = time()
+	c.sessions = (c.sessions or 0) + 1
+end
 
 -- Creatures -----------------------------------------------------------------------------------------------
 
@@ -124,29 +235,51 @@ local function noteUnit(unit, exact)
 		if type(ctype) == "string" then e.ctype = ctype end
 	end
 	if mapID then
+		-- Zone names cost two C calls; only ask when a position is actually going to be written. Every
+		-- nameplate in a pull comes through here.
 		if exact then
 			e.map, e.x, e.y, e.exact = mapID, x, y, true
+			e.via = nil                                   -- seen first-hand: no longer second-hand
+			local zone, sub = zoneText()
+			if zone ~= "" then e.zone = zone end
+			if sub ~= "" then e.subzone = sub end
+			if kind == "npc" and Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("npc", id, e) end
 		elseif not e.exact then
 			e.samples = e.samples or {}
-			if #e.samples < MAX_SAMPLES and farEnough(e, mapID, x, y) then tinsert(e.samples, { mapID, x, y }) end
+			if #e.samples < MAX_SAMPLES and farEnough(e, mapID, x, y) then
+				local zone, sub = zoneText()
+				tinsert(e.samples, { mapID, x, y, zone, sub })
+			end
 			if not e.map then e.map, e.x, e.y = mapID, x, y end
 		end
 	end
 	return e, kind, id
 end
 
---- The NPC/object we are interacting with (gossip, quest, merchant, trainer, taxi frames).
+--- The NPC/object we are interacting with (gossip, quest, merchant, trainer, taxi frames). The
+--- interaction is "live" only while that frame is open: a review found quests being credited to
+--- whatever NPC had been talked to within the last 30 s, which mis-credits every quest that starts
+--- from an item, a party share or an area trigger. Whenever a frame opens without a readable NPC the
+--- previous interaction stops being live, so nothing stale can be credited.
 local function noteInteraction(event)
 	local unit = (event == "QUEST_DETAIL" or event == "QUEST_PROGRESS" or event == "QUEST_COMPLETE" or event == "QUEST_GREETING") and "questnpc" or "npc"
 	local e, kind, id = noteUnit(unit, true)
 	if not e then e, kind, id = noteUnit(unit == "npc" and "questnpc" or "npc", true) end
-	if not e then return nil end
-	lastInteraction = { id = id, kind = kind, name = e.name, t = GetTime() }
+	if not e then
+		if lastInteraction then lastInteraction.live = false end
+		return nil
+	end
+	lastInteraction = { id = id, kind = kind, name = e.name, t = GetTime(), live = true }
 	return e, kind, id
 end
 
+local function endInteraction()
+	if lastInteraction then lastInteraction.live = false end
+end
+
+--- The npc/object reference for the frame that is open right now, or nil. Never a stale one.
 local function interactionRef()
-	if lastInteraction and GetTime() - lastInteraction.t < 30 then
+	if lastInteraction and lastInteraction.live then
 		return lastInteraction.kind == "object" and ("o" .. lastInteraction.id) or lastInteraction.id
 	end
 end
@@ -161,6 +294,21 @@ local function questEntry(questID, title)
 	end
 	if title and title ~= "" and not q.t then q.t = title end
 	return q
+end
+
+--- Which race and class have had this quest in their log. A class or race quest is only ever seen by
+--- one of them, so the offline merge can work the mask out across contributors.
+local function noteSeenBy(q)
+	local race = plain(select(2, UnitRace("player")))
+	if type(race) == "string" and race ~= "" then
+		q.races = q.races or {}
+		q.races[race] = true
+	end
+	local class = (Lodestar.player and Lodestar.player.class) or plain(select(2, UnitClass("player")))
+	if type(class) == "string" and class ~= "" then
+		q.classes = q.classes or {}
+		q.classes[class] = true
+	end
 end
 
 local function objectivesOf(questID)
@@ -185,6 +333,8 @@ local function snapshotObjectives(questID)
 	objectiveState[questID] = state
 end
 
+--- Everything the quest log will tell us about a quest. Called when a quest enters the log and again
+--- whenever one of its objectives moves, so a title/level/tag that only resolves later is picked up.
 local function noteQuestFromLog(questID)
 	local q = questEntry(questID, C_QuestLog.GetTitleForQuestID(questID))
 	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID)
@@ -192,6 +342,7 @@ local function noteQuestFromLog(questID)
 	if info then
 		if info.level and info.level > 0 then q.lvl = info.level end
 		if info.suggestedGroup and info.suggestedGroup > 0 then q.group = info.suggestedGroup end
+		if info.frequency and info.frequency ~= 0 then q.freq = info.frequency end
 	end
 	if not q.lvl and C_QuestLog.GetQuestDifficultyLevel then
 		local lvl = C_QuestLog.GetQuestDifficultyLevel(questID)
@@ -202,20 +353,47 @@ local function noteQuestFromLog(questID)
 		local ok, tag = pcall(C_QuestLog.GetQuestTagInfo, questID)
 		if ok and type(tag) == "table" and tag.tagName then q.tag = tag.tagName end
 	end
+	-- Escort/coin quests want money up front. GetQuestLogRequiredMoney does not exist on this client
+	-- (checked against tools/wow-api); C_QuestLog.GetRequiredMoney is the one that does.
+	if C_QuestLog.GetRequiredMoney then
+		local ok, money = pcall(C_QuestLog.GetRequiredMoney, questID)
+		money = ok and tonumber(plain(money)) or nil
+		if money and money > 0 then q.req = money end
+	end
+	noteSeenBy(q)
 	return q
 end
 
+--- Record the player's position against a quest. `single` keeps one spot (the finish); otherwise up to
+--- OBJ_SAMPLES well-spread ones, so the offline merge can turn them into an objective area.
 local function recordSpot(q, key, index, single)
-	local mapID, x, y = playerXY()
-	if not mapID then return end
+	local s = spot()
+	if not s then return end
 	q[key] = q[key] or {}
 	if single then
-		q[key][index] = { mapID, x, y }
-	else
-		local list = q[key][index] or {}
-		q[key][index] = list
-		if #list < 4 then tinsert(list, { mapID, x, y }) end
+		q[key][index] = s
+		return
 	end
+	local list = q[key][index]
+	if not list then
+		list = {}
+		q[key][index] = list
+	end
+	if #list >= OBJ_SAMPLES then return end
+	for _, p in ipairs(list) do
+		if p[1] == s[1] and math.abs(p[2] - s[2]) < OBJ_MIN_APART and math.abs(p[3] - s[3]) < OBJ_MIN_APART then return end
+	end
+	tinsert(list, s)
+end
+
+--- Weak evidence: an objective counter moved shortly after this creature was targeted, so the creature
+--- is probably what that objective is about. Stored as a tick count under `objGuess`, never as fact.
+local function noteObjectiveTarget(questID)
+	if not lastTarget or (GetTime() - lastTarget.t) > TARGET_LINK_SECONDS then return end
+	local e = db.npcs[lastTarget.id]
+	if not e then return end
+	e.objGuess = e.objGuess or {}
+	e.objGuess[questID] = (e.objGuess[questID] or 0) + 1
 end
 
 local function diffObjectives()
@@ -226,6 +404,7 @@ local function diffObjectives()
 			local qid = info.questID
 			local prev = objectiveState[qid]
 			local ok, objectives = pcall(C_QuestLog.GetQuestObjectives, qid)
+			local changed = prev == nil
 			if prev and ok and type(objectives) == "table" then
 				local q
 				for idx, o in ipairs(objectives) do
@@ -234,13 +413,21 @@ local function diffObjectives()
 					if before and num > (before.num or 0) then
 						q = q or questEntry(qid, info.title)
 						recordSpot(q, "prog", idx, false)
+						noteObjectiveTarget(qid)
+						changed = true
 					end
 					if o.finished and before and not before.finished then
 						q = q or questEntry(qid, info.title)
 						recordSpot(q, "fin", idx, true)
+						recordSpot(q, "prog", idx, false)   -- the finishing spot counts toward the objective area too
+						noteObjectiveTarget(qid)
+						changed = true
 					end
 				end
 			end
+			-- Nothing moved: no metadata call either. Only a quest that is new to us or that just
+			-- ticked pays for a re-read of the log.
+			if changed then noteQuestFromLog(qid) end
 			snapshotObjectives(qid)
 		end
 	end
@@ -308,39 +495,142 @@ local function noteRewardXP(q)
 	end
 end
 
+--- Where the offer that is on screen right now came from. `questStartItemID` is QUEST_DETAIL's own
+--- payload (non-zero for a quest that starts from an item in your bags); an area-trigger offer says so
+--- through QuestIsFromAreaTrigger; a party share arrives with a player, not an NPC, as the giver.
+local function noteOffer(questStartItemID)
+	local questID = GetQuestID and GetQuestID()
+	if type(questID) ~= "number" or questID <= 0 then questID = nil end
+	local item = tonumber(questStartItemID)
+	if item and item > 0 then
+		endInteraction()
+		offer = { questID = questID, src = "item", item = item, t = GetTime() }
+		return nil, questID
+	end
+	if QuestIsFromAreaTrigger then
+		local ok, fromTrigger = pcall(QuestIsFromAreaTrigger)
+		if ok and fromTrigger then
+			endInteraction()
+			offer = { questID = questID, src = "trigger", t = GetTime() }
+			return nil, questID
+		end
+	end
+	if UnitExists("questnpc") and UnitIsPlayer("questnpc") then
+		endInteraction()
+		offer = { questID = questID, src = "share", t = GetTime() }
+		return nil, questID
+	end
+	local e, kind = noteInteraction("QUEST_DETAIL")
+	offer = { questID = questID, src = e and (kind == "object" and "object" or "npc") or "unknown", t = GetTime() }
+	return e, questID
+end
+
+--- Attribute a freshly accepted quest. Only a live interaction credits an NPC; everything else records
+--- the player's own position and says where the quest came from instead.
+local function attributeAccept(q, questID)
+	local src
+	local now = GetTime()
+	if offer and offer.src and (offer.questID == nil or offer.questID == questID) and (now - offer.t) < 60 then
+		src = offer.src
+		if offer.item then q.item = offer.item end
+	elseif shareOffer and (now - shareOffer) < 30 then
+		src = "share"
+	end
+	local ref = interactionRef()
+	if ref and (not src or src == "npc" or src == "object") then
+		q.giver = ref
+		q.via = nil                 -- we watched this one happen; it is no longer second-hand
+		src = src or (type(ref) == "string" and "object" or "npc")
+	elseif not src then
+		src = "unknown"
+	end
+	q.src = q.src or src
+	local s = spot()
+	if s then q.acceptAt = s end
+	if q.giver and Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("quest", questID, q) end
+end
+
+-- Merchants ---------------------------------------------------------------------------------------------------
+
+--- What this vendor sells, so `.buy` steps can be authored from the merged data. Both APIs are
+--- undocumented C globals on this client (verified in tools/wow-api/c_globals_inferred.txt); without
+--- either of them the feature simply does not run.
+local function noteMerchant(e)
+	if not (GetMerchantNumItems and GetMerchantItemID) then return end
+	local ok, count = pcall(GetMerchantNumItems)
+	count = ok and tonumber(plain(count)) or nil
+	if not count or count <= 0 then return end
+	if count > MERCHANT_MAX then count = MERCHANT_MAX end
+	for i = 1, count do
+		local good, itemID = pcall(GetMerchantItemID, i)
+		itemID = good and tonumber(plain(itemID)) or nil
+		if itemID and itemID > 0 then
+			e.sells = e.sells or {}
+			e.sells[itemID] = true
+		end
+	end
+end
+
 -- Taxi --------------------------------------------------------------------------------------------------------
 
+local TAXI_RANK = { unreachable = 1, reachable = 2, current = 3 }
+
+local function taxiEntry(nodeID)
+	local t = db.taxi[nodeID]
+	if not t then
+		t = {}
+		db.taxi[nodeID] = t
+	end
+	return t
+end
+
+--- Every node on the flight map, and the edges out of the one we are standing on. The node list is not
+--- ordered, so the current node is found first: a review found every edge listed before it being
+--- dropped. Nothing is replaced — states only ever improve and the link set accumulates across visits,
+--- so the graph grows instead of being rewritten by whatever one flight map happened to show.
 local function noteTaxi(e)
 	if not (C_TaxiMap and C_TaxiMap.GetAllTaxiNodes) then return end
 	local mapID = (_G.GetTaxiMapID and _G.GetTaxiMapID()) or C_Map.GetBestMapForUnit("player")
 	if not mapID then return end
 	local ok, nodes = pcall(C_TaxiMap.GetAllTaxiNodes, mapID)
 	if not ok or type(nodes) ~= "table" then return end
+	local currentID
 	for _, node in ipairs(nodes) do
-		if node.nodeID then
-			local t = db.taxi[node.nodeID] or {}
-			db.taxi[node.nodeID] = t
+		if node.nodeID and node.state == Enum.FlightPathState.Current then currentID = tonumber(node.nodeID) end
+	end
+	local reachable, n = {}, 0
+	for _, node in ipairs(nodes) do
+		local nodeID = tonumber(node.nodeID)
+		if nodeID then
+			local t = taxiEntry(nodeID)
 			t.name = node.name or t.name
 			if node.position then
 				local x, y = node.position:GetXY()
-				t.map, t.x, t.y = mapID, math.floor(x * 1000 + 0.5) / 10, math.floor(y * 1000 + 0.5) / 10
+				if type(x) == "number" and type(y) == "number" then t.map, t.x, t.y = mapID, pct(x), pct(y) end
 			end
-			if node.state == Enum.FlightPathState.Current then
-				t.state = "current"
-				if e then e.taxiNode = node.nodeID end
-				t.npc = e and lastInteraction and lastInteraction.id or t.npc
-			elseif node.state == Enum.FlightPathState.Reachable then
-				t.state = "reachable"
-			elseif not t.state then
-				t.state = "unreachable"
-			end
-			-- Reachable from the current node: the graph edges the router needs.
-			if e and e.taxiNode and node.state == Enum.FlightPathState.Reachable then
-				local cur = db.taxi[e.taxiNode]
-				cur.links = cur.links or {}
-				cur.links[node.nodeID] = true
+			local state = (node.state == Enum.FlightPathState.Current and "current")
+				or (node.state == Enum.FlightPathState.Reachable and "reachable") or "unreachable"
+			if (TAXI_RANK[state] or 0) >= (TAXI_RANK[t.state] or 0) then t.state = state end
+			if nodeID == currentID then
+				local zone, sub = zoneText()
+				if zone ~= "" then t.zone = zone end
+				if sub ~= "" then t.subzone = sub end
+				-- node <-> flight master: the NPC whose window is open right now
+				if e and lastInteraction and lastInteraction.live and lastInteraction.kind == "npc" then
+					t.npc = lastInteraction.id
+					e.taxiNode = nodeID
+				end
+				if Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("taxi", nodeID, t) end
+			elseif state == "reachable" then
+				n = n + 1
+				reachable[n] = nodeID
 			end
 		end
+	end
+	if currentID then
+		local cur = taxiEntry(currentID)
+		cur.links = cur.links or {}
+		for i = 1, n do cur.links[reachable[i]] = true end
 	end
 end
 
@@ -379,18 +669,19 @@ function Guide:HarvestOnEvent(event, ...)
 			noteGreeting(e)
 		end
 	elseif event == "QUEST_DETAIL" then
-		local questID = GetQuestID and GetQuestID()
-		if questID and questID > 0 then
-			local e = noteInteraction(event)
+		local e, questID = noteOffer(...)
+		if questID then
 			local q = questEntry(questID, GetTitleText and GetTitleText())
 			if e then
 				e.kind = e.kind or {}
 				e.kind.quest = true
 				e.gives = e.gives or {}
 				e.gives[questID] = true
-				q.giver = interactionRef()
-			elseif QuestGetAutoAccept and QuestGetAutoAccept() then
-				q.auto = true
+				q.giver = q.giver or interactionRef()
+			else
+				if offer and offer.src then q.src = q.src or offer.src end
+				if offer and offer.item then q.item = offer.item end
+				if QuestGetAutoAccept and QuestGetAutoAccept() then q.auto = true end
 			end
 			noteRewardXP(q)
 		end
@@ -405,17 +696,20 @@ function Guide:HarvestOnEvent(event, ...)
 				e.ends = e.ends or {}
 				e.ends[questID] = true
 				q.ender = interactionRef()
+				q.via = nil            -- watched first-hand
+				if Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("quest", questID, q) end
 			end
 			if event == "QUEST_COMPLETE" then noteRewardXP(q) end
 		end
+	elseif event == "QUEST_ACCEPT_CONFIRM" then
+		shareOffer = GetTime()
 	elseif event == "QUEST_ACCEPTED" then
 		local questID = ...
 		if type(questID) == "number" then
 			local q = noteQuestFromLog(questID)
-			q.giver = q.giver or interactionRef()
-			local mapID, x, y = playerXY()
-			if mapID then q.acceptAt = { mapID, x, y } end
+			attributeAccept(q, questID)
 			snapshotObjectives(questID)
+			offer, shareOffer = nil, nil
 		end
 	elseif event == "QUEST_TURNED_IN" then
 		local questID, xp, money = ...
@@ -425,18 +719,21 @@ function Guide:HarvestOnEvent(event, ...)
 			local level = UnitLevel("player")
 			if type(xp) == "number" and xp > 0 and (not q.xp or level <= q.xp[1]) then q.xp = { level, xp } end
 			if type(money) == "number" and money > 0 then q.money = money end
-			local mapID, x, y = playerXY()
-			if mapID then q.turninAt = { mapID, x, y } end
+			q.turninAt = spot() or q.turninAt
 			q.done = true
 			objectiveState[questID] = nil
 		end
 	elseif event == "QUEST_REMOVED" then
 		local questID = ...
 		if type(questID) == "number" then objectiveState[questID] = nil end
+	elseif event == "QUEST_FINISHED" or event == "GOSSIP_CLOSED" then
+		endInteraction()
+		offer = nil
 	elseif event == "QUEST_LOG_UPDATE" or event == "UNIT_QUEST_LOG_CHANGED" then
 		queueDiff()
 	elseif event == "PLAYER_TARGET_CHANGED" then
-		noteUnit("target", false)
+		local _, kind, id = noteUnit("target", false)
+		lastTarget = (kind == "npc" and id) and { id = id, t = GetTime() } or nil
 	elseif event == "UPDATE_MOUSEOVER_UNIT" then
 		noteUnit("mouseover", false)
 	elseif event == "NAME_PLATE_UNIT_ADDED" then
@@ -448,10 +745,22 @@ function Guide:HarvestOnEvent(event, ...)
 			e.kind = e.kind or {}
 			e.kind.vendor = true
 			if CanMerchantRepair and CanMerchantRepair() then e.kind.repair = true end
+			noteMerchant(e)
 		end
+	elseif event == "MERCHANT_CLOSED" then
+		endInteraction()
 	elseif event == "TRAINER_SHOW" then
 		local e = noteInteraction(event)
-		if e then e.kind = e.kind or {} e.kind.trainer = true end
+		if e then
+			e.kind = e.kind or {}
+			e.kind.trainer = true
+			if IsTradeskillTrainer then
+				local ok, trade = pcall(IsTradeskillTrainer)
+				if ok and trade then e.kind.tradeskill = true end
+			end
+		end
+	elseif event == "TRAINER_CLOSED" then
+		endInteraction()
 	elseif event == "TAXIMAP_OPENED" then
 		local e = noteInteraction(event)
 		if e then e.kind = e.kind or {} e.kind.taxi = true end
@@ -507,8 +816,8 @@ function Guide:HarvestQuestPosition(questID, complete)
 		local idx
 		for i, o in ipairs(objectives or {}) do if not o.finished then idx = i break end end
 		idx = idx or 1
-		local spot = type(q.fin) == "table" and q.fin[idx]
-		if spot then mapID, x, y, how = spot[1], spot[2], spot[3], "done" end
+		local spot_ = type(q.fin) == "table" and q.fin[idx]
+		if spot_ then mapID, x, y, how = spot_[1], spot_[2], spot_[3], "done" end
 		if not mapID and q.prog and q.prog[idx] and q.prog[idx][1] then
 			local s = q.prog[idx][1]
 			mapID, x, y, how = s[1], s[2], s[3], "progress"
@@ -548,6 +857,28 @@ function Guide:HarvestAvailableItems(items, mapID)
 	fromStore(db.objects, true)
 end
 
+-- Counts --------------------------------------------------------------------------------------------------------
+
+local function count(t)
+	local n = 0
+	for _ in pairs(t or {}) do n = n + 1 end
+	return n
+end
+
+--- What is in the shareable file right now. Used by `/lode share`, the minimap tooltip and the
+--- settings page.
+function Guide:HarvestSummary()
+	if not db then ensureDB() end
+	local out = {
+		quests = count(db.quests), npcs = count(db.npcs), objects = count(db.objects),
+		taxi = count(db.taxi), levels = count(db.levels), contributors = count(db.meta and db.meta.contributors),
+		positions = 0, backup = db.backup and true or false,
+	}
+	for _, e in pairs(db.npcs) do if e.exact then out.positions = out.positions + 1 end end
+	for _, e in pairs(db.objects) do if e.map then out.positions = out.positions + 1 end end
+	return out
+end
+
 -- Quest census: /lode scan quests ------------------------------------------------------------------------------
 
 local function scanRecord(questID)
@@ -583,7 +914,7 @@ function Guide:ScanOnLoadResult(questID, success)
 	if not scanPending[questID] then return end
 	scanPending[questID] = nil
 	scanPendingCount = scanPendingCount - 1
-	local s = db.scan
+	local s = scanDB.scan
 	if success then
 		if scanRecord(questID) then
 			s.found = (s.found or 0) + 1
@@ -612,7 +943,7 @@ local function expirePending(s)
 end
 
 local function scanTick()
-	local s = db.scan
+	local s = scanDB.scan
 	expirePending(s)
 	if not s.next or s.next > s.to then
 		if scanPendingCount > 0 then return end -- let the last answers land
@@ -642,7 +973,7 @@ end
 --- Second pass over ids that got no answer: one request per tick.
 function Guide:RetryScan()
 	if not db then ensureDB() end
-	local s = db.scan
+	local s = scanDB.scan
 	local list = {}
 	for id in pairs(s.missed or {}) do tinsert(list, id) end
 	table.sort(list)
@@ -676,7 +1007,7 @@ end
 
 function Guide:StartScan(from, to)
 	if not db then ensureDB() end
-	local s = db.scan
+	local s = scanDB.scan
 	if scanTicker then Lodestar:Say("A scan is already running (%d/%d). /lode scan stop", s.next - s.from, s.to - s.from + 1) return end
 	if from then
 		s.from, s.to, s.next, s.checked, s.found, s.absent, s.finishedAt = from, to, from, 0, 0, 0, nil
@@ -692,7 +1023,7 @@ end
 
 function Guide:StopScan(finished)
 	if scanTicker then self:CancelTimer(scanTicker) scanTicker = nil end
-	local s = db and db.scan
+	local s = scanDB and scanDB.scan
 	if not s then return end
 	if finished then
 		Lodestar:Say("Quest scan finished: %d ids checked, %d quests found. They are saved account-wide; /reload or log out to write them to disk.", s.checked or 0, s.found or 0)
@@ -703,13 +1034,9 @@ function Guide:StopScan(finished)
 end
 
 local function scanStatus()
-	local s = db.scan
-	local nQ, nN, nO, nT = 0, 0, 0, 0
-	for _ in pairs(db.quests) do nQ = nQ + 1 end
-	for _ in pairs(db.npcs) do nN = nN + 1 end
-	for _ in pairs(db.objects) do nO = nO + 1 end
-	for _ in pairs(db.taxi) do nT = nT + 1 end
-	Lodestar:Say("Harvest: %d quests, %d NPCs, %d objects, %d flight nodes.", nQ, nN, nO, nT)
+	local s = scanDB.scan
+	local sum = Guide:HarvestSummary()
+	Lodestar:Say("Harvest: %d quests, %d NPCs, %d objects, %d flight nodes.", sum.quests, sum.npcs, sum.objects, sum.taxi)
 	if s.to then
 		Lodestar:Say("Quest scan %s: ids %d-%d, at %d, %d checked, %d found, %d absent, %d unanswered (/lode scan retry).", scanTicker and "running" or "stopped",
 			s.from or 0, s.to, s.next or 0, s.checked or 0, s.found or 0, s.absent or 0, s.missedCount or 0)
@@ -735,8 +1062,8 @@ local function handleScan(rest)
 	elseif verb == "rate" then
 		local n = tonumber(a)
 		if n and n >= 1 and n <= 200 then
-			db.scan.batch = math.max(1, math.floor(n * SCAN_TICK + 0.5))
-			Lodestar:Say("Scan rate: about %d ids per second.", math.floor(db.scan.batch / SCAN_TICK))
+			scanDB.scan.batch = math.max(1, math.floor(n * SCAN_TICK + 0.5))
+			Lodestar:Say("Scan rate: about %d ids per second.", math.floor(scanDB.scan.batch / SCAN_TICK))
 		else
 			Lodestar:Say("Usage: /lode scan rate <ids per second, 1-200>")
 		end
@@ -746,14 +1073,115 @@ local function handleScan(rest)
 		Lodestar:Say("%s #%d (%s): level %s-%s, at %s %.1f,%.1f%s", e.name or "?", id, kind, tostring(e.minL), tostring(e.maxL),
 			tostring(e.map), e.x or 0, e.y or 0, e.exact and " (exact)" or " (approx)")
 	elseif verb == "wipe" then
+		-- Only the census cursor. The harvest itself is behind /lode harvest wipe, with a backup.
 		if a == "confirm" then
-			wipe(db.npcs) wipe(db.objects) wipe(db.quests) wipe(db.taxi) wipe(db.scan)
-			Lodestar:Say("Harvest wiped.")
+			if scanTicker then Guide:StopScan(false) end
+			wipe(scanDB.scan)
+			wipe(scanPending)
+			scanPendingCount = 0
+			Lodestar:Say("Quest census reset: the ids checked so far are forgotten and the next /lode scan quests starts over.")
+			Lodestar:Say("Your harvested world data was NOT touched — that is /lode harvest wipe.")
 		else
-			Lodestar:Say("This deletes everything harvested on this account. Type /lode scan wipe confirm to do it.")
+			Lodestar:Say("This resets the quest census cursor only (which ids have been checked), not the harvested world data.")
+			Lodestar:Say("Type |cffffff7f/lode scan wipe confirm|r to reset the census. To delete the harvest itself: |cffffff7f/lode harvest wipe|r.")
 		end
 	else
-		Lodestar:Say("Usage: /lode scan [status | quests <from> <to> | resume | retry | stop | rate <n> | npc | wipe]")
+		Lodestar:Say("Usage: /lode scan [status | quests <from> <to> | resume | retry | stop | rate <n> | npc | wipe confirm]")
+	end
+end
+
+-- The harvest itself: /lode harvest ----------------------------------------------------------------------------
+
+local function worldCounts(t)
+	return count(t and t.quests), count(t and t.npcs), count(t and t.objects), count(t and t.taxi)
+end
+
+local function worldIsEmpty()
+	for _, key in ipairs(WORLD_KEYS) do
+		if next(db[key]) ~= nil then return false end
+	end
+	return true
+end
+
+--- Move the world tables into the single backup slot and leave fresh empty ones behind. The backup is
+--- replaced, never appended to, so it is always "the harvest as it was just before the last wipe" —
+--- except that wiping an already-empty harvest keeps the older backup rather than overwriting it with
+--- nothing, so a second wipe cannot destroy what the first one saved.
+local function stashAndWipe()
+	local keep = worldIsEmpty() and db.backup
+	local backup = { at = time(), build = db.build }
+	for _, key in ipairs(WORLD_KEYS) do
+		backup[key] = db[key]
+		db[key] = {}
+	end
+	if not keep then db.backup = backup end
+	return db.backup
+end
+
+local function restoreBackup()
+	local backup = db.backup
+	if type(backup) ~= "table" then return nil end
+	for _, key in ipairs(WORLD_KEYS) do
+		local saved = backup[key]
+		if type(saved) == "table" then
+			local into = db[key]
+			for k, v in pairs(saved) do if into[k] == nil then into[k] = v end end
+		end
+	end
+	return backup
+end
+
+local function handleHarvest(rest)
+	if not db then ensureDB() end
+	local verb, a = strsplit(" ", strtrim(rest or ""), 2)
+	verb = (verb or ""):lower()
+	a = (a or ""):lower()
+	if verb == "" or verb == "status" then
+		local sum = Guide:HarvestSummary()
+		Lodestar:Say("Harvest: %d quests, %d NPCs (%d with an exact position), %d objects, %d flight nodes, %d levels, %d contributor%s.",
+			sum.quests, sum.npcs, sum.positions, sum.objects, sum.taxi, sum.levels, sum.contributors, sum.contributors == 1 and "" or "s")
+		if sum.backup then
+			local bq, bn, bo, bt = worldCounts(db.backup)
+			Lodestar:Say("  A backup from %s is kept: %d quests, %d NPCs, %d objects, %d flight nodes (/lode harvest restore).",
+				date("%Y-%m-%d %H:%M", db.backup.at or time()), bq, bn, bo, bt)
+		end
+		Lodestar:Say("  |cffffff7f/lode share|r tells you where the file is. |cffffff7f/lode harvest sync on|off|r shares new finds with your guild.")
+	elseif verb == "share" then
+		if Guide.HarvestShareInfo then Guide:HarvestShareInfo() else Lodestar:Say("Sharing is not loaded.") end
+	elseif verb == "sync" then
+		if Guide.SetHarvestSync then
+			Guide:SetHarvestSync(a)
+		else
+			Lodestar:Say("Live harvest sharing is not loaded.")
+		end
+	elseif verb == "wipe" then
+		if a == "yes-really" then
+			local before = { worldCounts(db) }
+			stashAndWipe()
+			Lodestar:Say("Harvest deleted: %d quests, %d NPCs, %d objects, %d flight nodes removed.", before[1], before[2], before[3], before[4])
+			Lodestar:Say("A copy was stashed — |cffffff7f/lode harvest restore|r brings it back until the next wipe. The census cursor and your trails were not touched.")
+		elseif a == "confirm" then
+			local q, n, o, t = worldCounts(db)
+			Lodestar:Say("This deletes the harvested world data: %d quests, %d NPCs, %d objects, %d flight nodes. Trails and the census cursor stay.", q, n, o, t)
+			Lodestar:Say("A backup is kept in the same file. To go ahead, type |cffffff7f/lode harvest wipe yes-really|r.")
+		else
+			Lodestar:Say("|cffffff7f/lode harvest wipe|r deletes everything this account has harvested about the world (quests, NPCs, objects, flight nodes, levels).")
+			Lodestar:Say("It does not touch your trails or the quest census cursor (/lode trails wipe, /lode scan wipe). Type |cffffff7f/lode harvest wipe confirm|r to see the counts.")
+		end
+	elseif verb == "restore" then
+		local backup = restoreBackup()
+		if not backup then
+			Lodestar:Say("No harvest backup to restore. One is made every time /lode harvest wipe runs.")
+			return
+		end
+		local bq, bn, bo, bt = worldCounts(backup)
+		local q, n, o, t = worldCounts(db)
+		Lodestar:Say("Restored the backup from %s: %d quests, %d NPCs, %d objects, %d flight nodes merged back in.",
+			date("%Y-%m-%d %H:%M", backup.at or time()), bq, bn, bo, bt)
+		Lodestar:Say("The harvest now holds %d quests, %d NPCs, %d objects, %d flight nodes. /reload to write it to disk.", q, n, o, t)
+	else
+		Lodestar:Say("Usage: /lode harvest [status | share | sync on|off | wipe confirm | restore]")
+		Lodestar:Say("  |cffffff7f/lode share|r — where the file is and what is in it.")
 	end
 end
 
@@ -811,12 +1239,7 @@ function Guide:Diagnose()
 		out.smart[i] = { kind = it.kind, title = it.title, dist = it.dist, source = it.source, noPosition = it.noPosition or nil }
 	end
 	out.guide = self.current and { name = self.current.name, step = self.stepIndex } or "smart mode"
-	out.harvest = {}
-	for k, v in pairs({ npcs = db.npcs, objects = db.objects, quests = db.quests, taxi = db.taxi }) do
-		local n = 0
-		for _ in pairs(v) do n = n + 1 end
-		out.harvest[k] = n
-	end
+	out.harvest = self:HarvestSummary()
 	if type(_G.LodestarProbeDB) ~= "table" then _G.LodestarProbeDB = {} end
 	_G.LodestarProbeDB.guideDiag = out
 
@@ -835,12 +1258,18 @@ end
 
 function Guide:EnableHarvest()
 	ensureDB()
+	-- Once per game session, not once per module toggle: `sessions` is what weights a contribution.
+	if not self.harvestContributed then
+		self.harvestContributed = true
+		noteContributor()
+	end
 	if not self.scanSlash then
 		self.scanSlash = true
-		Lodestar:RegisterSlashVerb("scan", handleScan, "harvest status, quest census: /lode scan quests <from> <to>")
+		Lodestar:RegisterSlashVerb("scan", handleScan, "quest census: /lode scan quests <from> <to>")
+		Lodestar:RegisterSlashVerb("harvest", handleHarvest, "harvested world data: status, sync, wipe, restore")
 	end
 	-- Resume an interrupted census automatically.
-	local s = db.scan
+	local s = scanDB.scan
 	if s.next and s.to and s.next <= s.to and not s.finishedAt then
 		self:ScheduleTimer(function() if not scanTicker then self:StartScan() end end, 10)
 	end

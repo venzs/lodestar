@@ -5,9 +5,9 @@
 -- walks, and lets guides carry explicit waypoints where the route matters.
 --
 --   recorder   once a second the player's map position is quantized to a ~20 yd grid cell and kept
---              per uiMapID in LodestarScanDB.trails. Consecutive samples in different cells link the
---              two (a traversable edge). Flights, death and teleports (jumps of more than two cells)
---              do not link.
+--              per uiMapID in LodestarScanDB.trails (the per-account file, not the shareable one).
+--              Consecutive samples in different cells link the two (a traversable edge). Flights,
+--              death and teleports (jumps of more than two cells) do not link.
 --   storage    trails[mapID] = { nx, ny, n, l, rows = { [cy] = "<x0 hex3><2 hex per cell>" } }
 --              nx/ny = cells per axis (~20 yd each from C_Map.GetMapWorldSize, else 250 = 0.4 %).
 --              Each cell byte is an 8-neighbour link mask (bit i => linked to NEIGHBOUR i), ".." is a
@@ -104,7 +104,9 @@ end
 
 local function store()
 	if not trails then
-		local db = Guide:HarvestDB()
+		-- Local-only: where this account walked is no use to anyone else, so it stays out of the
+		-- shareable LodestarShareDB and lives in LodestarScanDB next to the census cursor.
+		local db = Guide:ScanDB()
 		db.trails = db.trails or {}
 		trails = db.trails
 	end

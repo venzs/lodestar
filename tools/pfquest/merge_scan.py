@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Build Lodestar_Guide/Data/Forever.lua from harvested LodestarScanDB exports.
+"""Build Lodestar_Guide/Data/Forever.lua from harvested exports.
 
-    lua5.1 tools/pfquest/sv_to_json.lua <SavedVariables/Lodestar_Guide.lua> > data/beta/scan-YYYY-MM-DD.json
+    # current addon (world data lives in LodestarShareDB)
+    lua5.1 tools/pfquest/sv_to_json.lua <SavedVariables/Lodestar_Guide.lua> LodestarShareDB > data/beta/scan-YYYY-MM-DD.json
+    # exports taken before the split (everything was in LodestarScanDB) still work as they are
     python3 tools/pfquest/merge_scan.py data/beta/*.json
 
 The harvest (see Lodestar_Guide/Harvest.lua) records what the client shows a player on the Forever beta:
@@ -9,6 +11,16 @@ quests with titles/levels/objectives (census + quest log), the NPC that gave/end
 where objectives were worked on, and every NPC talked to or targeted with a position. This script keeps
 what the Vanilla database does not have (Forever-only quests, Forever-only NPCs, changed givers/enders)
 and writes it as an overlay the addon merges over Data/Vanilla.lua at load (Data.lua: MergeForeverData).
+
+Two shapes of export are accepted, because the field names never changed — only where they live and
+what rides along with them:
+  * old: the whole LodestarScanDB, world data and census cursor together, coordinates {map, x, y}.
+  * new: LodestarShareDB — the same npcs/objects/quests/taxi/levels tables plus `meta` (format version,
+    client build, contributors) and `backup`. Coordinates gained the zone and subzone names as a 4th
+    and 5th element, which everything here ignores; taxi nodes gained `npc` (the flight master) and the
+    link set now accumulates instead of being replaced. Anything an entry carries a `via = "comm"` mark
+    on was learned from another player over the addon channel: it is treated as second-hand and only
+    ever fills a gap, never overrides something the contributor saw for themselves.
 
 Coordinates are uiMapID-based: { 0, x, y, m = <uiMapID> } (x, y in percent), unlike Vanilla's zone ids.
 """
@@ -54,19 +66,32 @@ def lua_value(v):
     raise TypeError(type(v))
 
 
+def xyz(pos):
+    """(map, x, y) from a recorded position, whichever export wrote it.
+
+    A position is a Lua array {map, x, y} (old) or {map, x, y, zone, subzone} (new); either way only the
+    first three entries matter here. A table that ever picks up a named key would arrive as a JSON object
+    with "1".."3" keys instead of a list, so that form is read too.
+    """
+    if isinstance(pos, dict):
+        pos = [pos.get("1", pos.get(1)), pos.get("2", pos.get(2)), pos.get("3", pos.get(3))]
+    return int(pos[0]), round(float(pos[1]), 1), round(float(pos[2]), 1)
+
+
 def coord(pos):
     """{1=0, 2=x, 3=y, m=uiMapID}: indexable like Vanilla's {zone, x, y} with zone 0 and the map in m."""
-    return {1: 0, 2: round(float(pos[1]), 1), 3: round(float(pos[2]), 1), "m": int(pos[0])}
+    m, x, y = xyz(pos)
+    return {1: 0, 2: x, 3: y, "m": m}
 
 
 def coord_list(entries):
     out, seen = [], set()
     for p in entries:
-        key = (int(p[0]), round(float(p[1]), 1), round(float(p[2]), 1))
+        key = xyz(p)
         if key in seen:
             continue
         seen.add(key)
-        out.append(coord((key[0], key[1], key[2])))
+        out.append(coord(key))
     return out
 
 
@@ -79,20 +104,30 @@ def index_map(v):
     return {}
 
 
+QUEST_KEYS = ("t", "lvl", "o", "giver", "ender", "xp", "money", "tag", "acceptAt", "turninAt", "prog", "fin",
+              "done", "auto", "freq", "rep", "src", "item", "group", "req", "races", "classes")
+RESCAN_KEYS = ("o", "prog", "fin", "done")   # a later first-hand export replaces these outright
+TAXI_KEYS = ("name", "map", "x", "y", "state", "npc", "links", "zone")
+
+
 def merge(exports):
-    npcs, objects, quests, taxi, levels = {}, {}, {}, {}, {}
+    npcs, objects, quests, taxi, levels, contributors = {}, {}, {}, {}, {}, {}
     for path in exports:
         raw = json.load(open(path, encoding="utf-8"))
+        for k, v in ((raw.get("meta") or {}).get("contributors") or {}).items():
+            cur = contributors.get(k)
+            if not cur or (v.get("last") or 0) >= (cur.get("last") or 0):
+                contributors[k] = v
         for k, v in (raw.get("npcs") or {}).items():
-            e = npcs.setdefault(int(k), {"name": None, "positions": [], "samples": [], "gives": set(), "ends": set(), "kind": {}, "minL": None, "maxL": None, "trains": None})
-            if v.get("name"):
+            e = npcs.setdefault(int(k), {"name": None, "positions": [], "samples": [], "secondhand": [], "gives": set(), "ends": set(), "kind": {}, "minL": None, "maxL": None, "trains": None})
+            second = v.get("via") == "comm"
+            if v.get("name") and not (second and e["name"]):
                 e["name"] = v["name"]
-            if v.get("exact") and v.get("map"):
-                e["positions"].append((v["map"], v["x"], v["y"]))
-            elif v.get("map"):
-                e["samples"].append((v["map"], v["x"], v["y"]))
+            if v.get("map"):
+                where = "secondhand" if second else ("positions" if v.get("exact") else "samples")
+                e[where].append((v["map"], v["x"], v["y"]))
             for s in v.get("samples") or []:
-                e["samples"].append((s[0], s[1], s[2]))
+                e["samples"].append(xyz(s))
             e["gives"].update(int(q) for q in (v.get("gives") or {}))
             e["ends"].update(int(q) for q in (v.get("ends") or {}))
             e["kind"].update(v.get("kind") or {})
@@ -111,19 +146,31 @@ def merge(exports):
             e["ends"].update(int(q) for q in (v.get("ends") or {}))
         for k, v in (raw.get("quests") or {}).items():
             q = quests.setdefault(int(k), {})
-            for key in ("t", "lvl", "o", "giver", "ender", "xp", "money", "tag", "acceptAt", "turninAt", "prog", "fin", "done", "auto", "freq", "rep"):
-                if v.get(key) is not None and (key not in q or key in ("o", "prog", "fin", "done")):
+            second = v.get("via") == "comm"
+            for key in QUEST_KEYS:
+                if v.get(key) is None:
+                    continue
+                if key not in q:
+                    q[key] = v[key]
+                elif key in RESCAN_KEYS and not second:
                     q[key] = v[key]
         for k, v in (raw.get("taxi") or {}).items():
-            taxi[int(k)] = v
+            # Edges accumulate across exports the same way they accumulate in the client: a flight map
+            # only ever shows the destinations reachable from where you are standing.
+            t = taxi.setdefault(int(k), {})
+            links = dict(t.get("links") or {})
+            links.update(v.get("links") or {})
+            t.update(v)
+            if links:
+                t["links"] = links
         for k, v in (raw.get("levels") or {}).items():
             levels[int(k)] = v
-    return npcs, objects, quests, taxi, levels
+    return npcs, objects, quests, taxi, levels, contributors
 
 
 def build(exports):
     vanilla = load_vanilla()
-    npcs, objects, quests, taxi, levels = merge(exports)
+    npcs, objects, quests, taxi, levels, contributors = merge(exports)
     out_quests, out_npcs, out_objs = {}, {}, {}
 
     # quest starts/ends known from the NPC side
@@ -195,7 +242,7 @@ def build(exports):
         else:
             if not e["name"]:
                 continue
-            pos = e["positions"] or e["samples"]
+            pos = e["positions"] or e["samples"] or e["secondhand"]
             entry["n"] = e["name"]
             if e["minL"]:
                 entry["lvl"] = [e["minL"], e["maxL"] or e["minL"]]
@@ -229,7 +276,7 @@ def build(exports):
     for oid, o in sorted(out_objs.items()):
         lines.append("F.objs[%d]=%s" % (oid, lua_value(o)))
     for tid, t in sorted(taxi.items()):
-        lines.append("F.taxi[%d]=%s" % (tid, lua_value({k: v for k, v in t.items() if k in ("name", "map", "x", "y", "state", "links")})))
+        lines.append("F.taxi[%d]=%s" % (tid, lua_value({k: v for k, v in t.items() if k in TAXI_KEYS})))
     for lvl, xp in sorted(levels.items()):
         lines.append("F.levels[%d]=%d" % (lvl, xp))
     text = "\n".join(lines) + "\n"
@@ -237,6 +284,13 @@ def build(exports):
         f.write(text)
     print("wrote %s: %d quests, %d npcs, %d objects, %d taxi nodes, %d levels (%d bytes)" % (
         os.path.relpath(OUT, ROOT), len(out_quests), len(out_npcs), len(out_objs), len(taxi), len(levels), len(text)))
+    if contributors:
+        # Exports from before the split carry no meta block, so this stays quiet for them.
+        who = sorted(contributors, key=lambda n: -(contributors[n].get("sessions") or 0))
+        print("contributors: %d (%s)" % (len(who), ", ".join(
+            "%s %s/%s lvl %s x%s" % (n, contributors[n].get("race") or "?", contributors[n].get("class") or "?",
+                                     contributors[n].get("level") or "?", contributors[n].get("sessions") or 0)
+            for n in who[:8])))
     return out_quests, out_npcs
 
 

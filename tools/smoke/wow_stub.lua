@@ -732,6 +732,13 @@ stub.deleteDialog = { which = "DELETE_GOOD_ITEM", editBox = { text = "", SetText
 stub.deleteDialog.GetEditBox = function(self) return self.editBox end
 StaticPopup_FindVisible = function(which) if stub.shownPopup == which then return stub.deleteDialog end end
 DELETE_ITEM_CONFIRM_STRING = "DELETE"
+-- Harvest: merchant inventory, required money, taxi list the test can reorder ------------------------
+stub.merchantItems = { 1234, 2320, 5555 }   -- item ids on the open merchant page, in slot order
+GetMerchantNumItems = function() return #stub.merchantItems end
+GetMerchantItemID = function(slot) return stub.merchantItems[slot] end
+-- GetQuestLogRequiredMoney does not exist on this client; C_QuestLog.GetRequiredMoney is the one that does.
+C_QuestLog.GetRequiredMoney = function(id) return stub.questRequiredMoney and stub.questRequiredMoney[id] or 0 end
+stub.questRequiredMoney = {}
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

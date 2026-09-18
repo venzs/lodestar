@@ -29,6 +29,9 @@ Guide.defaults = {
 			record = true,         -- learn walkable ground from where the player walks
 			follow = true,         -- arrow points along known trails instead of straight at the target
 		},
+		harvest = {
+			share = true,          -- offer newly harvested facts to guild/party over the addon channel (Share.lua)
+		},
 		steps = {
 			show = true,
 			locked = false,
@@ -205,10 +208,13 @@ local EVENTS = {
 	"BAG_UPDATE_DELAYED", "SKILL_LINES_CHANGED", "ITEM_DATA_LOAD_RESULT",   -- .buy / .profession steps, item names
 	-- harvest
 	"QUEST_GREETING", "QUEST_PROGRESS", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED",
+	-- harvest: the frame that is open right now decides who gets credited for a quest
+	"QUEST_FINISHED", "GOSSIP_CLOSED", "QUEST_ACCEPT_CONFIRM",
 }
 
 function Guide:OnEnable()
 	self:EnableHarvest()
+	self:EnableShare()
 	self:EnableData()
 	self:EnableQuestTips()
 	self:EnableArrow()
@@ -227,6 +233,7 @@ function Guide:OnDisable()
 	self:DisableTrails()
 	self:DisableArrow()
 	self:DisableQuestTips()
+	self:DisableShare()
 	self:DisableHarvest()
 end
 

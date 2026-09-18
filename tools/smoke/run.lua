@@ -93,6 +93,13 @@ for _, m in ipairs(Lodestar.moduleList) do check(m:IsEnabled(), "module enabled:
 check(#stub.sent >= 2, "login comms sent (version + presence), got " .. #stub.sent)
 check(stub.displayedPlayed ~= true, "played-time chat lines were muted")
 
+-- The harvest delta sync (Lodestar_Guide/Share.lua) rides the same guild channel as presence and the
+-- Guild blocks below count messages on it. Confirm it is on by default, then park it until its own
+-- block turns it back on.
+check(Lodestar:GetModule("Guide").db.profile.harvest.share == true, "harvest sharing on by default")
+Lodestar:GetModule("Guide").db.profile.harvest.share = false
+Lodestar:GetModule("Guide"):StopHarvestSync()
+
 -- Slash commands
 for _, line in ipairs({ "/lode", "/lode version", "/lode modules", "/lode xp", "/lode probe", "/lode gold", "/lode levels",
 	"/lode loc", "/lode way 45.2 63.1 Kobold cave", "/way 12,5 88,0", "/way", "/way clear", "/lode keep 1234", "/lode keep",
@@ -1029,10 +1036,11 @@ try("harvest", function()
 	stub.advance(2)
 	check(H.levels[stub.level] == stub.xpMax, "xp max per level harvested")
 	-- census
+	local S = G:ScanDB()
 	stub.slash("/lode scan quests 360 366")
 	stub.advance(3)
-	check(H.scan.found and H.scan.found >= 1 and H.quests[364] and H.quests[364].scanned, "quest scan found 364: " .. tostring(H.scan.found))
-	check(H.scan.next and H.scan.next > 366, "scan ran to the end of the range")
+	check(S.scan.found and S.scan.found >= 1 and H.quests[364] and H.quests[364].scanned, "quest scan found 364: " .. tostring(S.scan.found))
+	check(S.scan.next and S.scan.next > 366, "scan ran to the end of the range")
 	stub.slash("/lode scan status")
 	stub.slash("/lode scan stop")
 	stub.slash("/lode scan npc")
@@ -1050,12 +1058,299 @@ try("harvest", function()
 	check(found and found.source and found.source:find("harvest", 1, true), "smart mode uses the harvest for new quests: " .. tostring(found and found.source))
 	stub.questLog[77777] = nil
 end)
+
+-- Wider passive capture: who really gave a quest, objective areas, vendor stock, trainers, taxi edges
+-- and the zone text that makes all of it checkable by eye.
+try("harvest capture", function()
+	local H = G:HarvestDB()
+	local savedMap, savedX, savedY = stub.playerMap.map, stub.playerMap.x, stub.playerMap.y
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.308, 0.662
+	-- These blocks teleport the player around map 18 to make objective samples spread out; the trail
+	-- recorder would count every stop as walked ground and throw off the trails block below.
+	G.db.profile.trails.record = false
+	stub.fire("GOSSIP_SHOW")                      -- npc 6's window is open: a live interaction
+	check(H.npcs[6] and H.npcs[6].zone == "Elwynn Forest" and H.npcs[6].subzone == "Northshire Valley", "zone and subzone recorded with the exact position")
+	-- an item-started quest: Blizzard hands the item id with QUEST_DETAIL, and the NPC we were just
+	-- talking to must not be credited for it
+	local realGetQuestID = GetQuestID
+	GetQuestID = function() return 8801 end
+	stub.fire("QUEST_DETAIL", 6948)
+	stub.fire("QUEST_ACCEPTED", 8801)
+	GetQuestID = realGetQuestID
+	local q = H.quests[8801]
+	check(q and q.src == "item" and q.item == 6948, "item-started quest tagged src=item: " .. tostring(q and q.src))
+	check(q and q.giver == nil, "item-started quest did not credit the last NPC talked to")
+	check(q and q.acceptAt and q.acceptAt[1] == 18 and q.acceptAt[4] == "Elwynn Forest", "item-started quest recorded where the player stood, with the zone")
+	check(q and q.races and q.races.Scourge and q.classes and q.classes.WARRIOR, "the contributor's race and class ride along, so the merge can spot class/race quests")
+	-- a party share is credited to the share, not to whoever is on screen
+	stub.fire("GOSSIP_SHOW")
+	stub.fire("QUEST_ACCEPT_CONFIRM", "Bob", "Escort")
+	stub.fire("QUEST_ACCEPTED", 8802)
+	check(H.quests[8802] and H.quests[8802].src == "share" and H.quests[8802].giver == nil, "party-shared quest tagged src=share: " .. tostring(H.quests[8802] and H.quests[8802].src))
+	-- an offer from an open NPC window still credits that NPC
+	stub.fire("GOSSIP_SHOW")
+	stub.fire("QUEST_DETAIL")
+	stub.fire("QUEST_ACCEPTED", 7)
+	check(H.quests[7].giver == 6 and H.quests[7].src == "npc", "a live NPC window still credits the NPC: " .. tostring(H.quests[7].src))
+	-- ...but a closed one does not, however recently it was open
+	stub.fire("QUEST_FINISHED")
+	stub.fire("QUEST_ACCEPTED", 8803)
+	check(H.quests[8803] and H.quests[8803].giver == nil and H.quests[8803].src == "unknown", "no live frame: nobody is credited")
+	-- quest metadata straight out of the log: title, level, suggested group size, money wanted up front
+	local realInfo, metaLog = C_QuestLog.GetInfo, stub.questLog
+	C_QuestLog.GetInfo = function(i)
+		local info = realInfo(i)
+		if info and info.questID == 8811 then info.level, info.suggestedGroup = 24, 5 end
+		return info
+	end
+	stub.questRequiredMoney[8811] = 6000
+	stub.questLog = { [8811] = { title = "Group Job", complete = false, objectives = {} } }
+	stub.fire("QUEST_ACCEPTED", 8811)
+	C_QuestLog.GetInfo, stub.questLog = realInfo, metaLog
+	local gq = H.quests[8811]
+	check(gq and gq.t == "Group Job" and gq.lvl == 24 and gq.group == 5, "title, level and suggested group size read from the log: " .. tostring(gq and gq.group))
+	check(gq and gq.req == 6000, "money the quest wants up front, via C_QuestLog.GetRequiredMoney (GetQuestLogRequiredMoney does not exist on this client)")
+	-- objective ticks: spread samples, deduped within ~2 map-percent, capped at 6
+	local savedLog = stub.questLog
+	stub.questLog = { [8810] = { title = "Spread", complete = false, objectives = { { text = "Thing: 0/9", finished = false } } } }
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(0.5)
+	local function tick(n, x, y)
+		stub.playerMap.x, stub.playerMap.y = x, y
+		stub.questLog[8810].objectives[1].text = ("Thing: %d/9"):format(n)
+		stub.fire("QUEST_LOG_UPDATE")
+		stub.advance(0.5)
+	end
+	stub.fire("PLAYER_TARGET_CHANGED")
+	tick(1, 0.10, 0.10)
+	check(H.npcs[6].objGuess and H.npcs[6].objGuess[8810], "a counter that moved while a mob was targeted is kept as weak evidence for the link")
+	tick(2, 0.101, 0.101)                         -- 0.1 percent away: the same spot
+	for i = 3, 9 do tick(i, 0.10 + (i - 2) * 0.05, 0.10) end
+	local prog = H.quests[8810] and H.quests[8810].prog and H.quests[8810].prog[1]
+	check(prog and #prog == 6, "objective samples spread out and stop at 6, got " .. tostring(prog and #prog))
+	check(prog and prog[1][4] == "Elwynn Forest" and prog[1][5] == "Northshire Valley", "objective samples carry the zone text")
+	-- the tick that finishes an objective is recorded too
+	stub.playerMap.x, stub.playerMap.y = 0.80, 0.80
+	stub.questLog[8810].objectives[1] = { text = "Thing: 9/9", finished = true }
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(0.5)
+	check(H.quests[8810].fin and H.quests[8810].fin[1] and H.quests[8810].fin[1][1] == 18, "the finishing tick records the finish spot")
+	stub.questLog = savedLog
+	stub.fire("QUEST_LOG_UPDATE") stub.advance(0.5)
+	stub.playerMap.x, stub.playerMap.y = 0.308, 0.662
+	-- vendors: the item ids are what makes .buy steps authorable
+	stub.merchantItems = { 1234, 2320, 5555 }
+	stub.fire("MERCHANT_SHOW")
+	stub.advance(2)
+	check(H.npcs[6].kind.vendor and H.npcs[6].sells and H.npcs[6].sells[1234] and H.npcs[6].sells[2320] and H.npcs[6].sells[5555], "merchant stock recorded as item ids")
+	stub.fire("MERCHANT_CLOSED")
+	-- trainers: the trade-skill flag next to the class tag
+	stub.tradeskillTrainer = true
+	stub.fire("TRAINER_SHOW")
+	check(H.npcs[6].kind.trainer and H.npcs[6].kind.tradeskill, "trade-skill trainer flagged as such")
+	stub.fire("TRAINER_CLOSED")
+	stub.tradeskillTrainer = false
+	H.npcs[6].kind.trainer, H.npcs[6].kind.tradeskill = nil, nil
+	-- taxi: node <-> flight master, and edges that accumulate whatever order the client lists nodes in
+	local realNodes = C_TaxiMap.GetAllTaxiNodes
+	stub.fire("TAXIMAP_OPENED")
+	check(H.taxi[10].links and H.taxi[10].links[11], "first visit: the edge to node 11")
+	check(H.taxi[10].npc == 6 and H.npcs[6].taxiNode == 10, "the flight master is linked to the node he stands on")
+	check(H.taxi[10].zone == "Elwynn Forest", "the node we stand on carries the zone name")
+	-- second visit: the current node is listed LAST and a new destination is listed first
+	C_TaxiMap.GetAllTaxiNodes = function() return {
+		{ nodeID = 13, name = "Undercity", position = { GetXY = function() return 0.4, 0.4 end }, state = 1 },
+		{ nodeID = 11, name = "The Sepulcher, Silverpine Forest", position = { GetXY = function() return 0.5, 0.6 end }, state = 2 },
+		{ nodeID = 10, name = "Brill, Tirisfal Glades", position = { GetXY = function() return 0.6, 0.5 end }, state = 0 },
+	} end
+	stub.fire("TAXIMAP_OPENED")
+	C_TaxiMap.GetAllTaxiNodes = realNodes
+	check(H.taxi[10].links[11] and H.taxi[10].links[13], "edges accumulate: 13 added with the current node listed last, 11 kept")
+	check(H.taxi[11].state == "reachable", "a node once seen reachable is not downgraded")
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = savedMap, savedX, savedY
+end)
+
+-- /lode share: where the file is, what is in it, and who contributed
+try("harvest share", function()
+	local sum = G:HarvestSummary()
+	check(sum.quests > 0 and sum.npcs > 0 and sum.taxi >= 3 and sum.positions > 0, "summary counts the world data")
+	local me = G:HarvestDB().meta.contributors["Venz-ClassicBetaPvP2"]
+	check(sum.contributors == 1 and me, "the logged-in character is recorded as a contributor, got " .. sum.contributors)
+	check(me and me.class == "WARRIOR" and me.race == "Scourge" and me.faction == "Horde" and me.level and me.first and me.last and (me.sessions or 0) >= 1, "contributor row filled in")
+	check(G:HarvestDB().meta.v == 1 and G:HarvestDB().meta.build == "69893", "meta carries the format version and the client build")
+	local before = #stub.chat
+	stub.slash("/lode share")
+	local text = table.concat(stub.chat, "\n", before + 1, #stub.chat)
+	check(text:find("WTF\\Account\\<ACCOUNT>\\SavedVariables\\Lodestar_Guide.lua", 1, true) ~= nil, "share prints the file path: " .. text)
+	check(text:find("does not tell addons", 1, true) ~= nil, "share says the account folder name is not knowable from an addon")
+	check(text:find(sum.quests .. "|r quests", 1, true) ~= nil and text:find(sum.npcs .. "|r NPCs", 1, true) ~= nil, "share prints the counts: " .. text)
+	check(text:find("/reload", 1, true) ~= nil, "share reminds you to /reload first")
+	local lines = {}
+	local tt = { AddDoubleLine = function(_, l, r) lines[l] = r end, AddLine = function() end }
+	for _, fn in ipairs(Lodestar.tooltipProviders) do fn(tt) end
+	check(lines["Harvested world data"] and lines["Harvested world data"]:find(sum.quests .. " quests", 1, true), "minimap tooltip line: " .. tostring(lines["Harvested world data"]))
+	check(G.options.harvestDesc.name():find(sum.npcs .. "|r NPCs", 1, true) ~= nil, "settings page description carries the counts")
+	stub.slash("/lode harvest")
+end)
+
+-- Live delta sync: dormant on a restricted realm, one small message at a time, nothing relayed
+try("harvest sync", function()
+	local H = G:HarvestDB()
+	G.db.profile.harvest.share = true
+	G:StartHarvestSync()
+	stub.commRestricted = true
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, true)
+	check(not G:HarvestSyncStats().running, "the delta ticker is off while comms are restricted")
+	local before = #stub.sent
+	H.npcs[4242] = { name = "Delta Test", seen = 1, map = 18, x = 12.5, y = 34.5, exact = true }
+	G:QueueHarvestDelta("npc", 4242, H.npcs[4242])
+	check(G:HarvestSyncStats().queued == 1, "the fact is queued while comms are restricted")
+	check(G:FlushHarvestDelta() == false and #stub.sent == before, "nothing is sent while restricted")
+	stub.advance(30)
+	check(#stub.sent == before, "and nothing leaks out of a timer either")
+	-- comms come back: the core fans out to Guide:OnCommAvailabilityChanged, no reload needed
+	stub.commRestricted = false
+	stub.fire("ADDON_RESTRICTION_STATE_CHANGED", Enum.AddOnRestrictionType.Chat, false)
+	check(G:HarvestSyncStats().running, "the delta ticker started when availability flipped")
+	check(G:FlushHarvestDelta() == true, "the queued delta goes out once comms are available")
+	local msg = stub.sent[#stub.sent]
+	check(msg.dist == "GUILD" and msg.msg:match("%^St%^S(%a)") == "H", "delta sent to the guild as a H message: " .. tostring(msg.msg))
+	check(#msg.msg < 255, "one delta fits in a single addon message, " .. #msg.msg .. " bytes")
+	check(G:HarvestSyncStats().queued == 0, "the queue drained")
+	-- rate limit: a second delta inside the interval is refused
+	H.npcs[4243] = { name = "Delta Two", seen = 1, map = 18, x = 20, y = 20, exact = true }
+	G:QueueHarvestDelta("npc", 4243, H.npcs[4243])
+	before = #stub.sent
+	check(G:FlushHarvestDelta() == false and #stub.sent == before, "a second delta inside 15 s is rate-limited")
+	stub.advance(16)
+	check(#stub.sent > before, "and goes out on the next tick")
+	-- incoming: everything is untrusted
+	local function deliver(m) Lodestar:OnCommReceived("Lodestar", Lodestar:Serialize(m), "GUILD", "Stranger") end
+	local dropsBefore = G:HarvestSyncStats().dropped
+	deliver({ t = "H", n = {
+		{ -5, 18, 10, 10, "Negative id" },
+		{ 991, 18, 900, 10, "Coordinate out of range" },
+		{ 992, 0, 10, 10, "Map id zero" },
+		{ 993, 18, 40.5, 60.5, "Good Stranger" },
+	} })
+	check(H.npcs[-5] == nil and H.npcs[991] == nil and H.npcs[992] == nil, "malformed delta rows dropped in silence")
+	check(G:HarvestSyncStats().dropped == dropsBefore + 3, "three rows dropped, got " .. (G:HarvestSyncStats().dropped - dropsBefore))
+	check(H.npcs[993] and H.npcs[993].map == 18 and H.npcs[993].x == 40.5 and H.npcs[993].name == "Good Stranger" and H.npcs[993].via == "comm", "a good row merges, marked second-hand")
+	deliver({ t = "H", n = { { 992, 18, 10, 10, string.rep("x", 200) } } })
+	check(H.npcs[992] and H.npcs[992].name == nil, "an over-long name is dropped, the position is not")
+	-- a fact we found ourselves is never overwritten by a delta
+	deliver({ t = "H", n = { { 4242, 55, 1, 1, "Impostor" } } })
+	check(H.npcs[4242].map == 18 and H.npcs[4242].x == 12.5 and H.npcs[4242].via == nil, "an exact position we found ourselves wins")
+	-- and nothing second-hand is ever forwarded
+	local queued = G:HarvestSyncStats().queued
+	G:QueueHarvestDelta("npc", 993, H.npcs[993])
+	check(G:HarvestSyncStats().queued == queued, "a fact learned over the channel is never relayed")
+	-- quest and flight-point rows
+	deliver({ t = "H", q = { { 8850, 991, 0 }, { 8851, 0, 0 } }, f = { { 77, 18, 30, 30, "Delta Point" } } })
+	check(H.quests[8850] and H.quests[8850].giver == 991 and H.quests[8850].via == "comm", "quest delta merged as second-hand")
+	check(H.quests[8851] == nil, "a quest row naming neither giver nor ender is dropped")
+	check(H.taxi[77] and H.taxi[77].map == 18 and H.taxi[77].via == "comm", "flight point delta merged")
+	-- the toggle
+	stub.slash("/lode harvest sync off")
+	check(G.db.profile.harvest.share == false and not G:HarvestSyncStats().running, "/lode harvest sync off stops it")
+	before = #stub.sent
+	G:QueueHarvestDelta("npc", 4244, { seen = 1, map = 18, x = 5, y = 5, exact = true, name = "Nope" })
+	check(G:HarvestSyncStats().queued == queued, "nothing is even queued while sync is off")
+	stub.advance(20)
+	check(#stub.sent == before, "nothing sent while sync is off")
+	stub.slash("/lode harvest sync on")
+	check(G.db.profile.harvest.share == true and G:HarvestSyncStats().running, "/lode harvest sync on starts it again")
+	stub.slash("/lode harvest sync nonsense")
+	-- park it again so the blocks below can count guild traffic
+	G.db.profile.harvest.share = false
+	G:StopHarvestSync()
+end)
+
+-- Destructive commands: the census cursor and the harvest are wiped by different commands, and the
+-- harvest wipe keeps a backup (the author lost a harvest to `/lode scan wipe` once).
+try("harvest wipes", function()
+	local H, S = G:HarvestDB(), G:ScanDB()
+	S.scan.from, S.scan.to, S.scan.next, S.scan.found = 1, 900, 400, 12
+	local npcs, quests = 0, 0
+	for _ in pairs(H.npcs) do npcs = npcs + 1 end
+	for _ in pairs(H.quests) do quests = quests + 1 end
+	check(npcs > 0 and quests > 0, "there is a harvest to protect")
+	stub.slash("/lode scan wipe")
+	check(S.scan.found == 12, "scan wipe without confirm changes nothing")
+	check((stub.chat[#stub.chat] or ""):find("/lode harvest wipe", 1, true) ~= nil, "scan wipe points at the other command for the harvest itself")
+	stub.slash("/lode scan wipe confirm")
+	check(next(S.scan) == nil, "scan wipe confirm resets the census cursor")
+	local after = 0
+	for _ in pairs(H.npcs) do after = after + 1 end
+	check(after == npcs and next(H.quests) ~= nil and next(H.taxi) ~= nil, "scan wipe confirm left every harvested NPC, quest and flight node alone: " .. after .. " vs " .. npcs)
+	check((stub.chat[#stub.chat] or ""):find("NOT touched", 1, true) ~= nil, "and says so")
+	-- the harvest itself needs two confirmations
+	stub.slash("/lode harvest wipe")
+	check(next(H.npcs) ~= nil, "harvest wipe without confirm changes nothing")
+	stub.slash("/lode harvest wipe confirm")
+	check(next(H.npcs) ~= nil, "harvest wipe confirm on its own still changes nothing")
+	check((stub.chat[#stub.chat] or ""):find("yes-really", 1, true) ~= nil, "the second phrase is spelled out")
+	stub.slash("/lode harvest wipe yes-really")
+	check(next(H.npcs) == nil and next(H.quests) == nil and next(H.taxi) == nil and next(H.objects) == nil, "the second phrase clears the world data")
+	check(H.backup and next(H.backup.npcs) ~= nil and H.backup.at, "a backup was stashed")
+	check((stub.chat[#stub.chat - 1] or ""):find(npcs .. " NPCs", 1, true) ~= nil, "counts printed on the wipe: " .. tostring(stub.chat[#stub.chat - 1]))
+	check(G:ScanDB().trails ~= nil, "a harvest wipe does not touch the trails")
+	-- ...and it comes back
+	stub.slash("/lode harvest restore")
+	after = 0
+	for _ in pairs(H.npcs) do after = after + 1 end
+	check(after == npcs, "restore brought every NPC back: " .. after .. " vs " .. npcs)
+	after = 0
+	for _ in pairs(H.quests) do after = after + 1 end
+	check(after == quests and next(H.taxi) ~= nil, "restore brought the quests and flight nodes back: " .. after .. " vs " .. quests)
+	check((stub.chat[#stub.chat - 1] or ""):find(npcs .. " NPCs", 1, true) ~= nil, "counts printed on the restore")
+	-- a second wipe must not replace the backup with the nothing it finds
+	stub.slash("/lode harvest wipe yes-really")
+	local kept = H.backup
+	check(next(kept.npcs) ~= nil, "the backup holds the data the first wipe took")
+	stub.slash("/lode harvest wipe yes-really")
+	check(H.backup == kept and next(H.backup.npcs) ~= nil, "wiping an already empty harvest keeps the backup the first wipe made")
+	stub.slash("/lode harvest restore")
+	after = 0
+	for _ in pairs(H.npcs) do after = after + 1 end
+	check(after == npcs, "and the data is still there to restore: " .. after .. " vs " .. npcs)
+	stub.slash("/lode harvest nonsense")
+end)
+
+-- The one-time split: world data moves out of LodestarScanDB, the census cursor and trails stay put
+try("harvest migration", function()
+	local share, account = _G.LodestarShareDB, _G.LodestarScanDB
+	_G.LodestarShareDB = nil
+	_G.LodestarScanDB = {
+		v = 1, build = "69893",
+		npcs = { [42] = { name = "Old Timer", seen = 3, map = 18, x = 10, y = 20, exact = true } },
+		objects = { [7] = { name = "Old Chest", seen = 1, map = 18, x = 1, y = 2 } },
+		quests = { [99] = { t = "Old Quest", giver = 42 } },
+		taxi = { [3] = { name = "Old Node", map = 18, x = 5, y = 5, state = "reachable" } },
+		levels = { [5] = 1000 },
+		trails = { [18] = { nx = 500, ny = 500, n = 3, l = 2, rows = {} } },
+		scan = { from = 1, to = 100, next = 101, found = 7, finishedAt = 123 },
+	}
+	G:HarvestBindDB()
+	local W, A = G:HarvestDB(), G:ScanDB()
+	check(W.npcs[42] and W.npcs[42].name == "Old Timer" and W.objects[7] and W.quests[99] and W.taxi[3] and W.levels[5] == 1000, "world data moved into LodestarShareDB")
+	check(A.npcs == nil and A.objects == nil and A.quests == nil and A.taxi == nil and A.levels == nil, "world data removed from LodestarScanDB")
+	check(A.scan.found == 7 and A.scan.next == 101 and A.trails[18] and A.trails[18].n == 3, "the census cursor and the trails stayed behind")
+	check(A.migrated, "a migration marker was left")
+	check(W.meta and W.meta.v == 1 and type(W.meta.contributors) == "table", "meta created on the shared db")
+	local marker = A.migrated
+	G:HarvestBindDB()
+	check(A.migrated == marker and W.npcs[42] ~= nil, "loading again does not migrate again")
+	_G.LodestarShareDB, _G.LodestarScanDB = share, account
+	G:HarvestBindDB()
+	check(G:HarvestDB() == share and G:ScanDB() == account, "saved variables rebound for the rest of the run")
+	G.db.profile.trails.record = true
+end)
+
 try("trails", function()
 	-- Until Guide.lua / the TOC wire them up, load the trail files and enable the recorder here.
 	if not G.TrailPath then loadLua("Lodestar_Guide/Trails.lua") end
 	if not G.TrailSeed then loadLua("Lodestar_Guide/Data/Trails_Seed.lua") end
 	G:EnableTrails()
-	local T = G:HarvestDB().trails
+	local T = G:ScanDB().trails
 	check(type(T) == "table", "LodestarScanDB.trails created")
 	local savedMap, savedX, savedY = stub.playerMap.map, stub.playerMap.x, stub.playerMap.y
 	stub.playerMap.map = 18
