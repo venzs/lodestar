@@ -47,7 +47,11 @@ end
 function Guide:PlayerFilters()
 	local raceName, raceFile = UnitRace("player")
 	return {
-		faction = Lodestar.player.faction,
+		-- Lodestar.player.faction is cached at login, which is right -- faction cannot change during
+		-- a session -- but UnitFactionGroup can answer nil that early, and a nil here used to switch
+		-- the faction filter off entirely rather than narrowing it. Ask the client again before
+		-- giving up on knowing.
+		faction = Lodestar.player.faction or (UnitFactionGroup and UnitFactionGroup("player")) or nil,
 		class = (Lodestar.player.class or ""):lower(),
 		className = (UnitClass("player") or ""):lower(),
 		race = (raceName or ""):lower(),
@@ -105,7 +109,11 @@ function Guide:PickGuide()
 	local best, bestScore
 	for _, g in ipairs(self.guides) do
 		local outleveled = g.maxLevel and pf.level > g.maxLevel
-		if guideApplies(g, pf, true) and not outleveled then
+		-- Fail closed on an unknown faction. Listing every guide when we cannot tell is friendly
+		-- (ApplicableGuides still does), but LOADING one is not: the cost of guessing wrong is a
+		-- character following a route on the other continent, which is worse than no route at all.
+		local unknownFaction = not pf.faction and g.faction ~= "Both"
+		if guideApplies(g, pf, true) and not outleveled and not unknownFaction then
 			local covers = g.minLevel and g.maxLevel and pf.level >= g.minLevel and pf.level <= g.maxLevel
 			local ahead = g.minLevel and g.minLevel > pf.level and (g.minLevel - pf.level) or 0
 			local specificity = (g.races and 2 or 0) + (g.classes and 2 or 0) + (g.faction ~= "Both" and 1 or 0)

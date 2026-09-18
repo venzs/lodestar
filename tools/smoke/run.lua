@@ -1681,6 +1681,85 @@ end)
 -- Forever exposes no quest POIs, so before this the only way a quest got an objective position was
 -- a player standing on the spot at the moment a counter moved. This gets a rough one the instant
 -- the quest is accepted, which is most of what the arrow needs.
+-- Every race and level a new player can log in as at launch.
+-- The bug that started all of this was a level 2 Skyborne being handed a level 12 zone guide,
+-- because it was the only thing that passed the race filter. That is a whole class of bug: one race
+-- or one level band with no route, silently falling through to something wrong or to an error. This
+-- walks the matrix and asserts the two things that must hold for every cell -- nothing throws, and
+-- a guide that IS picked is one this character could actually follow.
+try("race and level matrix", function()
+	local realRace, realFaction = UnitRace, UnitFactionGroup
+	local realPlayerFaction = Lodestar.player.faction
+	local wasLevel, wasMode = stub.level, G.db.profile.arrow.mode
+	local wasGuide = G.db.char.currentGuide
+	G.db.profile.arrow.mode = "AUTO"
+
+	local RACES = {
+		{ "Human", "Alliance" }, { "Dwarf", "Alliance" }, { "Gnome", "Alliance" }, { "NightElf", "Alliance" },
+		{ "Orc", "Horde" }, { "Troll", "Horde" }, { "Tauren", "Horde" }, { "Scourge", "Horde" },
+		{ "Skyborne", "Horde" },
+		-- A race nothing has been authored for. It must fall through to smart mode, not to a guide
+		-- meant for someone else.
+		{ "Mechagnome", "Alliance" },
+	}
+	local LEVELS = { 1, 2, 5, 8, 12, 19, 24, 30, 45 }
+
+	local picks, errors = 0, {}
+	for _, r in ipairs(RACES) do
+		local race, faction = r[1], r[2]
+		UnitRace = function() return race, race, 99 end
+		UnitFactionGroup = function() return faction end
+		-- The filter reads the cached value, not the API, because faction cannot change in a real
+		-- session. Moving only the API would have let every cell pass while testing nothing.
+		Lodestar.player.faction = faction
+		for _, level in ipairs(LEVELS) do
+			stub.level = level
+			local ok, err = pcall(function()
+				local pick = G:PickGuide()
+				if pick then
+					picks = picks + 1
+					-- A picked guide must pass its own filters for this character, or the pick is
+					-- worse than nothing: it sends someone to the wrong continent.
+					if pick.faction and pick.faction ~= "Both" and pick.faction ~= faction then
+						error(("%s guide picked for a %s %s"):format(pick.faction, faction, race), 0)
+					end
+					if pick.minLevel and level + 2 < pick.minLevel then
+						error(("guide starting at %d picked at level %d"):format(pick.minLevel, level), 0)
+					end
+					G:LoadGuide(pick.name, 1)
+				end
+				G:RefreshStepFrame()
+				G:RetargetArrow()
+			end)
+			if not ok then errors[#errors + 1] = ("%s %s level %d: %s"):format(faction, race, level, tostring(err)) end
+		end
+	end
+
+	UnitRace, UnitFactionGroup = realRace, realFaction
+	Lodestar.player.faction = realPlayerFaction
+	stub.level, G.db.profile.arrow.mode = wasLevel, wasMode
+	G.db.char.currentGuide = wasGuide
+
+	check(#errors == 0, ("%d of %d cells failed: %s"):format(#errors, #RACES * #LEVELS, table.concat(errors, " | ")))
+	check(picks > 0, "at least some cells find a guide: " .. picks)
+
+	-- And when the client will not say which faction this character is, auto-pick refuses anything
+	-- faction-specific rather than guessing. UnitFactionGroup can answer nil early in the login, and
+	-- the old code read that as "no faction filter" -- which is how an Alliance character ends up
+	-- following a Horde route to the wrong continent.
+	local wasFaction = Lodestar.player.faction
+	local wasUFG = UnitFactionGroup
+	Lodestar.player.faction = nil
+	UnitFactionGroup = function() return nil end
+	stub.level = 8
+	local pick = G:PickGuide()
+	check(not pick or pick.faction == "Both", "an unknown faction never auto-loads a faction guide: " .. tostring(pick and pick.name))
+	-- Listing is still generous: not knowing should not hide everything from /lode guide list.
+	check(#G:ApplicableGuides(true) > 0, "but the list is still offered")
+	Lodestar.player.faction, UnitFactionGroup = wasFaction, wasUFG
+	stub.level = wasLevel
+end)
+
 try("quest waypoints", function()
 	local H = G:HarvestDB()
 	H.quests[8801] = nil

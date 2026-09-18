@@ -19,6 +19,10 @@
 - Leveling: **quest log hygiene** — a warning when the twenty-slot log is nearly full that names
   which quests have gone grey, `/lode log` for the full picture, and `/lode log drop <name>` to
   abandon one. Only grey quests are candidates and nothing is ever abandoned without a confirmation.
+- Guide: auto-pick **fails closed on an unknown faction**. `UnitFactionGroup` can answer nil early in
+  the login, and a nil switched the faction filter off entirely rather than narrowing it — so an
+  Alliance character could be auto-loaded onto a Horde route on the other continent. Listing is
+  unchanged: not knowing should not hide every guide, only stop one being loaded on a guess.
 - `tools/check_events.py`: rejects two files in one module registering the same event, which
   AceEvent silently collapses to one handler.
 - Guide: **corpse run** — while a ghost the arrow points at your body, ahead of the guide, the quest
