@@ -12,13 +12,692 @@ F.quests[374]={xp={11,625}}
 F.quests[405]={xp={11,180}}
 F.quests[492]={xp={11,875}}
 F.quests[7906]={t="Darkmoon Cards - Beasts"}
+F.quests[90902]={lvl=2,o={{n=5,text="Injured Deathguard healed",type="monster"}},t="Rediscovering the Light"}
+F.quests[91208]={lvl=4,o={{n=1,text="Offer aid to the Frightened Paladin",type="monster"}},t="Coming to Terms"}
+F.quests[91209]={lvl=4,o={{n=1,text="Report to Shari Stilwell in Brill",type="monster"}},t="Continue Your Training"}
 F.quests[91282]={lvl=11,t="A Second Home"}
+F.quests[91285]={lvl=11,o={{n=8,text="slain",type="monster"},{n=8,text="slain",type="monster"}},t="Murlocs at the Gates"}
+F.quests[91294]={lvl=11,o={{n=1,text="Speak with Hilda the Breaker",type="monster"},{n=1,text="Speak with Jorin Croge",type="monster"},{n=1,text="Speak with Ander Solliden",type="monster"}},t="Touring the Grounds"}
+F.quests[91316]={lvl=11,t="Making Repairs"}
+F.quests[91317]={lvl=12,o={{n=8,text="slain",type="monster"},{n=6,text="slain",type="monster"}},t="The Tarnished"}
+F.quests[91723]={lvl=10,o={{n=8,text="slain",type="monster"}},t="Delicate Instruments"}
+F.quests[91724]={lvl=10,o={{n=6,text="slain",type="monster"}},t="Delicate Instruments"}
+F.quests[91725]={lvl=10,t="Stolen Enchanting Supplies"}
+F.quests[91732]={lvl=10,t="Good Steel"}
+F.quests[91733]={lvl=10,t="Downstream"}
+F.quests[91736]={lvl=11,t="Applejack Still"}
+F.quests[91738]={lvl=10,t="An Apple Treat"}
+F.quests[91740]={lvl=10,t="Croaky's Head"}
+F.quests[91741]={lvl=2,t="Nibbled-On Book"}
+F.quests[91743]={lvl=2,t="Rascally Rodents"}
+F.quests[91745]={lvl=3,t="Mining Consultant"}
+F.quests[91746]={lvl=10,t="Elmpaw's Head"}
+F.quests[91751]={lvl=7,t="Rough Wolf Pelts"}
+F.quests[91752]={lvl=3,o={{n=1,text="Sack of \"Picture\" Books",type="item"}},t="The Big Picture",tag="Elite"}
+F.quests[91753]={lvl=7,t="An Enchanting Lesson"}
+F.quests[91758]={lvl=4,t="Follow That Kobold!"}
+F.quests[91772]={lvl=4,o={{n=6,text="Followed Kobold Tracks",type="object"}},t="Shhh! We're Hunting Kobolds"}
+F.quests[91775]={lvl=6,o={{n=1,text="Picture Book: Fun with Elementals",type="item"}},t="Book Return",tag="Elite"}
+F.quests[91777]={lvl=7,t="Rare Books",tag="Elite"}
+F.quests[91858]={lvl=22,t="Diplomatic Incident"}
+F.quests[91859]={lvl=22,t="A Curious Pair"}
+F.quests[91860]={lvl=22,t="A Grim Fate"}
+F.quests[91861]={lvl=22,t="Into Fenris Keep"}
+F.quests[91862]={lvl=22,t="Lumina Windsinger"}
+F.quests[91899]={lvl=60,t="A Sealed Crate"}
+F.quests[91900]={lvl=60,t="A Sealed Crate"}
+F.quests[91904]={lvl=60,t="A Sealed Crate"}
+F.quests[91905]={lvl=60,t="A Sealed Crate"}
+F.quests[91920]={lvl=11,t="Wild Eyes"}
+F.quests[91921]={lvl=11,t="Return to Quinn (Again)"}
+F.quests[92109]={lvl=10,t="My First Alchemy Set"}
+F.quests[92110]={lvl=10,o={{n=3,text="Murloc Eye",type="item"}},t="My First Real Potion"}
+F.quests[92124]={lvl=2,t="Book Inventory"}
+F.quests[92401]={lvl=22,o={{n=1,text="Investigate the disappearance of Edward Heartweaver in the Ruins of Lordaeron.",type="event"}},t="A Frightened Request",tag="Dungeon"}
+F.quests[92415]={lvl=22,t="Remember That I Love You",tag="Dungeon"}
+F.quests[92421]={lvl=22,t="Light's Justice",tag="Dungeon"}
+F.quests[92422]={lvl=22,o={{n=1,text="slain",type="monster"}},t="The Wrath of Rath'mael",tag="Dungeon"}
+F.quests[92454]={lvl=1,t="Welcome!"}
+F.quests[92460]={lvl=1,t="Coming of Age"}
+F.quests[92461]={lvl=1,o={{n=8,text="Juvenile Vuldren slain",type="monster"}},t="Harmony in Balance"}
+F.quests[92462]={lvl=2,o={{n=8,text="Pesky Cirrusfly slain",type="monster"}},t="Infestation Investigation"}
+F.quests[92463]={lvl=3,o={{n=1,text="Cirrusfly Queen slain",type="monster"}},t="The Cirrusfly Queen"}
+F.quests[92464]={lvl=3,t="Elemental Unrest"}
+F.quests[92465]={lvl=3,o={{n=7,text="slain",type="monster"},{n=6,text="Roiling Winds destroyed",type="monster"}},t="Agitators"}
+F.quests[92466]={lvl=4,t="Call of Earth"}
+F.quests[92467]={lvl=4,t="Call of Earth"}
+F.quests[92468]={lvl=4,t="Call of Earth"}
+F.quests[92469]={lvl=4,t="Return to Rorian"}
+F.quests[92470]={lvl=5,o={{n=8,text="slain",type="monster"}},t="Foul Matriarch"}
+F.quests[92471]={lvl=4,t="Aetheen of the Gales"}
+F.quests[92472]={lvl=5,t="The Next Step"}
+F.quests[92473]={lvl=4,t="Aggressive Encroachment"}
+F.quests[92474]={lvl=2,t="Falling With Style"}
+F.quests[92479]={lvl=1,t="A Scribbled Letter"}
+F.quests[92480]={lvl=6,t="zzOLD UNUSED Cult Ambush"}
+F.quests[92481]={lvl=2,t="A Student of the Arcane"}
+F.quests[92482]={lvl=2,t="The Way of the Hunter"}
+F.quests[92483]={lvl=2,t="At Home in the Shadows"}
+F.quests[92484]={lvl=2,t="Embracing the Elements"}
+F.quests[92485]={lvl=2,t="A Student of Nature"}
+F.quests[92514]={lvl=6,o={{n=1,text="Speak with Illaya Amberwind",type="monster"},{n=1,text="Speak with the Innkeeper",type="monster"}},t="Welcome to Shen'dar Village"}
+F.quests[92515]={lvl=6,t="The Problem With Prideclaws"}
+F.quests[92516]={lvl=7,o={{n=8,text="slain",type="monster"},{n=6,text="slain",type="monster"},{n=1,text="slain",type="monster"}},t="Hippogryph Harrassment"}
+F.quests[92517]={lvl=7,o={{n=10,text="slain",type="monster"},{n=1,text="slain",type="monster"}},t="The Criminal Element"}
+F.quests[92528]={lvl=8,o={{n=1,text="Learn about the cultists' plans",type="monster"}},t="Among the Faithful"}
+F.quests[92529]={lvl=8,t="Falaath Village"}
+F.quests[92532]={lvl=2,t="The Warrior's Path"}
+F.quests[92544]={lvl=5,o={{n=6,text="slain",type="monster"},{n=4,text="slain",type="monster"},{n=1,text="slain",type="monster"}},t="Al'Aketh Thugs"}
+F.quests[92550]={lvl=8,o={{n=6,text="slain",type="monster"},{n=4,text="slain",type="monster"}},t="Havoc in the Highlands"}
+F.quests[92551]={lvl=8,t="Stolen Supplies"}
+F.quests[92553]={lvl=6,t="Restocking the Larders"}
+F.quests[92579]={lvl=8,t="To Valanaar"}
+F.quests[92595]={lvl=6,o={{n=1,text="Listen to Illaya",type="monster"}},t="The Windshapers"}
+F.quests[92596]={lvl=6,o={{n=1,text="Listen to Rathiril Sunlance",type="monster"}},t="The High Order"}
+F.quests[92597]={lvl=4,t="Reading the Ley Lines"}
+F.quests[92598]={lvl=4,t="The Gift of Skysight"}
+F.quests[92640]={lvl=11,o={{n=1,text="Speak with Valennia Stormfist",type="monster"}},t="Desperate Times"}
+F.quests[92642]={lvl=11,o={{n=4,text="slain",type="monster"},{n=8,text="slain",type="monster"}},t="Disrupting Logistics"}
+F.quests[92643]={lvl=11,o={{n=1,text="Find the secluded house in Shen'dar Highlands",type="monster"}},t="The Turncoat"}
+F.quests[92644]={lvl=11,t="Unfortunate News"}
+F.quests[92645]={lvl=11,o={{n=1,text="slain",type="monster"}},t="Breaking the Breaker"}
+F.quests[92646]={lvl=12,o={{n=1,text="Confront Lorthuna",type="monster"}},t="Confront Lorthuna"}
+F.quests[92679]={lvl=9,o={{n=1,text="Find Aamelia Windfield",type="monster"},{n=1,text="Listen to Alvarion Windfield's Story (Optional)",type="monster"}},t="Blood Tithe"}
+F.quests[92682]={lvl=9,o={{n=5,text="slain",type="monster"}},t="Make Yourself Useful"}
+F.quests[92683]={lvl=9,t="Flutterfly Dust"}
+F.quests[92684]={lvl=9,t="Ornery Ornery Galestriders"}
+F.quests[92685]={lvl=9,t="The Hills Have Eyes"}
+F.quests[92693]={lvl=9,o={{n=1,text="Speak with Aamelia Windfield",type="monster"}},t="Standing Our Ground"}
+F.quests[92698]={lvl=9,t="What Is My Purpose?"}
+F.quests[92699]={lvl=9,t="The Supreme Magister"}
+F.quests[92700]={lvl=9,t="The Grand Skyseer"}
+F.quests[92701]={lvl=9,t="To Valanaar"}
+F.quests[92703]={lvl=9,t="Deliver the News"}
+F.quests[92706]={lvl=20,t="WANTED: Bruuz",tag="Elite"}
+F.quests[92708]={lvl=12,o={{n=1,text="Listen to Ayessa",type="monster"}},t="A Grand Adventure"}
+F.quests[92709]={lvl=12,o={{n=1,text="Listen to Elaadrin",type="monster"}},t="A Grand Adventure"}
+F.quests[92727]={lvl=10,t="The Missing Scholar"}
+F.quests[92741]={lvl=13,t="Unwelcome Visitors"}
+F.quests[92742]={lvl=12,t="Testing the Wells"}
+F.quests[92744]={lvl=12,t="Murloc Gills"}
+F.quests[92745]={lvl=14,o={{n=4,text="slain",type="monster"},{n=6,text="slain",type="monster"}},t="The State of the Mines"}
+F.quests[92747]={lvl=16,t="Moonbrook Espionage"}
+F.quests[92748]={lvl=16,t="Explosive Consultation"}
+F.quests[92749]={lvl=16,t="A Dynamite Plan"}
+F.quests[92750]={lvl=16,t="Detonation at a Distance"}
+F.quests[92751]={lvl=16,t="Detonation at a Distance"}
+F.quests[92752]={lvl=16,t="Explosive Consultation"}
+F.quests[92753]={lvl=18,o={{n=1,text="Explosives placed",type="monster"}},t="Destruction in Deadmines",tag="Dungeon"}
+F.quests[92819]={lvl=18,o={{n=1,text="Detonator used",type="monster"}},t="Destruction in Deadmines"}
+F.quests[92834]={lvl=11,t="Avenged Tenfold"}
+F.quests[92840]={lvl=11,o={{n=1,text="Protect the Index",type="monster"}},t="Catching Wind"}
+F.quests[92849]={lvl=10,o={{n=1,text="Find Fillion Flamebreeze",type="monster"}},t="The Missing Scholar"}
+F.quests[92850]={lvl=10,t="The Missing Scholar"}
+F.quests[92860]={lvl=12,t="In Service of Zephras"}
+F.quests[92871]={lvl=11,t="In Service of Zephras"}
+F.quests[92880]={lvl=11,t="Return to Valanaar"}
+F.quests[92881]={lvl=11,t="The High Elder's Request"}
+F.quests[92909]={lvl=15,t="Harvesting the Harvesters"}
+F.quests[92910]={lvl=15,t="Harvesting the Harvesters"}
+F.quests[92911]={lvl=15,t="Harvesting the Harvesters"}
+F.quests[92947]={lvl=12,o={{n=8,text="slain",type="monster"},{n=6,text="slain",type="monster"},{n=6,text="slain",type="monster"}},t="Making Our Move"}
+F.quests[93036]={lvl=8,t="Infiltrating the Cult"}
+F.quests[93065]={lvl=12,o={{n=1,text="Find Valennia on the Road",type="monster"}},t="Prepare for Battle"}
+F.quests[93089]={lvl=13,t="What Comes Next"}
+F.quests[93090]={lvl=13,t="What Comes Next"}
+F.quests[93159]={lvl=13,o={{n=1,text="Learn more about the Strange Hermit",type="monster"}},t="The Strange Hermit"}
+F.quests[93160]={lvl=13,t="The Forest's Bounty"}
+F.quests[93165]={lvl=13,t="Mercy Falls on Deaf Ears"}
+F.quests[93172]={lvl=13,o={{n=10,text="Wind Hollow freed",type="monster"}},t="Free the Hollows"}
+F.quests[93317]={lvl=9,t="Crab Season"}
+F.quests[93318]={lvl=9,t="WANTED: Vulgara the Insatiable",tag="Elite"}
+F.quests[93319]={lvl=7,t="Pilfered Windstones"}
+F.quests[93320]={lvl=11,t="Tower Defense"}
+F.quests[93459]={lvl=13,o={{n=5,text="Al'Alketh Cultist's Ear",type="item"}},t="More Al'Aketh Ears"}
+F.quests[93461]={lvl=6,o={{n=1,text="Speak with Rathiril Sunlance",type="monster"},{n=1,text="Speak with the Innkeeper",type="monster"}},t="Welcome to Shen'dar Village"}
+F.quests[93552]={lvl=4,t="Harvesting Windstones"}
+F.quests[93735]={lvl=9,t="The Broken Construct"}
+F.quests[93736]={lvl=9,t="Unwelcome Spirits"}
+F.quests[93737]={lvl=9,o={{n=1,text="Listen to what Riaani Nightwind has to say",type="monster"}},t="The Broken Construct"}
+F.quests[93738]={lvl=9,t="The Broken Construct"}
+F.quests[93739]={lvl=13,o={{n=1,text="Obtain Instructions from Nazgrel",type="monster"}},t="Exploring the Horde"}
+F.quests[93740]={lvl=11,o={{n=10,text="Al'Aketh Windstone Charm",type="item"}},t="Blood for Blood"}
+F.quests[93746]={lvl=9,o={{n=1,text="Confront Belathaan Brightwish",type="monster"}},t="A Firm Response"}
+F.quests[93791]={lvl=10,t="Speak with Belann"}
+F.quests[93797]={lvl=10,t="Boughs in the Wind"}
+F.quests[93835]={lvl=12,o={{n=1,text="Confront Lorthuna",type="monster"}},t="Confront Lorthuna"}
+F.quests[93836]={lvl=12,o={{n=1,text="Speak with Talaanis Shadowsong",type="monster"}},t="The Fate of Zephras"}
+F.quests[93926]={lvl=8,o={{n=1,text="Check in on the Western Watchtower in the Shen'dar Highlands",type="monster"}},t="The Western Watch"}
+F.quests[93927]={lvl=8,o={{n=1,text="Collect and read the note",type="item"}},t="A Last Request"}
+F.quests[93928]={lvl=15,t="Of Mice and Milk"}
+F.quests[93948]={lvl=9,t="Deliver the Signet"}
+F.quests[93949]={lvl=8,o={{n=8,text="Enchanted Skyhopper Exterminated",type="monster"}},t="Bugged"}
+F.quests[93951]={lvl=7,t="A Little Beauty"}
+F.quests[93958]={lvl=12,t="The Inner Sanctum"}
+F.quests[93963]={lvl=13,o={{n=1,text="Recieve Instructions from Randal Emerson",type="monster"}},t="Exploring the Alliance"}
+F.quests[94003]={lvl=10,t="The Skybreaker Bulwark"}
+F.quests[94004]={lvl=60,t="Craftsman's Writ: Elixir of Ogre's Strength"}
+F.quests[94006]={lvl=10,t="The Great Ursera Spirit"}
+F.quests[94007]={lvl=10,t="Taming the Beast"}
+F.quests[94013]={lvl=10,o={{n=1,text="Tame a Vuldren",type="event"}},t="Taming the Beast"}
+F.quests[94050]={lvl=10,t="Training the Beast"}
+F.quests[94212]={lvl=60,t="Craftsman's Writ: Elixir of Wisdom"}
+F.quests[94213]={lvl=60,t="Craftsman's Writ: Lesser Mana Potion"}
+F.quests[94214]={lvl=60,t="Craftsman's Writ: Shadow Protection Potion"}
+F.quests[94215]={lvl=60,t="Craftsman's Writ: Free Action Potion"}
+F.quests[94216]={lvl=60,t="Craftsman's Writ: Elixir of Lesser Agility"}
+F.quests[94217]={lvl=60,t="Craftsman's Writ: Lesser Troll's Blood Elixir"}
+F.quests[94218]={lvl=60,t="Craftsman's Writ: Elixir of Defense"}
+F.quests[94219]={lvl=60,t="Craftsman's Writ: Draught of Water Breathing"}
+F.quests[94220]={lvl=60,t="Craftsman's Writ: Pearl-Handled Dagger"}
+F.quests[94221]={lvl=60,t="Craftsman's Writ: Golden Rod"}
+F.quests[94222]={lvl=60,t="Craftsman's Writ: Iridescent Hammer"}
+F.quests[94223]={lvl=60,t="Craftsman's Writ: Silver Skeleton Key"}
+F.quests[94224]={lvl=60,t="Craftsman's Writ: Heavy Bronze Mace"}
+F.quests[94225]={lvl=60,t="Craftsman's Writ: Rough Bronze Leggings"}
+F.quests[94226]={lvl=60,t="Craftsman's Writ: Green Iron Gauntlets"}
+F.quests[94227]={lvl=60,t="Craftsman's Writ: Big Bronze Knife"}
+F.quests[94228]={lvl=60,t="Craftsman's Writ: Green Iron Boots"}
+F.quests[94229]={lvl=60,t="Craftsman's Writ: Ornate Spyglass"}
+F.quests[94230]={lvl=60,t="Craftsman's Writ: Explosive Sheep"}
+F.quests[94231]={lvl=60,t="Craftsman's Writ: Moonsight Rifle"}
+F.quests[94232]={lvl=60,t="Craftsman's Writ: Minor Recombobulator"}
+F.quests[94233]={lvl=60,t="Craftsman's Writ: Practice Lock"}
+F.quests[94234]={lvl=60,t="Craftsman's Writ: Shadow Goggles"}
+F.quests[94235]={lvl=60,t="Craftsman's Writ: Gnomish Universal Remote"}
+F.quests[94236]={lvl=60,t="Craftsman's Writ: Big Bronze Bomb"}
+F.quests[94237]={lvl=60,t="Craftsman's Writ: Crafted Solid Shot"}
+F.quests[94238]={lvl=60,t="Craftsman's Writ: Heavy Leather Ball"}
+F.quests[94239]={lvl=60,t="Craftsman's Writ: Fine Leather Pants"}
+F.quests[94240]={lvl=60,t="Craftsman's Writ: Herbalist's Gloves"}
+F.quests[94241]={lvl=60,t="Craftsman's Writ: Dark Leather Tunic"}
+F.quests[94242]={lvl=60,t="Craftsman's Writ: Pilferer's Gloves"}
+F.quests[94243]={lvl=60,t="Craftsman's Writ: Heavy Quiver"}
+F.quests[94244]={lvl=60,t="Craftsman's Writ: Dark Leather Shoulders"}
+F.quests[94245]={lvl=60,t="Craftsman's Writ: Barbaric Gloves"}
+F.quests[94246]={lvl=60,t="Craftsman's Writ: Red Whelp Gloves"}
+F.quests[94247]={lvl=60,t="Craftsman's Writ: Lesser Wizard's Robe"}
+F.quests[94248]={lvl=60,t="Craftsman's Writ: Blue Overalls"}
+F.quests[94249]={lvl=60,t="Craftsman's Writ: Azure Silk Hood"}
+F.quests[94250]={lvl=60,t="Craftsman's Writ: Small Silk Pack"}
+F.quests[94251]={lvl=60,t="Craftsman's Writ: Phoenix Pants"}
+F.quests[94252]={lvl=60,t="Craftsman's Writ: Red Woolen Boots"}
+F.quests[94253]={lvl=60,t="Craftsman's Writ: Colorful Kilt"}
+F.quests[94254]={lvl=60,t="Craftsman's Writ: Greater Adept's Robe"}
+F.quests[94255]={lvl=60,t="Craftsman's Writ: Spider Silk Slippers"}
+F.quests[94256]={lvl=60,t="Craftsman's Writ: Frost Protection Potion"}
+F.quests[94257]={lvl=60,t="Craftsman's Writ: Lesser Invisibility Potion"}
+F.quests[94258]={lvl=60,t="Craftsman's Writ: Lesser Stoneshield Potion"}
+F.quests[94259]={lvl=60,t="Craftsman's Writ: Nature Protection Potion"}
+F.quests[94260]={lvl=60,t="Craftsman's Writ: Catseye Draught"}
+F.quests[94261]={lvl=60,t="Craftsman's Writ: Great Rage Potion"}
+F.quests[94262]={lvl=60,t="Craftsman's Writ: Mana Potion"}
+F.quests[94263]={lvl=60,t="Craftsman's Writ: Fire Protection Potion"}
+F.quests[94264]={lvl=60,t="Craftsman's Writ: Shadow Oil"}
+F.quests[94265]={lvl=60,t="Craftsman's Writ: Goblin Rocket Fuel"}
+F.quests[94266]={lvl=60,t="Craftsman's Writ: Elixir of Agility"}
+F.quests[94267]={lvl=60,t="Craftsman's Writ: Wildvine Potion"}
+F.quests[94268]={lvl=60,t="Craftsman's Writ: Steel Plate Helm"}
+F.quests[94269]={lvl=60,t="Craftsman's Writ: Inlaid Mithril Cylinder"}
+F.quests[94270]={lvl=60,t="Craftsman's Writ: Steel Weapon Chain"}
+F.quests[94271]={lvl=60,t="Craftsman's Writ: Ornate Mithril Shoulders"}
+F.quests[94272]={lvl=60,t="Craftsman's Writ: Blue Glittering Axe"}
+F.quests[94273]={lvl=60,t="Craftsman's Writ: Moonsteel Broadsword"}
+F.quests[94274]={lvl=60,t="Craftsman's Writ: Golden Scale Coif"}
+F.quests[94275]={lvl=60,t="Craftsman's Writ: Solid Sharpening Stone"}
+F.quests[94276]={lvl=60,t="Craftsman's Writ: Wicked Mithril Blade"}
+F.quests[94277]={lvl=60,t="Craftsman's Writ: Truesilver Rod"}
+F.quests[94278]={lvl=60,t="Craftsman's Writ: Golden Scale Gauntlets"}
+F.quests[94279]={lvl=60,t="Craftsman's Writ: Heavy Mithril Axe"}
+F.quests[94280]={lvl=60,t="Craftsman's Writ: Mechanical Dragonling"}
+F.quests[94281]={lvl=60,t="Craftsman's Writ: Advanced Target Dummy"}
+F.quests[94282]={lvl=60,t="Craftsman's Writ: Craftsman's Monocle"}
+F.quests[94283]={lvl=60,t="Craftsman's Writ: Goblin Land Mine"}
+F.quests[94284]={lvl=60,t="Craftsman's Writ: Catseye Ultra Goggles"}
+F.quests[94285]={lvl=60,t="Craftsman's Writ: Unstable Trigger"}
+F.quests[94286]={lvl=60,t="Craftsman's Writ: Flash Bomb"}
+F.quests[94287]={lvl=60,t="Craftsman's Writ: Fire Goggles"}
+F.quests[94288]={lvl=60,t="Craftsman's Writ: Mithril Frag Bomb"}
+F.quests[94289]={lvl=60,t="Craftsman's Writ: Gyromatic Micro-Adjuster"}
+F.quests[94290]={lvl=60,t="Craftsman's Writ: Mechanical Repair Kit"}
+F.quests[94291]={lvl=60,t="Craftsman's Writ: Dark Iron Bomb"}
+F.quests[94292]={lvl=60,t="Craftsman's Writ: Comfortable Leather Hat"}
+F.quests[94293]={lvl=60,t="Craftsman's Writ: Guardian Cloak"}
+F.quests[94294]={lvl=60,t="Craftsman's Writ: Dusky Bracers"}
+F.quests[94295]={lvl=60,t="Craftsman's Writ: Wild Leather Helmet"}
+F.quests[94296]={lvl=60,t="Craftsman's Writ: Wild Leather Shoulders"}
+F.quests[94297]={lvl=60,t="Craftsman's Writ: Quickdraw Quiver"}
+F.quests[94298]={lvl=60,t="Craftsman's Writ: Swift Boots"}
+F.quests[94299]={lvl=60,t="Craftsman's Writ: Nightscape Shoulders"}
+F.quests[94300]={lvl=60,t="Craftsman's Writ: Big Voodoo Mask"}
+F.quests[94301]={lvl=60,t="Craftsman's Writ: Big Voodoo Robe"}
+F.quests[94302]={lvl=60,t="Craftsman's Writ: Turtle Scale Breastplate"}
+F.quests[94303]={lvl=60,t="Craftsman's Writ: Thick Leather Ammo Pouch"}
+F.quests[94304]={lvl=60,t="Craftsman's Writ: Mageweave Bag"}
+F.quests[94305]={lvl=60,t="Craftsman's Writ: Shadoweave Gloves"}
+F.quests[94306]={lvl=60,t="Craftsman's Writ: Crimson Silk Robe"}
+F.quests[94307]={lvl=60,t="Craftsman's Writ: Shadoweave Robe"}
+F.quests[94308]={lvl=60,t="Craftsman's Writ: Enchanted Mageweave Pouch"}
+F.quests[94309]={lvl=60,t="Craftsman's Writ: Star Belt"}
+F.quests[94310]={lvl=60,t="Craftsman's Writ: Black Mageweave Vest"}
+F.quests[94311]={lvl=60,t="Craftsman's Writ: Red Mageweave Pants"}
+F.quests[94312]={lvl=60,t="Craftsman's Writ: Orange Martial Shirt"}
+F.quests[94313]={lvl=60,t="Craftsman's Writ: White Bandit Mask"}
+F.quests[94314]={lvl=60,t="Craftsman's Writ: Cindercloth Robe"}
+F.quests[94315]={lvl=60,t="Craftsman's Writ: Earthen Silk Belt"}
+F.quests[94316]={lvl=60,t="Craftsman's Writ: Potion of Demonslaying"}
+F.quests[94317]={lvl=60,t="Craftsman's Writ: Dreamless Sleep Potion"}
+F.quests[94318]={lvl=60,t="Craftsman's Writ: Greater Fire Protection Potion"}
+F.quests[94319]={lvl=60,t="Craftsman's Writ: Draught of Detect Demon"}
+F.quests[94320]={lvl=60,t="Craftsman's Writ: Gift of Arthas"}
+F.quests[94321]={lvl=60,t="Craftsman's Writ: Flask of Chromatic Resistance"}
+F.quests[94322]={lvl=60,t="Craftsman's Writ: Limited Invulnerability Potion"}
+F.quests[94323]={lvl=60,t="Craftsman's Writ: Major Rejuvenation Potion"}
+F.quests[94324]={lvl=60,t="Craftsman's Writ: Distilled Firewater"}
+F.quests[94325]={lvl=60,t="Craftsman's Writ: Radiant Circlet"}
+F.quests[94326]={lvl=60,t="Craftsman's Writ: Radiant Belt"}
+F.quests[94327]={lvl=60,t="Craftsman's Writ: Orcish War Leggings"}
+F.quests[94328]={lvl=60,t="Craftsman's Writ: Mithril Spurs"}
+F.quests[94329]={lvl=60,t="Craftsman's Writ: Imperial Plate Chest"}
+F.quests[94330]={lvl=60,t="Craftsman's Writ: Darkrune Gauntlets"}
+F.quests[94331]={lvl=60,t="Craftsman's Writ: Huge Thorium Battleaxe"}
+F.quests[94332]={lvl=60,t="Craftsman's Writ: Arcanite Skeleton Key"}
+F.quests[94333]={lvl=60,t="Craftsman's Writ: Ebon Shiv"}
+F.quests[94334]={lvl=60,t="Craftsman's Writ: Masterwork Target Dummy"}
+F.quests[94335]={lvl=60,t="Craftsman's Writ: Green Lens"}
+F.quests[94336]={lvl=60,t="Craftsman's Writ: Lifelike Mechanical Toad"}
+F.quests[94337]={lvl=60,t="Craftsman's Writ: Gnomish Alarm-O-Bot"}
+F.quests[94338]={lvl=60,t="Craftsman's Writ: Goblin Jumper Cables XL"}
+F.quests[94339]={lvl=60,t="Craftsman's Writ: Field Repair Bot 74A"}
+F.quests[94340]={lvl=60,t="Craftsman's Writ: Truesilver Transformer"}
+F.quests[94341]={lvl=60,t="Craftsman's Writ: Sniper Scope"}
+F.quests[94342]={lvl=60,t="Craftsman's Writ: Tranquil Mechanical Yeti"}
+F.quests[94343]={lvl=60,t="Craftsman's Writ: Wicked Leather Pants"}
+F.quests[94344]={lvl=60,t="Craftsman's Writ: Gordok Ogre Suit"}
+F.quests[94345]={lvl=60,t="Craftsman's Writ: Volcanic Breastplate"}
+F.quests[94346]={lvl=60,t="Craftsman's Writ: Runic Leather Headband"}
+F.quests[94347]={lvl=60,t="Craftsman's Writ: Wicked Leather Bracers"}
+F.quests[94348]={lvl=60,t="Craftsman's Writ: Chimeric Vest"}
+F.quests[94349]={lvl=60,t="Craftsman's Writ: Heavy Scorpid Helm"}
+F.quests[94350]={lvl=60,t="Craftsman's Writ: Runic Leather Bracers"}
+F.quests[94351]={lvl=60,t="Craftsman's Writ: Frostsaber Boots"}
+F.quests[94352]={lvl=60,t="Craftsman's Writ: Wizardweave Turban"}
+F.quests[94353]={lvl=60,t="Craftsman's Writ: Runecloth Bag"}
+F.quests[94354]={lvl=60,t="Craftsman's Writ: Runecloth Boots"}
+F.quests[94355]={lvl=60,t="Craftsman's Writ: Tuxedo Jacket"}
+F.quests[94356]={lvl=60,t="Craftsman's Writ: Felcloth Boots"}
+F.quests[94357]={lvl=60,t="Craftsman's Writ: Cenarion Herb Bag"}
+F.quests[94358]={lvl=60,t="Craftsman's Writ: Shadoweave Mask"}
+F.quests[94359]={lvl=60,t="Craftsman's Writ: Ghostweave Vest"}
+F.quests[94360]={lvl=60,t="Craftsman's Writ: Soul Pouch"}
+F.quests[94369]={lvl=12,o={{n=1,text="Speak with Talaanis Shadowsong",type="monster"}},t="The Fate of Zephras"}
+F.quests[94373]={lvl=4,t="Call of Earth"}
+F.quests[94374]={lvl=4,t="Call of Earth"}
+F.quests[94375]={lvl=4,t="Call of Earth"}
+F.quests[94411]={lvl=6,o={{n=6,text="High Order Apprentice defeated",type="monster"}},t="Meddlesome Mages"}
+F.quests[94413]={lvl=6,o={{n=6,text="Windshaper Novice Seer defeated",type="monster"}},t="A Magical Affront"}
+F.quests[94414]={lvl=2,t="The Anchors of Zephras"}
+F.quests[94427]={lvl=12,t="A Lesson in Divinity"}
+F.quests[94434]={lvl=12,o={{n=10,text="Linen Cloth",type="item"}},t="A Lesson in Divinity"}
+F.quests[94435]={lvl=12,t="A Lesson in Divinity"}
+F.quests[94436]={lvl=12,t="A Lesson in Divinity"}
+F.quests[94438]={lvl=12,t="A Lesson in Divinity"}
+F.quests[94440]={lvl=12,t="A Lesson in Divinity"}
+F.quests[94441]={lvl=12,t="A Lesson in Divinity"}
+F.quests[94449]={lvl=10,t="Call of Fire"}
+F.quests[94465]={lvl=11,t="Call of Fire"}
+F.quests[94466]={lvl=14,t="Call of Fire"}
+F.quests[94467]={lvl=14,t="Call of Fire"}
+F.quests[94468]={lvl=14,t="Call of Fire"}
+F.quests[94472]={lvl=4,t="Earth Sapta"}
+F.quests[94473]={lvl=13,t="Fire Sapta"}
+F.quests[94484]={lvl=11,t="Unnerving Silence"}
+F.quests[94485]={lvl=12,t="Tears of the Lady"}
+F.quests[94486]={lvl=11,o={{n=20,text="Pristine Shriekling Feathers",type="item"}},t="Feathers for Binding"}
+F.quests[94487]={lvl=11,t="Unwanted and Unworthy"}
+F.quests[94488]={lvl=11,t="The Ties That Bind"}
+F.quests[94489]={lvl=12,o={{n=7,text="Injured Druids healed",type="monster"},{n=1,text="Find Jorel Windsinger",type="monster"}},t="The Wounds of Betrayal"}
+F.quests[94490]={lvl=12,t="Ripped Missive"}
+F.quests[94491]={lvl=12,t="The Fate of the Den"}
+F.quests[94493]={lvl=11,t="A Sacrifice in Vain"}
+F.quests[94494]={lvl=20,t="Call of Water"}
+F.quests[94495]={lvl=22,t="Call of Water"}
+F.quests[94497]={lvl=22,t="Call of Water"}
+F.quests[94499]={lvl=22,t="Call of Water"}
+F.quests[94559]={lvl=11,o={{n=1,text="Find the Al'Aketh Turncoat",type="monster"}},t="UNUSED"}
+F.quests[94568]={lvl=11,o={{n=1,text="Learn what you can from the crystal",type="monster"}},t="The Cult's True Plans"}
+F.quests[94638]={lvl=10,o={{n=1,text="slain",type="monster"}},t="Strength and Mercy"}
+F.quests[94773]={lvl=10,t="Divine Grace"}
+F.quests[94774]={lvl=10,t="Divine Grace"}
+F.quests[94776]={lvl=10,t="Divine Grace"}
+F.quests[94778]={lvl=10,t="Divine Grace"}
+F.quests[94792]={lvl=10,o={{n=1,text="Tame a Rockhide Boar",type="event"}},t="Taming the Beast"}
+F.quests[94793]={lvl=10,t="Training the Beast"}
+F.quests[94817]={lvl=10,t="Confounding Flash"}
+F.quests[94819]={lvl=20,t="Contingency Plan"}
+F.quests[94820]={lvl=20,t="Contingency Plan"}
+F.quests[94821]={lvl=10,t="Confounding Flash"}
+F.quests[94822]={lvl=10,t="Confounding Flash"}
+F.quests[94823]={lvl=10,t="Confounding Flash"}
+F.quests[94824]={lvl=10,t="Confounding Flash"}
+F.quests[94826]={lvl=10,t="Confounding Flash"}
+F.quests[94863]={lvl=10,o={{n=1,text="Tame a Gray Forest Wolf",type="event"}},t="Taming the Beast"}
+F.quests[94864]={lvl=10,o={{n=1,text="Tame a Young Forest Bear",type="event"}},t="Taming the Beast"}
+F.quests[94896]={lvl=11,t="Aid For The Refugees"}
+F.quests[94897]={lvl=11,t="The Fate of a Loved One"}
+F.quests[94898]={lvl=11,o={{n=10,text="slain",type="monster"}},t="Violent Winds (Temp Disabled)"}
+F.quests[94901]={lvl=11,t="Hopping Helpers"}
+F.quests[94902]={lvl=11,t="Valanaar Vintages"}
+F.quests[94911]={lvl=10,t="Child of Nature"}
+F.quests[94912]={lvl=10,t="Child of Nature"}
+F.quests[94913]={lvl=10,t="Moonglade"}
+F.quests[94914]={lvl=10,t="Moonglade"}
+F.quests[94946]={lvl=13,t="The Magical City of Dalaran"}
+F.quests[94947]={lvl=13,t="Welcome to Azeroth"}
+F.quests[94978]={lvl=10,o={{n=1,text="Tame a Windsong Crawler",type="event"}},t="Taming the Beast"}
+F.quests[94979]={lvl=10,o={{n=1,text="Tame an Ornery Galestrider",type="event"}},t="Taming the Beast"}
+F.quests[95034]={lvl=24,o={{n=1,text="Speak with Lumina Windsinger",type="monster"}},t="The Debt"}
+F.quests[95036]={lvl=25,o={{n=1,text="Collect the note from Trevan",type="item"}},t="A Moon-Kissed Blade",tag="Dungeon"}
+F.quests[95041]={lvl=10,t="Data Hoarders"}
+F.quests[95065]={lvl=12,t="Fishin' Time"}
+F.quests[95161]={lvl=22,t="Remember That I Love You"}
+F.quests[95189]={lvl=22,t="Crest of Lordaeron",tag="Dungeon"}
+F.quests[95195]={lvl=22,t="Bloodied Insignia",tag="Dungeon"}
+F.quests[95204]={lvl=22,t="Crest of Lordaeron",tag="Dungeon"}
+F.quests[95212]={lvl=10,t="Never Saddle on Quality"}
+F.quests[95213]={lvl=10,t="Stolen Blasting Powder"}
+F.quests[95214]={lvl=10,t="Stolen Blasting Powder"}
+F.quests[95216]={lvl=22,t="The New Plague",tag="Dungeon"}
+F.quests[95217]={lvl=10,o={{n=12,text="Copper Bar",type="item"}},t="The Quarry's Smith"}
+F.quests[95250]={lvl=21,t="Abominable Creatures",tag="Dungeon"}
 F.quests[95314]={lvl=10,o={{n=8,text="Bottle of Whispering Elixir",type="item"}},t="That Shadowvale Green Elixir"}
+F.quests[95328]={lvl=10,t="Whispering Horror Residue"}
+F.quests[95349]={lvl=13,t="The Earthen Ring"}
+F.quests[95350]={lvl=13,t="Welcome to Azeroth"}
+F.quests[95494]={lvl=18,t="Bruised Pride and Lion Hides"}
+F.quests[95495]={lvl=18,t="The Hermit Tanner"}
+F.quests[95507]={lvl=18,t="Vrang's Game"}
+F.quests[95508]={lvl=18,o={{n=1,text="Assist Walton",type="monster"}},t="Unwelcome Guests"}
+F.quests[95621]={lvl=18,o={{n=1,text="Learn why the Kul Tirans are here",type="item"}},t="Trouble in the Valley"}
+F.quests[95771]={lvl=10,t="A Taste of Darkness"}
+F.quests[95774]={lvl=20,t="Her Name Is Olgra"}
+F.quests[95803]={lvl=12,t="A Token of Good Faith"}
+F.quests[95805]={lvl=4,t="Grace of An'she and Mu'sha"}
+F.quests[95816]={lvl=60,t="Sign Me Up!"}
+F.quests[95819]={lvl=60,t="Sign Me Up!"}
+F.quests[95883]={lvl=23,t="The Tortured Soul"}
+F.quests[95884]={lvl=23,t="The Offering Stone"}
+F.quests[95981]={lvl=20,o={{n=8,text="slain",type="monster"},{n=8,text="slain",type="monster"}},t="Watching the Roads"}
+F.quests[95998]={lvl=6,t="The Great Outdoors"}
+F.quests[95999]={lvl=25,t="WANTED: Incinerator Gar'im",tag="Elite"}
+F.quests[96031]={lvl=6,t="Camping 101: Leatherworking"}
+F.quests[96044]={lvl=6,t="Camping 101: Blacksmithing"}
+F.quests[96045]={lvl=6,t="Camping 101: Alchemy"}
+F.quests[96046]={lvl=6,t="Camping 101: Mining"}
+F.quests[96047]={lvl=6,t="Camping 101: First Aid"}
+F.quests[96050]={lvl=6,t="Camping 101: Fishing"}
+F.quests[96055]={lvl=6,t="Camping 101: Herbalism"}
+F.quests[96056]={lvl=6,t="Camping 101: Skinning"}
+F.quests[96057]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[96058]={lvl=6,t="Camping 101: Engineering"}
+F.quests[96059]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[96101]={lvl=6,t="The Great Outdoors"}
+F.quests[96102]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[96130]={lvl=8,t="Chakuyak"}
+F.quests[96137]={lvl=24,o={{n=10,text="slain",type="monster"},{n=7,text="slain",type="monster"}},t="Ira's Dagger"}
+F.quests[96139]={lvl=22,t="The Valor Family"}
+F.quests[96204]={lvl=22,o={{n=1,text="Escort Lumina Windsinger to safety",type="event"}},t="The Windshaper's Wrath"}
+F.quests[96243]={lvl=10,t="Call of Earth"}
+F.quests[96390]={lvl=13,o={{n=10,text="slain",type="monster"}},t="Nip 'Em in the Bud"}
+F.quests[96391]={lvl=15,t="Underground Map"}
+F.quests[96392]={lvl=13,o={{n=1,text="Use Farsen's Farsight",type="monster"}},t="Farsen's Watch"}
+F.quests[96393]={lvl=16,t="Old Ironforge Incursion",tag="Dungeon"}
+F.quests[96394]={lvl=15,o={{n=15,text="slain",type="monster"},{n=10,text="slain",type="monster"}},t="The Restless Dead",tag="Dungeon"}
+F.quests[96395]={lvl=15,o={{n=1,text="slain",type="monster"}},t="An Ancient Grudge",tag="Dungeon"}
+F.quests[96403]={lvl=15,t="Important Heirlooms",tag="Dungeon"}
+F.quests[96408]={lvl=13,t="A Visitor to Dun Morogh"}
+F.quests[96604]={lvl=6,t="The Great Outdoors"}
+F.quests[96605]={lvl=6,t="The Great Outdoors"}
+F.quests[96606]={lvl=6,t="The Great Outdoors"}
+F.quests[96607]={lvl=6,t="The Great Outdoors"}
+F.quests[96608]={lvl=6,t="The Great Outdoors"}
+F.quests[96626]={lvl=6,t="Camping 101: Cooking"}
+F.quests[96627]={lvl=6,t="The Adventurer"}
+F.quests[96628]={lvl=6,t="The Adventurer"}
+F.quests[96629]={lvl=6,t="Camping 101: Cooking"}
+F.quests[96630]={lvl=6,t="The Adventurer"}
+F.quests[96634]={lvl=6,t="Camping 101: Cooking"}
+F.quests[96638]={lvl=6,t="The Adventurer"}
+F.quests[96646]={lvl=6,t="Camping 101: Cooking"}
+F.quests[96652]={lvl=6,t="The Adventurer"}
+F.quests[96655]={lvl=6,t="Camping 101: Cooking"}
+F.quests[96656]={lvl=6,t="The Adventurer"}
+F.quests[96658]={lvl=6,t="Camping 101: Cooking"}
+F.quests[96659]={lvl=6,t="The Adventurer"}
+F.quests[96661]={lvl=6,t="Camping 101: Cooking"}
+F.quests[96821]={lvl=6,o={{n=6,text="slain",type="monster"},{n=6,text="slain",type="monster"}},t="Legging It"}
+F.quests[96822]={lvl=6,t="For Honor"}
+F.quests[96825]={lvl=6,t="This Fruit Could Bite Back"}
+F.quests[96873]={lvl=8,o={{n=3,text="Luminous Residue",type="item"}},t="A Pain in the Neck"}
+F.quests[96874]={lvl=10,o={{n=5,text="Rough Grinding Stone",type="item"}},t="This Is Spinal Axe"}
+F.quests[96875]={lvl=10,o={{n=2,text="Cured Light Hide",type="item"}},t="Beasts of Thunder Ridge"}
+F.quests[96876]={lvl=8,t="Ukor's Lost Pack"}
+F.quests[96877]={lvl=12,t="Halikor's Hoof"}
+F.quests[96895]={lvl=13,t="The Argent Emissary"}
+F.quests[96896]={lvl=13,t="A Righteous Cause"}
 F.quests[96897]={lvl=13,o={{n=8,text="Dark Neophyte slain",type="monster"},{n=8,text="Dark Enforcer slain",type="monster"}},t="The Cult of the Damned"}
 F.quests[96898]={lvl=13,o={{n=12,text="Necrotic Crystal Fragment",type="item"}},t="Remnants of War"}
+F.quests[96899]={lvl=13,t="Bandarion Keep"}
+F.quests[97003]={lvl=21,t="Chol'aruk the Ravener",tag="Elite"}
+F.quests[97005]={lvl=21,o={{n=1,text="Chol'aruk's Head",type="item"}},t="Chol'aruk the Ravener",tag="Elite"}
+F.quests[97065]={lvl=60,t="Tip the Scales - Keefer's Angelfish"}
+F.quests[97066]={lvl=60,t="Tip the Scales - Brownell's Blue Striped Racer"}
+F.quests[97067]={lvl=60,t="Tip the Scales - Dezian Queenfish"}
+F.quests[97220]={lvl=15,t="Philmor's Favor"}
+F.quests[97222]={lvl=15,o={{n=1,text="Gatehouse Shipment delivered",type="monster"}},t="Gatehouse Goods"}
+F.quests[97223]={lvl=8,t="Bloodtalon Matriarch"}
+F.quests[97225]={lvl=9,t="Forgotten Loa Idols"}
+F.quests[97234]={lvl=18,t="Reading Room"}
+F.quests[97236]={lvl=5,t="Fang of Githyiss"}
+F.quests[97237]={lvl=18,t="Shelf Picked"}
+F.quests[97242]={lvl=15,t="Yelmak's Medley"}
+F.quests[97243]={lvl=10,t="Call of Fire"}
+F.quests[97244]={lvl=10,t="Call of Fire"}
+F.quests[97245]={lvl=10,t="Call of Fire"}
+F.quests[97246]={lvl=15,t="Meal Appeal"}
+F.quests[97249]={lvl=15,t="Favorite Food"}
+F.quests[97250]={lvl=23,o={{n=2,text="slain",type="monster"},{n=1,text="slain",type="monster"}},t="Wrongly Blamed, Justly Corrected",tag="Elite"}
+F.quests[97253]={lvl=14,t="Parts and Pieces"}
+F.quests[97257]={lvl=10,o={{n=1,text="Complete the Ritual with Olariaan",type="monster"}},t="Call of Fire"}
+F.quests[97263]={lvl=2,t="Your Package Has Arrived"}
+F.quests[97275]={lvl=15,t="Whuut's the Rush"}
+F.quests[97277]={lvl=6,o={{n=1,text="slain",type="monster"}},t="Grund and Gozwin"}
+F.quests[97279]={lvl=2,t="Wayward Weapons"}
+F.quests[97281]={lvl=11,t="A Simmering Storm"}
+F.quests[97282]={lvl=11,t="Stormy Potential"}
+F.quests[97286]={lvl=20,t="Research Access"}
+F.quests[97288]={lvl=21,t="Unending Torment",tag="Dungeon"}
+F.quests[97289]={lvl=21,t="Unending Torment"}
+F.quests[97290]={lvl=21,t="Unending Torment"}
+F.quests[97291]={lvl=21,t="Unending Torment"}
+F.quests[97292]={lvl=21,o={{n=1,text="Hissing Serum administered",type="monster"}},t="Unending Torment"}
+F.quests[97326]={lvl=15,t="Rocks to Rests"}
+F.quests[97485]={lvl=10,o={{n=1,text="Incense created",type="item"},{n=1,text="Spread incense",type="monster"}},t="Traditions of the Bluff"}
+F.quests[97538]={lvl=26,t="Pigments for Paints"}
+F.quests[97558]={lvl=11,t="Hides for the Forsaken"}
+F.quests[97583]={lvl=1,t="WRIGGLE."}
+F.quests[97891]={lvl=16,o={{n=1,text="Speak to Doctor Martin Felben",type="monster"}},t="Prompt Potion Runner"}
+F.quests[97894]={lvl=17,t="Business in Auberdine"}
+F.quests[97899]={lvl=6,t="Camping 101: Alchemy"}
+F.quests[97900]={lvl=6,t="Camping 101: Blacksmithing"}
+F.quests[97901]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[97902]={lvl=6,t="Camping 101: Engineering"}
+F.quests[97903]={lvl=6,t="Camping 101: First Aid"}
+F.quests[97904]={lvl=6,t="Camping 101: Fishing"}
+F.quests[97905]={lvl=6,t="Camping 101: Herbalism"}
+F.quests[97906]={lvl=6,t="Camping 101: Leatherworking"}
+F.quests[97907]={lvl=6,t="Camping 101: Mining"}
+F.quests[97908]={lvl=6,t="Camping 101: Skinning"}
+F.quests[97914]={lvl=17,t="Expanding Horizons"}
+F.quests[97915]={lvl=6,t="Camping 101: Alchemy"}
+F.quests[97916]={lvl=6,t="Camping 101: Blacksmithing"}
+F.quests[97917]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[97918]={lvl=6,t="Camping 101: Engineering"}
+F.quests[97919]={lvl=6,t="Camping 101: First Aid"}
+F.quests[97920]={lvl=6,t="Camping 101: Fishing"}
+F.quests[97921]={lvl=6,t="Camping 101: Herbalism"}
+F.quests[97922]={lvl=6,t="Camping 101: Leatherworking"}
+F.quests[97923]={lvl=6,t="Camping 101: Mining"}
+F.quests[97924]={lvl=6,t="Camping 101: Skinning"}
+F.quests[97925]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[97926]={lvl=17,t="Making Do"}
+F.quests[97927]={lvl=6,t="Camping 101: Alchemy"}
+F.quests[97928]={lvl=6,t="Camping 101: Blacksmithing"}
+F.quests[97929]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[97930]={lvl=6,t="Camping 101: Engineering"}
+F.quests[97931]={lvl=6,t="Camping 101: First Aid"}
+F.quests[97932]={lvl=6,t="Camping 101: Fishing"}
+F.quests[97933]={lvl=6,t="Camping 101: Herbalism"}
+F.quests[97934]={lvl=6,t="Camping 101: Leatherworking"}
+F.quests[97935]={lvl=6,t="Camping 101: Mining"}
+F.quests[97936]={lvl=6,t="Camping 101: Skinning"}
+F.quests[97937]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[97938]={lvl=6,t="Camping 101: Alchemy"}
+F.quests[97939]={lvl=6,t="Camping 101: Blacksmithing"}
+F.quests[97940]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[97941]={lvl=6,t="Camping 101: Engineering"}
+F.quests[97942]={lvl=6,t="Camping 101: First Aid"}
+F.quests[97943]={lvl=6,t="Camping 101: Fishing"}
+F.quests[97944]={lvl=6,t="Camping 101: Herbalism"}
+F.quests[97946]={lvl=6,t="Camping 101: Leatherworking"}
+F.quests[97948]={lvl=6,t="Camping 101: Mining"}
+F.quests[97949]={lvl=6,t="Camping 101: Skinning"}
+F.quests[97950]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[97951]={lvl=6,t="Camping 101: Alchemy"}
+F.quests[97952]={lvl=6,t="Camping 101: Blacksmithing"}
+F.quests[97953]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[97954]={lvl=6,t="Camping 101: Engineering"}
+F.quests[97955]={lvl=6,t="Camping 101: First Aid"}
+F.quests[97956]={lvl=6,t="Camping 101: Fishing"}
+F.quests[97957]={lvl=6,t="Camping 101: Herbalism"}
+F.quests[97958]={lvl=6,t="Camping 101: Leatherworking"}
+F.quests[97959]={lvl=6,t="Camping 101: Mining"}
+F.quests[97960]={lvl=6,t="Camping 101: Skinning"}
+F.quests[97961]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[97963]={lvl=6,t="Camping 101: Alchemy"}
+F.quests[97964]={lvl=6,t="Camping 101: Blacksmithing"}
+F.quests[97965]={lvl=6,t="Camping 101: First Aid"}
+F.quests[97967]={lvl=6,t="Camping 101: Fishing"}
+F.quests[97968]={lvl=6,t="Camping 101: Herbalism"}
+F.quests[97969]={lvl=6,t="Camping 101: Leatherworking"}
+F.quests[97970]={lvl=6,t="Camping 101: Mining"}
+F.quests[97971]={lvl=6,t="Camping 101: Skinning"}
+F.quests[97972]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[97973]={lvl=6,t="Camping 101: Tailoring"}
+F.quests[97977]={lvl=3,o={{n=4,text="Gnarlpine Totem",type="item"}},t="Nature's Call"}
+F.quests[97979]={lvl=1,t="The Goddess Provides"}
+F.quests[98013]={lvl=20,o={{n=12,text="slain",type="monster"},{n=8,text="slain",type="monster"},{n=6,text="slain",type="monster"}},t="Swelling Forces"}
+F.quests[98021]={lvl=13,t="Journey to Sentinel Hill"}
+F.quests[98024]={lvl=13,t="Journey to the Crossroads"}
+F.quests[98025]={lvl=13,t="WANTED: Jai'vhanel"}
+F.quests[98028]={lvl=21,t="Baron Marinous"}
+F.quests[98042]={lvl=17,t="It's All Fun and Games Until..."}
+F.quests[98046]={lvl=11,t="Crown of the Earth"}
+F.quests[98065]={lvl=11,t="Crown of the Earth"}
+F.quests[98067]={lvl=11,o={{n=1,text="Cenarion Hold depths entrance",type="monster"},{n=1,text="Darnassus Bank",type="monster"},{n=1,text="Craftsman's Terrace Inn",type="monster"},{n=1,text="City Gate",type="monster"}},t="Eyes of the Sentinels"}
+F.quests[98093]={lvl=23,o={{n=7,text="slain",type="monster"},{n=7,text="slain",type="monster"}},t="Field to Clear"}
+F.quests[98197]={lvl=22,o={{n=30,text="Khaz Modan Iron",type="item"}},t="Spoils of War"}
+F.quests[98247]={lvl=60,t="Shipping Label"}
+F.quests[98248]={lvl=60,t="Shipping Label"}
+F.quests[98282]={lvl=22,o={{n=1,text="Unruptured Stalker Gland",type="item"}},t="Alchemical Hazards"}
+F.quests[98284]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[98285]={lvl=6,t="Camping 101: Engineering"}
+F.quests[98286]={lvl=6,t="Camping 101: Enchanting"}
+F.quests[98298]={lvl=16,t="Arugal's Folly"}
+F.quests[98299]={lvl=20,o={{n=5,text="slain",type="monster"},{n=5,text="slain",type="monster"}},t="Stop the Spread"}
+F.quests[98319]={lvl=8,o={{n=1,text="Mountaineer Cornelius found",type="event"}},t="Secure the Mountain"}
+F.quests[98321]={lvl=7,t="Flintfire's Shipment"}
+F.quests[98322]={lvl=8,t="Secure the Mountain"}
+F.quests[98323]={lvl=8,t="Secure the Mountain"}
+F.quests[98326]={lvl=9,t="Frosthowl"}
+F.quests[98340]={lvl=20,t="The Great Cat Spirit"}
+F.quests[98341]={lvl=20,t="The Great Windborne Cat Spirit"}
+F.quests[98342]={lvl=20,t="The Great Cat Spirit"}
+F.quests[98362]={lvl=20,t="To Thunder Bluff"}
+F.quests[98386]={lvl=21,o={{n=12,text="slain",type="monster"},{n=6,text="Tarantula Egg destroyed",type="monster"}},t="Alther's Mill"}
+F.quests[98387]={lvl=21,o={{n=10,text="Stolen Supplies",type="item"}},t="Blackrock Blockade"}
+F.quests[98389]={lvl=4,o={{n=6,text="Webbed Forsaken freed",type="monster"}},t="A Light in the Darkness"}
+F.quests[98391]={lvl=10,t="The Sisterhood of Elune"}
+F.quests[98392]={lvl=12,t="Darkness in the Glade"}
+F.quests[98393]={lvl=20,t="The Great Cat Spirit"}
+F.quests[98394]={lvl=20,t="The Great Cat Spirit"}
+F.quests[98396]={lvl=20,o={{n=1,text="Relic of the Fang",type="item"},{n=1,text="Relic of the Claw",type="item"},{n=1,text="Relic of the Silent Shadow",type="item"}},t="The Great Cat Spirit"}
+F.quests[98397]={lvl=20,t="To Darnassus"}
+F.quests[98398]={lvl=12,t="The Oracle Tree"}
+F.quests[98403]={lvl=12,o={{n=8,text="slain",type="monster"},{n=1,text="Mature Fel Moss",type="item"}},t="Twisted Hatred",tag="Elite"}
+F.quests[98404]={lvl=20,o={{n=1,text="Relic of the Fang",type="item"},{n=1,text="Relic of the Claw",type="item"},{n=1,text="Relic of the Silent Shadow",type="item"}},t="The Great Windborne Cat Spirit"}
+F.quests[98405]={lvl=20,t="The Great Cat Spirit"}
+F.quests[98407]={lvl=17,t="Show of Force"}
+F.quests[98423]={lvl=16,t="The Treaty of Understanding"}
+F.quests[98424]={lvl=10,o={{n=1,text="Barrens Operations Best Practices",type="item"}},t="Fizsprocket's Notes"}
+F.quests[98427]={lvl=12,t="Ceasing Operations",tag="Elite"}
+F.quests[98430]={lvl=8,o={{n=1,text="Escort Perith Stormhoof out of Palemane Rock",type="event"}},t="The Longwalkers"}
+F.quests[98435]={lvl=10,t="Thunderhorn's Report"}
+F.quests[98459]={lvl=21,t="A Lack of Virtue"}
+F.quests[98461]={lvl=21,t="Unrequited Love"}
+F.quests[98512]={lvl=11,o={{n=10,text="slain",type="monster"}},t="Al'Aketh Assassins"}
+F.quests[98517]={lvl=10,t="Call of Fire"}
+F.quests[98545]={lvl=13,t="Leonid's Letter"}
+F.quests[98574]={lvl=1,t="Hallowed Memorandum"}
+F.quests[98575]={lvl=1,t="Tainted Tablet"}
+F.quests[98576]={lvl=1,t="Glyphic Parchment"}
+F.quests[98581]={lvl=1,t="Archaic Rune"}
+F.quests[98601]={lvl=1,t="A Difficult Path"}
+F.quests[98731]={lvl=20,t="Blessings of the Great Cat Spirit"}
+F.quests[98738]={lvl=20,t="Blessings of the Great Windborne Cat Spirit"}
+F.quests[98739]={lvl=20,t="Blessings of the Great Cat Spirit"}
+F.quests[98977]={lvl=60,t="Mossheart the Elder"}
+F.quests[98983]={lvl=60,t="Frostleaf the Elder"}
+F.quests[99046]={lvl=9,t="The Lost Runner"}
+F.quests[99047]={lvl=9,t="Not Dead Yet"}
+F.quests[99048]={lvl=11,t="A Missing Hand"}
+F.quests[99049]={lvl=11,t="Threat from Below"}
+F.quests[99050]={lvl=10,o={{n=1,text="Empty Vial",type="item"},{n=1,text="Refreshing Spring Water",type="item"}},t="The Great Tree Provides"}
+F.quests[99051]={lvl=11,t="Threat from Below"}
+F.quests[99052]={lvl=12,t="Threat from Below",tag="Elite"}
+F.quests[99053]={lvl=9,o={{n=1,text="Escort Lynessa Duskblossom out of Ban'ethil",type="event"}},t="Escaping Ban'ethil"}
+F.quests[99073]={lvl=10,t="Easing Suffering"}
+F.quests[99079]={lvl=9,t="Longwalker Malah"}
+F.quests[99080]={lvl=9,o={{n=6,text="slain",type="monster"},{n=4,text="slain",type="monster"},{n=1,text="Herak's Head",type="item"}},t="Drive Them Out"}
+F.quests[99081]={lvl=9,t="Grim Tidings"}
+F.quests[99082]={lvl=9,t="The High Chieftain"}
+F.quests[99101]={lvl=9,t="Our Ancient Enemy"}
+F.quests[99108]={lvl=6,t="Sparring Match"}
+F.quests[99123]={lvl=8,o={{n=1,text="Escort Pal'juh out of Kolkar Crag.",type="event"}},t="Lost in the Shadows"}
+F.quests[99127]={lvl=7,t="A Net Disaster"}
+F.quests[99128]={lvl=7,o={{n=4,text="slain",type="monster"},{n=7,text="slain",type="monster"}},t="Slimy Menace"}
+F.quests[99129]={lvl=7,t="A Man About a Murloc"}
+F.quests[99130]={lvl=7,t="An Enticing Offer"}
+F.quests[99131]={lvl=7,t="Baited for Success"}
+F.quests[99134]={lvl=6,o={{n=5,text="Deathguards motivated",type="monster"}},t="Discipline"}
+F.quests[99141]={lvl=6,o={{n=1,text="Gordo's Report",type="item"}},t="Patience"}
 F.quests[99142]={["end"]={npcs={10665}},lvl=11,o={{n=5,text="Tomb Weed",type="item"}},spots={[1]={{[1]=0,[2]=75,[3]=59.2,m=1420},{[1]=0,[2]=75.4,[3]=59.5,m=1420},{[1]=0,[2]=75.8,[3]=59.9,m=1420},{[1]=0,[2]=76.8,[3]=60.7,m=1420}}},t="Tomb Weed",xp={11,875}}
+F.quests[99143]={lvl=7,t="Bottles and Baubles"}
+F.quests[99144]={lvl=7,o={{n=1,text="Escort Bareth Dawnstone out of Crusader's Outpost",type="event"}},t="Seeking Refuge"}
+F.quests[99145]={lvl=1,t="A Winter Veil Gift"}
+F.quests[99152]={lvl=10,t="As Above, So Below"}
+F.quests[99153]={lvl=10,o={{n=1,text="Glowing Crystal Fragment",type="item"}},t="The One That Got Away"}
 F.quests[99156]={lvl=13,o={{n=1,text="Riptear's Heart",type="item"}},start={npcs={1495}},t="Rear Guard Patrol",tag="Elite"}
+F.quests[99158]={lvl=8,t="Dawn in the Mountains"}
+F.quests[99159]={lvl=8,t="Finding Warmth"}
+F.quests[99160]={lvl=8,o={{n=10,text="slain",type="monster"}},t="Rime's Wrath"}
+F.quests[99161]={lvl=8,t="Rime's Wrath"}
+F.quests[99162]={lvl=8,t="Treacherous Cold"}
+F.quests[99191]={lvl=60,t="A Donation of Wool"}
+F.quests[99196]={lvl=60,o={{n=60,text="Wool Cloth",type="item"}},t="A Donation of Wool"}
 F.npcs[416]={c={{[1]=0,[2]=63.1,[3]=52.2,m=1420}},lvl={8,8},n="Tarpit"}
+F.npcs[1860]={c={{[1]=0,[2]=66.3,[3]=25.4,m=1458}},lvl={10,10},n="Sargrave"}
+F.npcs[211022]={c={{[1]=0,[2]=73.8,[3]=33,m=1458}},kind={quest=true},lvl={40,40},n="Owen Thadd"}
 F.npcs[246152]={c={{[1]=0,[2]=60.2,[3]=53.1,m=1420}},lvl={16,16},n="Shari Stilwell"}
 F.levels[10]=7600
 F.levels[11]=8800
