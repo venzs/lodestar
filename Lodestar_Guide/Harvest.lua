@@ -137,7 +137,40 @@ local function migrate(local_, share)
 	return moved
 end
 
+--- What the saved variables actually looked like the moment we first touched them, recorded into
+--- LodestarProbeDB (which belongs to the core addon and is known to persist). A harvest that comes
+--- back empty every session is either not being loaded by the client or not being saved by it, and
+--- those need opposite fixes -- this is the one observation that tells them apart, and guessing at
+--- it from the outside has already cost two wrong fixes.
+local bindNoted = false
+local function noteBind()
+	if bindNoted then return end
+	bindNoted = true
+	local share, scan = _G.LodestarShareDB, _G.LodestarScanDB
+	local function countQuests(t)
+		if type(t) ~= "table" or type(t.quests) ~= "table" then return -1 end
+		local n = 0
+		for _ in pairs(t.quests) do n = n + 1 end
+		return n
+	end
+	local record = {
+		at = date("%Y-%m-%d %H:%M:%S"),
+		shareType = type(share),
+		shareQuests = countQuests(share),
+		scanType = type(scan),
+		scanHadCursor = (type(scan) == "table" and type(scan.scan) == "table" and scan.scan.next ~= nil) or false,
+		scanHadTrails = (type(scan) == "table" and type(scan.trails) == "table") or false,
+	}
+	Guide.lastBind = record
+	local probe = _G.LodestarProbeDB
+	if type(probe) ~= "table" then probe = {} _G.LodestarProbeDB = probe end
+	probe.harvestBinds = type(probe.harvestBinds) == "table" and probe.harvestBinds or {}
+	tinsert(probe.harvestBinds, record)
+	while #probe.harvestBinds > 6 do tremove(probe.harvestBinds, 1) end
+end
+
 local function ensureDB()
+	noteBind()
 	if type(_G.LodestarShareDB) ~= "table" then _G.LodestarShareDB = {} end
 	if type(_G.LodestarScanDB) ~= "table" then _G.LodestarScanDB = {} end
 	db, scanDB = _G.LodestarShareDB, _G.LodestarScanDB
@@ -1240,6 +1273,16 @@ local function handleHarvest(rest)
 			local slot = backupSlot()
 			Lodestar:Say("  A backup from %s is kept: %d quests, %d NPCs, %d objects, %d flight nodes (/lode harvest restore).",
 				date("%Y-%m-%d %H:%M", slot.at or time()), worldCounts(slot))
+		end
+		local b = Guide.lastBind
+		if b then
+			if b.shareQuests and b.shareQuests >= 0 then
+				Lodestar:Say("  At login the saved file held %d quest(s); census cursor %s, trails %s.",
+					b.shareQuests, b.scanHadCursor and "present" or "absent", b.scanHadTrails and "present" or "absent")
+			else
+				Lodestar:Say("  |cffff7f7fAt login the saved file was not there|r (share=%s, scan=%s) — the client did not load it, so last session's harvest was lost.",
+					tostring(b.shareType), tostring(b.scanType))
+			end
 		end
 		Lodestar:Say("  |cffffff7f/lode share|r tells you where the file is. |cffffff7f/lode harvest sync on|off|r shares new finds with your guild.")
 	elseif verb == "gaps" or verb == "coverage" then

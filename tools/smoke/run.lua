@@ -2200,8 +2200,8 @@ try("forever overlay", function()
 	check(G.VanillaData.quests[99142] and G.VanillaData.quests[99142].forever == true,
 		"a harvested quest keeps its first-hand marking after the ATT merge")
 	local prereq = 0
-	for _, q in pairs(G.ATTData.quests) do if q.prev then prereq = prereq + 1 end end
-	check(prereq > 500, "ATT contributes the quest prerequisite graph, got " .. prereq)
+	for _, q in pairs(G.ATTData.quests) do if q.pre then prereq = prereq + 1 end end
+	check(prereq > 500, "ATT contributes the quest prerequisite graph (as `pre`, the field canTake reads), got " .. prereq)
 	stub.questLog[99142] = { title = "Tomb Weed", complete = true, objectives = { { text = "Tomb Weed: 5/5", finished = true } } }
 	local mapID, _, _, how = G:DataQuestPosition(99142, true)
 	check(mapID == 18 and how and how:find("Holland", 1, true), "turn-in for a Forever quest resolves to its harvested ender: " .. tostring(how))

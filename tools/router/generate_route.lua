@@ -105,7 +105,7 @@ for qid in pairs(ids) do
 		if at and at.m == mapID then gx, gy = at[2], at[3] end
 	end
 	local ex, ey = npcPos(ender)
-	local prev = (aq and aq.prev) or nil
+	local prev = (aq and aq.pre) or (vq and vq.pre) or nil
 	-- objectives: text and count from the harvest, positions from either side
 	local objectives = fq and fq.o or nil
 	local spots = (fq and fq.spots) or (aq and aq.spots) or nil

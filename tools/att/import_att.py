@@ -11,7 +11,7 @@ this is merged UNDER the harvest overlay: ATT fills the world in, and anything a
 recorded first-hand wins over it (Data.lua: MergeATTData runs before MergeForeverData).
 
 Emitted in the same shape as the Forever overlay so one reader serves both:
-  quests[id] = { start = {npcs={...}}, acceptAt = {0,x,y,m=map}, prev = {...}, lvl, spots = {...} }
+  quests[id] = { start = {npcs={...}}, acceptAt = {0,x,y,m=map}, pre = {...}, lvl, spots = {...} }
   npcs[id]   = { c = { {0,x,y,m=map}, ... } }
 Coordinates are percent (0-100), matching Data/Forever.lua.
 """
@@ -102,7 +102,11 @@ def build(raw):
         if v.get("qis"):
             q["item"] = int(v["qis"][0])
         if v.get("prev"):
-            q["prev"] = sorted(set(int(i) for i in v["prev"]))
+            # `pre` is the field name the Vanilla data uses and the one Data.lua's canTake() reads
+            # when deciding whether a quest can be picked up. Emitting `prev` here meant every one
+            # of ATT's chains was silently ignored, and follow-up quests were offered as if they
+            # had no prerequisites at all.
+            q["pre"] = sorted(set(int(i) for i in v["prev"]))
         if v.get("lvl"):
             q["lvl"] = int(v["lvl"])
         if v.get("map"):
@@ -183,7 +187,7 @@ def main():
           % (os.path.relpath(OUT, ROOT), len(quests), len(npcs), len(objs), len(body)))
     withstart = sum(1 for q in quests.values() if q.get("start"))
     withpos = sum(1 for q in quests.values() if q.get("acceptAt"))
-    withprev = sum(1 for q in quests.values() if q.get("prev"))
+    withprev = sum(1 for q in quests.values() if q.get("pre"))
     print("  with a giver: %d, with a position: %d, with prerequisites: %d" % (withstart, withpos, withprev))
 
 
