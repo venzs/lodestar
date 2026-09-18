@@ -498,7 +498,7 @@ C_Map.GetMapInfo = function(id) return { name = id == 18 and "Tirisfal Glades" o
 C_Map.GetMapChildrenInfo = function() return { { name = "Tirisfal Glades", mapID = 18 }, { name = "Elwynn Forest", mapID = 37 } } end
 stub.questLog = {}   -- [questID] = { title, complete, objectives = { {text, finished} }, flagged }
 stub.flagged = {}
-C_QuestLog.GetNumQuestLogEntries = function() local n = 0 for _ in pairs(stub.questLog) do n = n + 1 end return n end
+C_QuestLog.GetNumQuestLogEntries = function() local n = 0 for _ in pairs(stub.questLog) do n = n + 1 end return n, n end
 C_QuestLog.GetInfo = function(i) local n = 0 for id, q in pairs(stub.questLog) do n = n + 1 if n == i then return { questID = id, title = q.title, isHeader = false, isHidden = false } end end end
 C_QuestLog.IsOnQuest = function(id) return stub.questLog[id] ~= nil end
 C_QuestLog.IsQuestFlaggedCompleted = function(id) return stub.flagged[id] == true end
@@ -546,6 +546,28 @@ GetTitleText = function() return "A Quest" end
 GetRewardXP = function() return 250 end
 GetRewardMoney = function() return 50 end
 QuestGetAutoAccept = function() return false end
+-- Review-fix APIs (12.x) ----------------------------------------------------------------------
+canaccessvalue = function() return true end
+GameRulesUtil = { GetEffectiveMaxLevelForPlayer = function() return 60 end }
+GetMaxPlayerLevel = function() return 60 end
+Enum.GameRule.ExperienceBarDisabled = 3
+LinkProcessorResponse = { Handled = 0, Unhandled = 1 }
+LinkUtil = {
+	handlers = {},
+	RegisterLinkHandler = function(linkType, fn) LinkUtil.handlers[linkType] = fn end,
+	IsLinkHandlerRegistered = function(linkType) return LinkUtil.handlers[linkType] ~= nil end,
+	SplitLinkData = function(linkData) local t, o = linkData:match("^([^:]+):?(.*)$") return t, o end,
+}
+ChatFrameUtil.AddMessageEventFilter = function(event, fn) stub.chatFilters = stub.chatFilters or {} tinsert(stub.chatFilters, { event = event, fn = fn }) end
+ChatFrameUtil.RemoveMessageEventFilter = function() end
+GetGuildBankMoney = function() return stub.guildBankMoney or 0 end
+C_ChatInfo.InChatMessagingLockdown = function() return stub.chatLockdown or false end
+StaticPopup_Hide = function(which) stub.hiddenPopups = stub.hiddenPopups or {} stub.hiddenPopups[which] = true end
+GetQuestMoneyToGet = function() return stub.questMoneyToGet or 0 end
+QuestIsFromAreaTrigger = function() return false end
+MAX_QUESTS = 25
+C_GuildInfo.GuildRoster = function() stub.rosterRequested = (stub.rosterRequested or 0) + 1 end
+Enum.PlayerInteractionType = { Merchant = 5 }
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1
