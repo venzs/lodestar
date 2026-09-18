@@ -11,6 +11,7 @@
 
 Economy.lua
 Merchant.lua
+Bags.lua
 Gold.lua
 Tooltip.lua
 AuctionScan.lua

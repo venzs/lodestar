@@ -126,7 +126,8 @@ GetQuestReward = function(i) stub.rewardTaken = i end
 ConfirmAcceptQuest = function() stub.confirmed = true end
 -- merchant
 CanMerchantRepair = function() return true end
-GetRepairAllCost = function() return 1234, true end
+stub.repairCost = 1234
+GetRepairAllCost = function() return stub.repairCost, true end
 RepairAllItems = function(guild) stub.repaired = guild and "guild" or "self" end
 CanGuildBankRepair = function() return false end
 -- chat
@@ -640,6 +641,7 @@ GetProfessionInfo = function(index)
 end
 IsTradeskillTrainer = function() return stub.tradeskillTrainer or false end
 -- Lodestar_Character: stat APIs and Blizzard's camelot stats-pane tables ----------------------------------
+Enum.ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3, Epic = 4 }
 Enum.ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 }
 Enum.ItemConsumableSubclass = { Generic = 0, Potion = 1, Elixir = 2, Flasksphials = 3, Scroll = 4, Fooddrink = 5, ItemenhancementTemporary = 6, Bandage = 7, Other = 8 }
 Enum.ItemWeaponSubclass = { Axe1H = 0, Axe2H = 1, Bows = 2, Guns = 3, Mace1H = 4, Mace2H = 5, Polearm = 6, Sword1H = 7, Sword2H = 8, Obsolete3 = 9, Staff = 10, Bearclaw = 11, Catclaw = 12, Unarmed = 13, Generic = 14, Dagger = 15, Thrown = 16, Crossbow = 18, Wand = 19, Fishingpole = 20 }

@@ -23,9 +23,13 @@ Economy.defaults = {
 		gold = {
 			sessionInTooltip = true,
 		},
+		bags = {
+			minimapLine = true, -- free slots and vendor value on the minimap button tooltip
+		},
 	},
 	global = {
 		chars = {},             -- [realm][name] = { money, class, faction, updated }
+		repair = {},            -- { perPoint = copper per durability point, samples = {...}, at = epoch }
 	},
 	factionrealm = {
 		prices = {},            -- [itemID] = { p = unit copper, t = epoch, q = quantity seen }
@@ -77,6 +81,17 @@ Economy.options = {
 		set = function(_, v) Economy.db.profile.tooltip.ahPrice = v end,
 	},
 
+	bagsHeader = { type = "header", order = 25, name = "Bags and repairs" },
+	bagsDesc = {
+		type = "description", order = 25.1, fontSize = "medium",
+		name = "|cffffff7f/lode bags|r prints free slots, what a vendor would pay for what you are carrying, and what a full repair would cost. The repair figure is learned from your own repairs -- the client only reports a cost while a repair vendor is open, so nothing is claimed until you have used one.\n",
+	},
+	bagsMinimapLine = {
+		type = "toggle", order = 25.2, name = "Bag line on the minimap tooltip",
+		get = function() return Economy.db.profile.bags.minimapLine end,
+		set = function(_, v) Economy.db.profile.bags.minimapLine = v end,
+	},
+
 	goldHeader = { type = "header", order = 30, name = "Gold" },
 	goldDesc = {
 		type = "description", order = 31, fontSize = "medium",
@@ -105,6 +120,7 @@ function Economy:OnEnable()
 	self:EnableGold()
 	self:EnableTooltip()
 	self:EnableAuctionScan()
+	self:EnableBags()
 end
 
 function Economy:OnDisable()
@@ -112,6 +128,7 @@ function Economy:OnDisable()
 	self:DisableGold()
 	self:DisableTooltip()
 	self:DisableAuctionScan()
+	self:DisableBags()
 end
 
 Lodestar:RegisterModule(Economy)

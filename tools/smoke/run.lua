@@ -658,6 +658,126 @@ try("status strip", function()
 	Lv:RefreshStrip()
 end)
 
+-- Bags and the self-calibrating repair estimate.
+-- The estimate is the interesting part: GetRepairAllCost only answers at a repair vendor, so the
+-- rate has to be learned there and applied everywhere else. Until one repair has been seen the
+-- answer must be nil rather than a guess, because the player will plan around whatever we print.
+try("bags and repair estimate", function()
+	local E = Lodestar:GetModule("Economy")
+	wipe(E.db.global.repair)
+
+	stub.bags[0] = {
+		[1] = { hyperlink = "|Hitem:1234::::::::1:::::|h[Broken Fang]|h", quality = 0, stackCount = 3, itemID = 1234 },
+		[2] = { hyperlink = "|Hitem:5555::::::::1:::::|h[Nice Sword]|h", quality = 2, stackCount = 1, itemID = 5555 },
+		[3] = { hyperlink = "|Hitem:7777::::::::1:::::|h[Quest Thing]|h", quality = 1, stackCount = 1, itemID = 7777, hasNoValue = true },
+	}
+	local b = E:ScanBags()
+	-- The stub prices every item at 25 copper: 3 + 1 sellable stacks, the no-value one ignored.
+	check(b.slots == 16 and b.used == 3 and b.free == 13, "bag slots counted: " .. b.used .. " used, " .. b.free .. " free")
+	check(b.value == 25 * 3 + 25, "vendor value counts stacks and skips no-value items: " .. b.value)
+	check(b.junkCount == 1 and b.junkValue == 75, "greys counted separately: " .. b.junkCount .. " / " .. b.junkValue)
+	check(b.cheapest and b.cheapest.itemID == nil and b.cheapest.value == 25, "cheapest sellable stack is the single sword: " .. tostring(b.cheapest and b.cheapest.value))
+
+	-- Nothing learned yet: no estimate, and the report says why rather than inventing one.
+	check(E:EstimatedRepairCost() == nil, "no repair estimate before the first vendor repair")
+	local missing, lowest = E:MissingDurability()
+	check(missing == 48 and math.floor(lowest) == 62, "durability points missing: " .. tostring(missing) .. " lowest " .. tostring(lowest))
+
+	local lines = {}
+	local realSay = Lodestar.Say
+	Lodestar.Say = function(_, fmt, ...) lines[#lines + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+	Lodestar:HandleSlash("bags")
+	local report = table.concat(lines, "\n")
+	check(report:find("learned at your first vendor repair", 1, true) ~= nil, "report says the rate is not known yet: " .. report)
+	check(report:find("13 of 16 slots free", 1, true) ~= nil, "report counts slots: " .. report)
+
+	-- A repair at a vendor teaches the rate: 1234 copper over 48 missing points.
+	stub.repairCost = 1234
+	stub.fire("MERCHANT_SHOW")
+	stub.fire("MERCHANT_CLOSED")
+	check(E.db.global.repair.perPoint and math.abs(E.db.global.repair.perPoint - 1234 / 48) < 0.001,
+		"rate learned from the vendor's quote: " .. tostring(E.db.global.repair.perPoint))
+	check(E:EstimatedRepairCost() == 1234, "the estimate reproduces the quote it learned from: " .. tostring(E:EstimatedRepairCost()))
+
+	-- Half the damage, half the cost.
+	stub.durability[1] = { 81, 100 }
+	stub.durability[5] = { 95, 100 }
+	check(E:EstimatedRepairCost() == math.floor(24 * (1234 / 48)), "estimate scales with damage: " .. tostring(E:EstimatedRepairCost()))
+
+	-- Fully repaired gear costs nothing, and that is a real answer rather than a missing one.
+	stub.durability[1] = { 100, 100 }
+	stub.durability[5] = { 100, 100 }
+	check(E:EstimatedRepairCost() == 0, "no damage, no cost")
+
+	-- A repair too small to measure is not allowed to drag the rate around: the server rounds, so a
+	-- 2-point repair is mostly rounding error.
+	stub.durability[1] = { 99, 100 }
+	stub.repairCost = 500
+	local before = E.db.global.repair.perPoint
+	stub.fire("MERCHANT_SHOW")
+	stub.fire("MERCHANT_CLOSED")
+	check(E.db.global.repair.perPoint == before, "a one-point repair does not move the rate: " .. tostring(E.db.global.repair.perPoint))
+
+	-- Several real repairs average out.
+	stub.durability[1] = { 50, 100 }
+	stub.repairCost = 2000
+	stub.fire("MERCHANT_SHOW")
+	stub.fire("MERCHANT_CLOSED")
+	check(math.abs(E.db.global.repair.perPoint - ((1234 / 48) + (2000 / 50)) / 2) < 0.001,
+		"rates average across repairs: " .. tostring(E.db.global.repair.perPoint))
+
+	lines = {}
+	Lodestar:HandleSlash("bags")
+	check(table.concat(lines, "\n"):find("repairs: about", 1, true) ~= nil, "report gives the estimate once it knows the rate: " .. table.concat(lines, "\n"))
+	Lodestar.Say = realSay
+
+	-- Once the rate is known, the Leveling durability warning carries the cost across the module
+	-- boundary. Economy is optional, so the warning has to read fine without it too.
+	do
+		local Lv = Lodestar:GetModule("Leveling")
+		local said = {}
+		local realMsg = Lodestar.Msg
+		Lodestar.Msg = function(_, fmt, ...) said[#said + 1] = select("#", ...) > 0 and fmt:format(...) or fmt end
+		stub.durability[1] = { 8, 100 }
+		stub.advance(600)   -- past the five-minute rate limit left over from the status-strip block
+		Lv:RefreshStrip()
+		local nagText = table.concat(said, " | ")
+		check(nagText:find("Durability at 8%", 1, true) and nagText:find("to repair", 1, true),
+			"durability warning carries the repair estimate: " .. nagText)
+		Lodestar:SetModuleEnabled("Economy", false)
+		said = {}
+		stub.advance(600)
+		Lv:RefreshStrip()
+		nagText = table.concat(said, " | ")
+		check(nagText:find("Durability at 8%", 1, true) and nagText:find("to repair", 1, true) == nil,
+			"and reads fine with Economy disabled: " .. nagText)
+		Lodestar:SetModuleEnabled("Economy", true)
+		Lodestar.Msg = realMsg
+	end
+
+	-- The minimap tooltip line.
+	local tipLines = {}
+	local tip = { AddDoubleLine = function(_, l, r) tipLines[l] = r end, AddLine = function() end }
+	for _, fn in ipairs(Lodestar.tooltipProviders) do pcall(fn, tip) end
+	-- 14, not 13: the vendor visits above auto-sold the grey stack, which is the whole point of
+	-- reading the bags live rather than caching a count.
+	check(tipLines["Bags"] and tipLines["Bags"]:find("14 free", 1, true), "minimap tooltip carries the bag line: " .. tostring(tipLines["Bags"]))
+	check(tipLines["Repairs"] and tipLines["Repairs"]:find("about", 1, true), "minimap tooltip carries the repair estimate: " .. tostring(tipLines["Repairs"]))
+
+	-- ... and drops out cleanly when the player turns it off.
+	E.db.profile.bags.minimapLine = false
+	tipLines = {}
+	for _, fn in ipairs(Lodestar.tooltipProviders) do pcall(fn, tip) end
+	check(tipLines["Bags"] == nil, "bag line hidden by its option")
+	E.db.profile.bags.minimapLine = true
+
+	-- Restore.
+	stub.durability[1] = { 62, 100 }
+	stub.durability[5] = { 90, 100 }
+	stub.repairCost = 1234
+	stub.bags[0][3] = nil
+end)
+
 -- Camp: buff timers, food and drink, and the warnings that ride on them.
 -- The point of a timer warning is to arrive while there is still time to do something about it, so
 -- the thresholds are checked at the boundaries rather than somewhere comfortably inside them.

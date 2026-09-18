@@ -9,6 +9,11 @@
   `LodestarScans` and `LodestarHarvest`; the old names stay declared for one release and are adopted
   on first login. `tools/smoke/persist.lua` runs two real sessions in two Lua states and checks what
   survives the file; `tools/check_tocs.py` rejects a `DB` suffix.
+- Economy: **bags and repairs** — `/lode bags` and a minimap tooltip line give free slots, what a
+  vendor would pay for what you are carrying, and what a full repair would cost. The repair figure
+  calibrates itself: the client only quotes a cost while a repair vendor is open, so the
+  copper-per-durability-point rate is learned from your own repairs and applied everywhere else.
+  Until one repair has been seen, nothing is claimed. The durability warning carries the figure too.
 - Leveling: **camp** — how long each watched buff has left (on the strip and as a warning before it
   drops), food and drink counted in the bags with a low/empty warning, and `/lode camp`.
 - Leveling: **professions** — rank and cap per profession, a warning when one hits its tier cap that

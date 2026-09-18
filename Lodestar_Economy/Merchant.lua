@@ -105,6 +105,10 @@ function Economy:MERCHANT_SHOW()
 	merchantOpen = true
 	if IsShiftKeyDown() then return end
 	local cfg = self.db.profile.merchant
+	-- Learn the copper-per-durability-point rate from this vendor's quoted cost BEFORE repairing:
+	-- afterwards nothing is missing and there is nothing left to measure. This runs whether or not
+	-- auto-repair is on, because the estimate is useful to anyone who repairs by hand.
+	if self.CalibrateRepair then self:CalibrateRepair() end
 	-- Repair first so the repair cost is not affected by the junk we are about to sell (it isn't, but
 	-- the order keeps chat readable: repair line, then the sale line).
 	if cfg.repair then self:AutoRepair() end

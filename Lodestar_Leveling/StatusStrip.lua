@@ -127,7 +127,19 @@ local function checkNags(cfg)
 		end
 	end
 	if cfg.nagDurability and state.durability and state.durability <= DUR_NAG_PCT then
-		nag("durability", "%sDurability at %d%%|r — find a repair vendor.", state.durability <= DUR_BAD_PCT and RED or ORANGE, math.floor(state.durability))
+		-- Economy learns a copper-per-durability-point rate from real repairs; when it has one, the
+		-- nag can say what the trip will cost. It is an optional module, so this asks at nag time
+		-- and simply says less when it is not there.
+		local tail = ""
+		local Economy = Lodestar.GetModule and Lodestar:GetModule("Economy", true)
+		if Economy and Economy.EstimatedRepairCost and Economy:IsEnabled() then
+			local ok, cost = pcall(Economy.EstimatedRepairCost, Economy)
+			if ok and type(cost) == "number" and cost > 0 then
+				tail = (" About %s to repair."):format(Lodestar.FormatMoney(cost))
+			end
+		end
+		nag("durability", "%sDurability at %d%%|r — find a repair vendor.%s",
+			state.durability <= DUR_BAD_PCT and RED or ORANGE, math.floor(state.durability), tail)
 	end
 end
 
