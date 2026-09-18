@@ -942,10 +942,10 @@ try("smart mode", function()
 	check(G:GetArrowTarget() and G:GetArrowTarget().title == items[#items].title, "pinned item becomes the arrow target")
 	G:RefreshStepFrame()
 	check(LodestarGuideFrame.title.text and LodestarGuideFrame.title.text:find("smart mode"), "window shows smart mode")
-	-- level 10 picks the 5-12 guide; level 20 has nothing and must not load an outleveled guide
+	-- level 10 picks the 5-12 guide; level 40 has nothing and must not load an outleveled guide
 	stub.level = 10
 	check(G:PickGuide() and G:PickGuide().name == "Horde/Undead 5-12: Tirisfal Glades", "level 10 picks the Tirisfal guide")
-	stub.level = 20
+	stub.level = 40
 	check(G:PickGuide() == nil, "outleveled guides are not auto-picked")
 	stub.level = 10
 	stub.slash("/lode guide load Deathknell")

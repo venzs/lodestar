@@ -15,3 +15,7 @@ Orc_Troll_Durotar.lua
 Tauren_Mulgore.lua
 Horde_Silverpine.lua
 Horde_Barrens.lua
+Horde_Stonetalon.lua
+Horde_Hillsbrad.lua
+Horde_Ashenvale.lua
+Horde_ThousandNeedles.lua
