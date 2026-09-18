@@ -40,6 +40,12 @@ Guide.defaults = {
 			announce = true,
 			completionist = false,   -- false = speed run (skip .optional steps), true = do everything
 		},
+		questTips = {              -- quest relevance on tooltips (QuestTips.lua)
+			units = true,          -- mobs and quest givers: objectives, turn-ins, quests they start, roles
+			items = true,          -- quest objective items and quest-starting items
+			objects = true,        -- world objects (chests, plants, ...) that are objectives or start quests
+			showLevel = true,      -- "(lvl N)" after the quests an NPC starts
+		},
 	},
 	char = {
 		currentGuide = nil,          -- guide name
@@ -158,6 +164,36 @@ Guide.options = {
 		type = "execute", order = 32, name = "Reset this character's guide progress", confirm = true,
 		func = function() wipe(Guide.db.char.progress); Guide:LoadGuide(Guide.db.char.currentGuide, 1) end,
 	},
+
+	questTipsHeader = { type = "header", order = 40, name = "Quest tooltips" },
+	questTipsDesc = {
+		type = "description", order = 41, fontSize = "medium",
+		name = "Adds what a mob, quest giver, object or item means for your quests: objective progress, \"Turn in\", the quests an NPC starts and, for NPCs the harvest has met, what they sell or teach.\n",
+	},
+	questTipsUnits = {
+		type = "toggle", order = 42, name = "Mobs and NPCs",
+		desc = "Objective mobs and item drop sources, turn-ins, quests you can pick up, vendor/trainer/repair/inn/flight roles.",
+		get = function() return Guide.db.profile.questTips.units end,
+		set = function(_, v) Guide.db.profile.questTips.units = v end,
+	},
+	questTipsItems = {
+		type = "toggle", order = 43, name = "Items",
+		desc = "Quest objective items show their quest and count; items that start a quest say so.",
+		get = function() return Guide.db.profile.questTips.items end,
+		set = function(_, v) Guide.db.profile.questTips.items = v end,
+	},
+	questTipsObjects = {
+		type = "toggle", order = 44, name = "World objects",
+		desc = "Chests, plants, books and other objects that are quest objectives or start quests.",
+		get = function() return Guide.db.profile.questTips.objects end,
+		set = function(_, v) Guide.db.profile.questTips.objects = v end,
+	},
+	questTipsLevel = {
+		type = "toggle", order = 45, name = "Show quest levels",
+		desc = "Append \"(lvl N)\" to the quests an NPC or item starts.",
+		get = function() return Guide.db.profile.questTips.showLevel end,
+		set = function(_, v) Guide.db.profile.questTips.showLevel = v end,
+	},
 }
 
 -- One event dispatcher for the whole module (AceEvent keeps one handler per event per object).
@@ -174,6 +210,7 @@ local EVENTS = {
 function Guide:OnEnable()
 	self:EnableHarvest()
 	self:EnableData()
+	self:EnableQuestTips()
 	self:EnableArrow()
 	self:EnableTrails()
 	self:EnableEngine()
@@ -189,11 +226,13 @@ function Guide:OnDisable()
 	self:DisableEngine()
 	self:DisableTrails()
 	self:DisableArrow()
+	self:DisableQuestTips()
 	self:DisableHarvest()
 end
 
 function Guide:OnGameEvent(event, ...)
 	self:HarvestOnEvent(event, ...)
+	self:QuestTipsOnEvent(event)
 	self:RecorderOnEvent(event, ...)
 	self:EngineOnEvent(event, ...)
 	self:ArrowOnEvent(event, ...)

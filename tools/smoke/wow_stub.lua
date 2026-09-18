@@ -583,6 +583,11 @@ C_Item.RequestLoadItemDataByID = function() end
 GetProfessions = function() return stub.professions[1] and 1 or nil, stub.professions[2] and 2 or nil, nil, nil, nil, nil end
 GetProfessionInfo = function(index) local n = stub.professions[index] if n then return n, 134, 1, 75, 0, 0, 0, 0 end end
 IsTradeskillTrainer = function() return stub.tradeskillTrainer or false end
+-- Quest tooltips: the world-object tooltip type, Blizzard's own quest line types, comparison tooltips --
+Enum.TooltipDataType.Object = 4
+Enum.TooltipDataLineType = { QuestObjective = 8, QuestTitle = 17 }
+ShoppingTooltip1 = stub.newFrame("GameTooltip", "ShoppingTooltip1")
+ShoppingTooltip2 = stub.newFrame("GameTooltip", "ShoppingTooltip2")
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

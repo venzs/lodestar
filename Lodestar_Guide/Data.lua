@@ -144,10 +144,10 @@ local function canTake(q, level, raceBit, classBit)
 	return true
 end
 
--- Quests by start NPC/object, built once per session (lazily).
+-- Quests by start NPC/object/item, built once per session (lazily).
 local startIndex
 local function buildStartIndex()
-	startIndex = { npcs = {}, objs = {} }
+	startIndex = { npcs = {}, objs = {}, items = {} }
 	local d = data()
 	for qid, q in pairs(d.quests) do
 		local s = q.start
@@ -160,9 +160,43 @@ local function buildStartIndex()
 				startIndex.objs[id] = startIndex.objs[id] or {}
 				tinsert(startIndex.objs[id], qid)
 			end
+			for _, id in ipairs(s.items or {}) do
+				startIndex.items[id] = startIndex.items[id] or {}
+				tinsert(startIndex.items[id], qid)
+			end
 		end
 	end
 end
+
+--- Quests this character can pick up right now from one quest giver (`kind` = npcs | objs | items):
+--- { questID, title, level, classQuest }, lowest level first. Same filters as the pick-up list:
+--- not in the log, not done, race/class masks, level window, prerequisites completed.
+function Guide:DataAvailableFrom(kind, id)
+	local found = {}
+	local d = data()
+	if not d then return found end
+	if not startIndex then buildStartIndex() end
+	local qids = startIndex[kind] and startIndex[kind][id]
+	if not qids then return found end
+	local level = UnitLevel("player")
+	local raceBit, classBit = playerMasks()
+	for _, qid in ipairs(qids) do
+		local q = d.quests[qid]
+		if q and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) and canTake(q, level, raceBit, classBit) then
+			tinsert(found, { questID = qid, title = q.t or ("Quest " .. qid), level = q.lvl, classQuest = q.class and q.class ~= 0 or false })
+		end
+	end
+	table.sort(found, function(a, b)
+		local la, lb = a.level or 0, b.level or 0
+		if la ~= lb then return la < lb end
+		return a.questID < b.questID
+	end)
+	return found
+end
+
+function Guide:DataAvailableFromNPC(npcID) return self:DataAvailableFrom("npcs", npcID) end
+function Guide:DataAvailableFromObject(objID) return self:DataAvailableFrom("objs", objID) end
+function Guide:DataAvailableFromItem(itemID) return self:DataAvailableFrom("items", itemID) end
 
 --- "Pick up" items for quest givers on the current map that this character can take now.
 function Guide:DataAvailableItems(items, mapID)
