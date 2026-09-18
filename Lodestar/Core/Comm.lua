@@ -3,6 +3,12 @@
 -- Every message is a serialized table with a one-letter type in .t. Modules register
 -- handlers with Lodestar:RegisterCommHandler("P", function(sender, msg, distribution) end).
 -- The core owns "V" (version announce).
+--
+-- Availability: the Forever beta realm restricts outgoing addon messages everywhere
+-- (C_ChatInfo.AreOutgoingAddonChatMessagesRestricted() == true, SendAddonMessage answers
+-- AddOnMessageLockdown), and instances/PvP/encounters add the situational chat lockdown. Both
+-- make CanSendComm() false; modules that talk over the channel fall back to whatever works without
+-- it and get Lodestar:OnCommAvailabilityChanged(available) when the state flips.
 local Lodestar = _G.Lodestar
 local L = Lodestar.L
 
@@ -10,21 +16,50 @@ local handlers = {}
 
 function Lodestar:SetupComm()
 	self:RegisterComm(self.COMM_PREFIX, "OnCommReceived")
+	self.commAvailable = self:CanSendComm()
+	self:RegisterEvent("ADDON_RESTRICTION_STATE_CHANGED", "CheckCommAvailability")
 end
 
 function Lodestar:RegisterCommHandler(msgType, fn)
 	handlers[msgType] = fn
 end
 
---- True when the client currently lets addons talk on addon channels.
+--- True when the client currently lets addons talk on addon channels: neither the realm-wide
+--- restriction nor the situational chat-messaging lockdown is in effect.
 function Lodestar:CanSendComm()
 	if C_ChatInfo.AreOutgoingAddonChatMessagesRestricted and C_ChatInfo.AreOutgoingAddonChatMessagesRestricted() then
+		return false
+	end
+	if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then
 		return false
 	end
 	return true
 end
 
+--- Re-read the restriction state (ADDON_RESTRICTION_STATE_CHANGED, or any time a caller suspects a
+--- change) and notify modules when it differs from what they last heard. The event payload is not
+--- trusted for the decision: CanSendComm() is the single source of truth.
+function Lodestar:CheckCommAvailability()
+	local available = self:CanSendComm()
+	if available == self.commAvailable then return end
+	self.commAvailable = available
+	self:OnCommAvailabilityChanged(available)
+end
+
+--- Fan-out for availability changes. Modules implement M:OnCommAvailabilityChanged(available) (the
+--- Guild module re-announces and re-queries when comms come back); anything else can hook this method.
+function Lodestar:OnCommAvailabilityChanged(available)
+	self:Debug("addon comms %s", available and "available" or "restricted")
+	for _, module in ipairs(self.moduleList or {}) do
+		if module.OnCommAvailabilityChanged and module:IsEnabled() then
+			local ok, err = pcall(module.OnCommAvailabilityChanged, module, available)
+			if not ok then self:Debug("%s OnCommAvailabilityChanged failed: %s", tostring(module.key), tostring(err)) end
+		end
+	end
+end
+
 --- Send a table to a distribution ("GUILD", "PARTY", "RAID", "WHISPER" with target).
+--- Returns false, without queueing anything, while comms are unavailable.
 function Lodestar:SendComm(msg, distribution, target, prio)
 	if not self:CanSendComm() then return false end
 	msg.v = msg.v or self.version
@@ -48,7 +83,9 @@ end
 
 -- Version announce ----------------------------------------------------------------
 
+--- Silently does nothing while comms are unavailable: SendComm refuses without queueing.
 function Lodestar:BroadcastVersion()
+	if not self:CanSendComm() then return end
 	local msg = { t = "V" }
 	if IsInGuild() then self:SendComm(msg, "GUILD", nil, "BULK") end
 	if IsInRaid() then

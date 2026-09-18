@@ -3,21 +3,28 @@
 -- Messages (see Lodestar/Core/Comm.lua for the envelope):
 --   P  presence  { l = level, z = zone, s = subzone, x = xp%, m = mapID, c = classFile, n = lfg note }
 --   Q  query     "send me your presence" — answered with a P after a short random delay
+--
+-- Without addon comms (the Forever beta restricts them realm-wide) nothing here can be delivered:
+-- the heartbeat stays off, the board shows the C_Club roster alone, and /lode lfg drafts a guild
+-- chat line for the player to send instead of broadcasting. Lodestar:OnCommAvailabilityChanged
+-- turns the sharing back on when a realm allows it.
 local Lodestar = _G.Lodestar
 local Guild = Lodestar:GetModule("Guild")
 
 Guild.presence = {}   -- [shortName] = { l, z, s, x, m, c, n, v = version, t = GetTime() of last update }
 
 local QUERY_INTERVAL = 60 -- seconds between guild-wide "who's here" queries
+local LFG_MAX = 80
 
 local lastSent = {}
 local lastQuery = 0
 local pendingReplies = {} -- [sender] = true: queriers waiting for our presence
 
---- True while addon messages are silently dropped (instances, PvP, encounters): sending would
---- only burn throttle budget and wrongly mark the state as delivered.
-local function chatLocked()
-	return C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() or false
+--- True while addon messages can actually leave the client (realm restriction and the situational
+--- chat lockdown both make SendAddonMessage fail); sending otherwise would only burn throttle budget
+--- and wrongly mark the state as delivered.
+function Guild:CommsAvailable()
+	return Lodestar:CanSendComm()
 end
 
 local function ownState()
@@ -42,7 +49,7 @@ local function stateChanged(state)
 end
 
 function Guild:Broadcast(force)
-	if not self.db.profile.share or not IsInGuild() or chatLocked() then return end
+	if not self.db.profile.share or not IsInGuild() or not self:CommsAvailable() then return end
 	local state = ownState()
 	if not force and not stateChanged(state) then return end
 	-- Only remember the state as sent when it actually left the client.
@@ -52,7 +59,7 @@ function Guild:Broadcast(force)
 end
 
 function Guild:Query()
-	if not IsInGuild() or chatLocked() then return end
+	if not IsInGuild() or not self:CommsAvailable() then return end
 	-- Every Q costs each Lodestar guildmate a reply; opening and closing the board must not re-ask.
 	if GetTime() - lastQuery < QUERY_INTERVAL then return end
 	if Lodestar:SendComm({ t = "Q" }, "GUILD", nil, "BULK") then
@@ -91,7 +98,7 @@ local function sendReplies()
 	Guild.replyTimer = nil
 	local recipients = pendingReplies
 	pendingReplies = {}
-	if not Guild:IsEnabled() or not Guild.db.profile.share or not IsInGuild() or chatLocked() then return end
+	if not Guild:IsEnabled() or not Guild.db.profile.share or not IsInGuild() or not Guild:CommsAvailable() then return end
 	local state = ownState()
 	for target in pairs(recipients) do
 		Lodestar:SendComm(state, "WHISPER", target, "BULK")
@@ -108,6 +115,15 @@ end
 
 -- LFG note -------------------------------------------------------------------------------
 
+--- Put text into the chat edit box for the player to send. Never sends by itself: automating
+--- guild chat is exactly what the realm restriction is there to stop.
+function Guild:DraftChat(text)
+	local open = (ChatFrameUtil and ChatFrameUtil.OpenChat) or _G.ChatFrame_OpenChat
+	if not open then return false end
+	open(text, DEFAULT_CHAT_FRAME)
+	return true
+end
+
 function Guild:SetLFGNote(text)
 	if not self:IsEnabled() then
 		Lodestar:Say("The Guild module is disabled.")
@@ -117,21 +133,42 @@ function Guild:SetLFGNote(text)
 	if text == "" or text:lower() == "clear" or text:lower() == "off" then
 		self.db.char.lfgNote = nil
 		Lodestar:Say("Group request cleared.")
-	else
-		if #text > 80 then text = text:sub(1, 80) end
-		self.db.char.lfgNote = text
-		Lodestar:Say("Group request set: %s", text)
+		self:Broadcast(true)
+		self:RefreshBoard()
+		return
 	end
-	self:Broadcast(true)
+	if #text > LFG_MAX then text = text:sub(1, LFG_MAX) end
+	self.db.char.lfgNote = text
+	if self:CommsAvailable() then
+		Lodestar:Say("Group request set: %s", text)
+		self:Broadcast(true)
+	elseif self:DraftChat("/g LFG: " .. text) then
+		Lodestar:Say("Addon messages are restricted on this realm — your request is in the chat box, press Enter to send it to the guild.")
+	else
+		Lodestar:Say("Addon messages are restricted on this realm; post it in guild chat: /g LFG: %s", text)
+	end
 	self:RefreshBoard()
 end
 
 -- Lifecycle ---------------------------------------------------------------------------------
 
+--- (Re)start the periodic presence broadcast. Without comms there is nothing to send, so the timer
+--- stays off rather than ticking into SendComm's refusal every few minutes.
 function Guild:RestartHeartbeat()
-	if self.heartbeat then self:CancelTimer(self.heartbeat) end
+	if self.heartbeat then self:CancelTimer(self.heartbeat) self.heartbeat = nil end
+	if not self:CommsAvailable() then return end
 	local minutes = math.max(1, self.db.profile.heartbeatMinutes or 5)
 	self.heartbeat = self:ScheduleRepeatingTimer(function() self:Broadcast(true) end, minutes * 60)
+end
+
+--- Announce ourselves and ask who else is around, once, `delay` seconds from now.
+function Guild:ScheduleAnnounce(delay)
+	if self.announceTimer then self:CancelTimer(self.announceTimer) end
+	self.announceTimer = self:ScheduleTimer(function()
+		self.announceTimer = nil
+		self:Broadcast(true)
+		self:Query()
+	end, delay)
 end
 
 function Guild:EnablePresence()
@@ -147,8 +184,24 @@ function Guild:EnablePresence()
 		self.lfgSlash = true
 		Lodestar:RegisterSlashVerb("lfg", function(rest) self:SetLFGNote(rest) end, "post what you're looking for to the guild board")
 	end
-	-- Announce ourselves and ask who else is around.
-	self:ScheduleTimer(function() self:Broadcast(true) self:Query() end, 10)
+	if self:CommsAvailable() then self:ScheduleAnnounce(10) end
+end
+
+--- Core callback: comms came back (a launch realm without the restriction, or leaving an instance)
+--- or went away. Coming back, the guild has never heard of us: announce and ask again.
+function Guild:OnCommAvailabilityChanged(available)
+	if available then
+		lastSent = {}
+		lastQuery = 0
+		self:RestartHeartbeat()
+		if IsInGuild() then self:ScheduleAnnounce(2) end
+	else
+		if self.heartbeat then self:CancelTimer(self.heartbeat) self.heartbeat = nil end
+		if self.announceTimer then self:CancelTimer(self.announceTimer) self.announceTimer = nil end
+		if self.replyTimer then self:CancelTimer(self.replyTimer) self.replyTimer = nil end
+		wipe(pendingReplies)
+	end
+	self:RefreshBoard()
 end
 
 function Guild:OnStateEvent()
@@ -171,9 +224,7 @@ function Guild:OnGuildUpdate(_, unit)
 	wipe(pendingReplies)
 	lastSent = {}
 	lastQuery = 0
-	if guild then
-		self:ScheduleTimer(function() self:Broadcast(true) self:Query() end, 2)
-	end
+	if guild and self:CommsAvailable() then self:ScheduleAnnounce(2) end
 	self:RefreshBoard()
 end
 
@@ -185,6 +236,7 @@ function Guild:DisablePresence()
 	self:UnregisterEvent("PLAYER_GUILD_UPDATE")
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	if self.heartbeat then self:CancelTimer(self.heartbeat) self.heartbeat = nil end
+	if self.announceTimer then self:CancelTimer(self.announceTimer) self.announceTimer = nil end
 	if self.replyTimer then self:CancelTimer(self.replyTimer) self.replyTimer = nil end
 	wipe(pendingReplies)
 end

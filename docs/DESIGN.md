@@ -56,7 +56,11 @@ each gets its own listing on CurseForge/Wago (more search surface for the brand)
 One prefix (`Lodestar`), AceComm + AceSerializer, message = table with `t` (type) and `v` (sender's version).
 Core handles `V`; Guild handles `P` (presence) and `Q` (query). Every message doubles as a version check, so
 "a newer Lodestar is available" spreads through guilds on its own. `CanSendComm()` honours
-`C_ChatInfo.AreOutgoingAddonChatMessagesRestricted()`.
+`C_ChatInfo.AreOutgoingAddonChatMessagesRestricted()` (true realm-wide on the beta) and
+`C_ChatInfo.InChatMessagingLockdown()`; `SendComm` returns false without queueing while either holds. The core
+re-checks on `ADDON_RESTRICTION_STATE_CHANGED` (and at login) and calls `Lodestar:OnCommAvailabilityChanged(available)`,
+which fans out to `module:OnCommAvailabilityChanged`. Guild degrades to the C_Club roster with a notice, no heartbeat,
+and `/lode lfg` drafting `/g LFG: <text>` into the chat box (never auto-sent); it re-announces when comms return.
 
 ### Saved variables
 

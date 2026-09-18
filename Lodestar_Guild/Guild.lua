@@ -27,6 +27,11 @@ Guild.defaults = {
 
 Guild.options = {
 	shareHeader = { type = "header", order = 10, name = "Presence" },
+	commState = {
+		type = "description", order = 10.5, fontSize = "medium",
+		name = "|cffff9933Addon messages are restricted on this realm.|r The board shows the guild roster only, nothing is sent, and |cffffff7f/lode lfg|r drafts a guild chat line for you to send yourself.\n",
+		hidden = function() return Guild:CommsAvailable() end,
+	},
 	share = {
 		type = "toggle", order = 11, name = "Share my presence with the guild",
 		desc = "Sends your level, zone and XP progress to other Lodestar users in your guild over the addon channel. Nothing leaves the game.",

@@ -7,6 +7,10 @@ local ROWS = 18
 local ROW_HEIGHT = 18
 local COLS = { name = 150, level = 36, zone = 170, xp = 40, note = 120 }
 local PRESENCE_TTL = 20 * 60 -- seconds before a presence entry is considered stale
+local HEADER_TOP = 72        -- title, summary and the (optional) restriction notice sit above the columns
+
+local RESTRICTED_NOTICE = "Addon messages are restricted on this realm — showing the guild roster only"
+local RESTRICTED_SHORT = "roster only (addon messages restricted)"
 
 local board
 local rows = {}
@@ -108,8 +112,7 @@ local function createRow(parent, index)
 		if button == "RightButton" then
 			if C_PartyInfo and C_PartyInfo.InviteUnit then C_PartyInfo.InviteUnit(self.data.name) end
 		else
-			local open = _G.ChatFrame_OpenChat or (ChatFrameUtil and ChatFrameUtil.OpenChat)
-			if open then open("/w " .. self.data.name .. " ", DEFAULT_CHAT_FRAME) end
+			Guild:DraftChat("/w " .. self.data.name .. " ")
 		end
 	end)
 	row:SetScript("OnEnter", function(self)
@@ -129,7 +132,7 @@ end
 
 local function createBoard()
 	board = CreateFrame("Frame", "LodestarGuildBoard", UIParent, "BackdropTemplate")
-	board:SetSize(COLS.name + COLS.level + COLS.zone + COLS.xp + COLS.note + 40, ROWS * ROW_HEIGHT + 90)
+	board:SetSize(COLS.name + COLS.level + COLS.zone + COLS.xp + COLS.note + 40, ROWS * ROW_HEIGHT + HEADER_TOP + 32)
 	board:SetFrameStrata("HIGH")
 	board:SetMovable(true)
 	board:EnableMouse(true)
@@ -163,9 +166,16 @@ local function createBoard()
 	board.summary = board:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	board.summary:SetPoint("TOP", board.title, "BOTTOM", 0, -4)
 
+	-- Shown while addon messages are restricted: the presence columns stay empty on purpose.
+	board.notice = board:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	board.notice:SetPoint("TOP", board.summary, "BOTTOM", 0, -2)
+	board.notice:SetTextColor(1, 0.6, 0.2)
+	board.notice:SetText(RESTRICTED_NOTICE)
+	board.notice:Hide()
+
 	-- Column headers
 	local header = CreateFrame("Frame", nil, board)
-	header:SetPoint("TOPLEFT", 20, -58)
+	header:SetPoint("TOPLEFT", 20, -HEADER_TOP)
 	header:SetSize(10, ROW_HEIGHT)
 	local x = 4
 	for _, key in ipairs({ "name", "level", "zone", "xp", "note" }) do
@@ -190,7 +200,6 @@ local function createBoard()
 
 	board.hint = board:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	board.hint:SetPoint("BOTTOM", 0, 16)
-	board.hint:SetText("/lode lfg <text> to post a group request · scroll for more")
 
 	board:SetScript("OnShow", function()
 		if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
@@ -207,7 +216,16 @@ local function renderBoard(self)
 		if r.lodestar then withLodestar = withLodestar + 1 end
 	end
 	local guildName = GetGuildInfo("player") or "No guild"
-	board.summary:SetText(("%s — %d online, %d running Lodestar"):format(guildName, online, withLodestar))
+	local comms = self:CommsAvailable()
+	if comms then
+		board.summary:SetText(("%s — %d online, %d running Lodestar"):format(guildName, online, withLodestar))
+		board.hint:SetText("/lode lfg <text> to post a group request · scroll for more")
+	else
+		-- Roster only: the "running Lodestar" count and the presence columns would just read as broken.
+		board.summary:SetText(("%s — %d online"):format(guildName, online))
+		board.hint:SetText("/lode lfg <text> drafts a guild chat line for you to send · scroll for more")
+	end
+	board.notice:SetShown(not comms)
 	if offset > math.max(0, #list - ROWS) then offset = math.max(0, #list - ROWS) end
 	for i = 1, ROWS do
 		local row, data = rows[i], list[i + offset]
@@ -270,6 +288,10 @@ function Guild:EnableBoard()
 		Lodestar:RegisterSlashVerb("guild", function() self:ToggleBoard() end, "open the guild board")
 		Lodestar:RegisterTooltipProvider(function(tooltip)
 			if not self:IsEnabled() or not IsInGuild() then return end
+			if not self:CommsAvailable() then
+				tooltip:AddDoubleLine("Guild board", RESTRICTED_SHORT, 1, 0.82, 0, 1, 0.6, 0.2)
+				return
+			end
 			local n = 0
 			local now = GetTime()
 			for _, p in pairs(self.presence) do if now - p.t < PRESENCE_TTL then n = n + 1 end end

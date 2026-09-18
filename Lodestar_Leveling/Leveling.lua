@@ -15,7 +15,14 @@ Leveling.defaults = {
 			windowMinutes = 30,
 			scale = 1,
 			showRested = true,
+			showTurnIns = true,
 			pos = { point = "TOP", x = 0, y = -120 },
+			strip = {
+				show = true,
+				buffs = "Well Fed",   -- comma-separated aura names to show while active
+				nagBags = true,
+				nagDurability = true,
+			},
 		},
 		quest = {
 			autoAccept = true,
@@ -64,6 +71,12 @@ Leveling.options = {
 		get = function() return Leveling.db.profile.xp.showRested end,
 		set = function(_, v) Leveling.db.profile.xp.showRested = v; Leveling:RefreshXPText() end,
 	},
+	xpTurnIns = {
+		type = "toggle", order = 13.5, name = "Show XP waiting in completed quests",
+		desc = "Adds the XP from quests ready to turn in — and whether that is enough to ding — to the readout. Always shown in the minimap tooltip.",
+		get = function() return Leveling.db.profile.xp.showTurnIns end,
+		set = function(_, v) Leveling.db.profile.xp.showTurnIns = v; Leveling:RefreshXPText() end,
+	},
 	xpWindow = {
 		type = "range", order = 14, name = "Rate window (minutes)",
 		desc = "XP/hour is computed over the last N minutes so it reacts to how you are playing right now. The tooltip also shows the whole-session average.",
@@ -79,6 +92,35 @@ Leveling.options = {
 	xpReset = {
 		type = "execute", order = 16, name = "Reset session",
 		func = function() Leveling:ResetXPSession() end,
+	},
+
+	stripHeader = { type = "header", order = 17, name = "Status strip" },
+	stripDesc = {
+		type = "description", order = 17.1, fontSize = "medium",
+		name = "A second line under the XP readout: free bag slots, lowest durability, rested XP as a share of the level, and the buffs you want to keep up.\n",
+	},
+	stripShow = {
+		type = "toggle", order = 17.2, name = "Show the status strip",
+		get = function() return Leveling.db.profile.xp.strip.show end,
+		set = function(_, v) Leveling.db.profile.xp.strip.show = v; Leveling:UpdateXPFrame() end,
+	},
+	stripBuffs = {
+		type = "input", order = 17.3, name = "Buffs to watch", width = "double",
+		desc = "Comma-separated buff names, shown on the strip while active (e.g. Well Fed, Sharpened Blade).",
+		get = function() return Leveling.db.profile.xp.strip.buffs or "" end,
+		set = function(_, v) Leveling.db.profile.xp.strip.buffs = strtrim(v or ""); Leveling:RefreshStrip() end,
+	},
+	stripNagBags = {
+		type = "toggle", order = 17.4, name = "Warn when 2 or fewer bag slots are free",
+		desc = "A chat line at most once every five minutes; the strip turns orange (red when the bags are full).",
+		get = function() return Leveling.db.profile.xp.strip.nagBags end,
+		set = function(_, v) Leveling.db.profile.xp.strip.nagBags = v end,
+	},
+	stripNagDurability = {
+		type = "toggle", order = 17.5, name = "Warn when durability drops to 20%",
+		desc = "A chat line at most once every five minutes; the strip turns orange (red at 10%).",
+		get = function() return Leveling.db.profile.xp.strip.nagDurability end,
+		set = function(_, v) Leveling.db.profile.xp.strip.nagDurability = v end,
 	},
 
 	questHeader = { type = "header", order = 20, name = "Quest automation" },
@@ -163,6 +205,7 @@ end
 function Leveling:OnEnable()
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:EnableXPTracker()
+	self:EnableStatusStrip()
 	self:EnableQuestAutomation()
 	self:EnableWaypoints()
 	self:EnableLevelStats()
@@ -175,6 +218,7 @@ end
 
 function Leveling:OnDisable()
 	self:UnregisterEvent("PLAYER_LEVEL_UP")
+	self:DisableStatusStrip()
 	self:DisableXPTracker()
 	self:DisableQuestAutomation()
 	self:DisableWaypoints()
@@ -183,6 +227,7 @@ end
 
 function Leveling:OnProfileChanged()
 	self:UpdateXPFrame()
+	self:RefreshStrip()
 end
 
 --- True while the configured pause modifier is held.

@@ -11,6 +11,7 @@
 
 Leveling.lua
 XPTracker.lua
+StatusStrip.lua
 QuestAutomation.lua
 Waypoints.lua
 LevelStats.lua

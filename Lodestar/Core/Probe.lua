@@ -7,7 +7,8 @@ local L = Lodestar.L
 local SYMBOLS = {
 	core = {
 		"C_AddOns.GetAddOnMetadata", "C_ChatInfo.RegisterAddonMessagePrefix", "C_ChatInfo.SendAddonMessage",
-		"C_ChatInfo.AreOutgoingAddonChatMessagesRestricted", "C_Timer.After", "C_Timer.NewTicker",
+		"C_ChatInfo.AreOutgoingAddonChatMessagesRestricted", "C_ChatInfo.InChatMessagingLockdown",
+		"C_RestrictedActions.IsAddOnRestrictionActive", "ChatFrameUtil.OpenChat", "C_Timer.After", "C_Timer.NewTicker",
 		"Settings.OpenToCategory", "Settings.RegisterCanvasLayoutCategory", "Settings.RegisterAddOnCategory",
 		"MenuUtil.CreateContextMenu", "AddonCompartmentFrame", "GetBuildInfo", "GetNormalizedRealmName",
 		"C_CurrencyInfo.GetCoinTextureString", "C_GameRules.GetActiveGameMode", "C_GameRules.IsGameRuleActive",
@@ -18,6 +19,7 @@ local SYMBOLS = {
 		"C_QuestLog.GetNumQuestLogEntries", "C_QuestLog.GetInfo", "C_QuestLog.IsComplete", "C_QuestLog.ReadyForTurnIn",
 		"C_QuestLog.GetTitleForQuestID", "C_QuestLog.IsQuestTrivial", "C_QuestLog.GetQuestDifficultyLevel",
 		"C_QuestLog.GetSelectedQuest", "C_QuestLog.SetSelectedQuest", "GetQuestLogRewardXP", "GetQuestLogRewardMoney",
+		"C_Container.GetContainerNumFreeSlots", "GetInventoryItemDurability", "C_UnitAuras.GetAuraDataByIndex", "AuraUtil.ForEachAura",
 		"C_GossipInfo.GetAvailableQuests", "C_GossipInfo.GetActiveQuests", "C_GossipInfo.SelectAvailableQuest",
 		"C_GossipInfo.SelectActiveQuest", "C_GossipInfo.GetOptions", "C_GossipInfo.SelectOption",
 		"GetNumActiveQuests", "GetNumAvailableQuests", "GetActiveTitle", "GetAvailableTitle", "GetAvailableQuestInfo",
