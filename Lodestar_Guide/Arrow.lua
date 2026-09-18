@@ -12,6 +12,7 @@ local FormatDuration = Lodestar.FormatDuration
 local arrow                 -- frame
 local target                -- { mapID, x, y, title, subtitle, questID, kind }
 local lastDistance, lastDistanceTime, speed = nil, nil, 0
+local lastViaTrail = false  -- whether the last update measured progress along a trail path
 local lastSuperTracked
 local retargetTimer
 
@@ -157,6 +158,8 @@ function Guide:RetargetArrow()
 	else
 		t = guideTarget() or waypointTarget() or questTarget()
 	end
+	-- a guide step with explicit `path` points is walked point by point first (Trails.lua)
+	if t and self.TrailTargetOverride then t = self:TrailTargetOverride(t) end
 	if not (target and t and target.kind == t.kind and target.mapID == t.mapID and target.x == t.x and target.y == t.y) then
 		lastDistance, lastDistanceTime, speed = nil, nil, 0
 	end
@@ -217,27 +220,50 @@ local function onUpdate(self, elapsed)
 		self.dist:SetText(bearing == "continent" and "|cff888888other continent|r" or "|cff888888no position|r")
 		return
 	end
+	local arrived = dist <= (target.radius or Guide.db.profile.arrow.arrivalYards or 10)
+	if arrived and target.waypoint and Guide.TrailWaypointReached then
+		Guide:TrailWaypointReached(target) -- retargets to the next path point
+		return
+	end
+	-- Known walkable ground (Trails.lua): point at the next bend of the learned path instead of straight
+	-- at the target. `remaining` is the yards left along that path.
+	local remaining
+	if Guide.TrailNext then
+		local node, left = Guide:TrailNext(target, dist)
+		if node then
+			local ndist, nbearing = vectorToWorld(node.continent, node.wx, node.wy)
+			if ndist then bearing, remaining = nbearing, left end
+		end
+	end
 	local facing = GetPlayerFacing() or 0
 	local relative = bearing - facing
 	self.arrow:Show()
 	self.arrow:SetRotation(relative)
-	local arrived = dist <= (target.radius or Guide.db.profile.arrow.arrivalYards or 10)
 	if arrived then self.arrow:SetVertexColor(0.3, 1, 0.3) else self.arrow:SetVertexColor(colorFor(relative)) end
 	self.title:SetText(target.title or "")
 
-	-- speed / ETA
+	-- speed / ETA, measured along the path when there is one (the straight-line distance may grow on a detour)
 	local now = GetTime()
+	local progress = remaining or dist
+	if (remaining ~= nil) ~= lastViaTrail then lastDistance = nil end
+	lastViaTrail = remaining ~= nil
 	if lastDistance and lastDistanceTime and now > lastDistanceTime then
-		local v = (lastDistance - dist) / (now - lastDistanceTime)
+		local v = (lastDistance - progress) / (now - lastDistanceTime)
 		speed = speed * 0.8 + v * 0.2
 	end
-	lastDistance, lastDistanceTime = dist, now
+	lastDistance, lastDistanceTime = progress, now
 	local eta = ""
 	if Guide.db.profile.arrow.showETA and speed > 0.5 and dist > 5 then
-		eta = "  ·  " .. FormatDuration(dist / speed)
+		eta = "  ·  " .. FormatDuration(progress / speed)
 	end
 	local sub = target.subtitle and ("|cffaaaaaa" .. target.subtitle .. "|r  ·  ") or ""
-	self.dist:SetText(arrived and (sub .. "|cff7fff7fhere|r") or ("%s%d yd%s"):format(sub, dist, eta))
+	if arrived then
+		self.dist:SetText(sub .. "|cff7fff7fhere|r")
+	elseif remaining then
+		self.dist:SetText(("%s%d yd |cff888888· via trail (%d yd)|r%s"):format(sub, dist, remaining, eta))
+	else
+		self.dist:SetText(("%s%d yd%s"):format(sub, dist, eta))
+	end
 end
 
 local ARROW_ATLAS = "Navigation-Tracked-Arrow"

@@ -770,6 +770,114 @@ try("harvest", function()
 	check(found and found.source and found.source:find("harvest", 1, true), "smart mode uses the harvest for new quests: " .. tostring(found and found.source))
 	stub.questLog[77777] = nil
 end)
+try("trails", function()
+	-- Until Guide.lua / the TOC wire them up, load the trail files and enable the recorder here.
+	if not G.TrailPath then loadLua("Lodestar_Guide/Trails.lua") end
+	if not G.TrailSeed then loadLua("Lodestar_Guide/Data/Trails_Seed.lua") end
+	G:EnableTrails()
+	local T = G:HarvestDB().trails
+	check(type(T) == "table", "LodestarScanDB.trails created")
+	local savedMap, savedX, savedY = stub.playerMap.map, stub.playerMap.x, stub.playerMap.y
+	stub.playerMap.map = 18
+	-- walk an L: 600 yd east, then 600 yd south, one 10 yd step per second (cells are 20 yd on the 10000 yd stub map)
+	local function walk(x0, y0, dx, dy, steps)
+		stub.playerMap.x, stub.playerMap.y = x0, y0
+		stub.advance(1)
+		for _ = 1, steps do
+			stub.playerMap.x, stub.playerMap.y = stub.playerMap.x + dx, stub.playerMap.y + dy
+			stub.advance(1)
+		end
+	end
+	walk(0.200, 0.200, 0.001, 0, 60)
+	walk(0.260, 0.200, 0, 0.001, 60)
+	local s = G:TrailStats()
+	check(T[18] and T[18].nx == 500 and T[18].ny == 500, "grid tuned to ~20 yd cells from the map size: " .. tostring(T[18] and T[18].nx))
+	check(s.mapCells >= 60 and s.mapCells <= 64, "L walk recorded ~61 cells, got " .. s.mapCells)
+	check(s.mapLinks >= 59 and s.mapLinks <= 63, "L walk recorded ~60 links, got " .. s.mapLinks)
+	check(s.mapBytes < 3000, "L walk costs under 3 KB, got " .. s.mapBytes)
+	-- teleport: a jump of many cells marks the new cell but links nothing
+	local links = T[18].l
+	stub.playerMap.x, stub.playerMap.y = 0.400, 0.400
+	stub.advance(1)
+	check(T[18].l == links, "teleport did not create a link")
+	-- dead / taxi / recording off: nothing recorded
+	local cells = T[18].n
+	stub.dead = true walk(0.500, 0.500, 0.001, 0, 4) stub.dead = false
+	local onTaxi = UnitOnTaxi
+	UnitOnTaxi = function() return true end walk(0.520, 0.500, 0.001, 0, 4) UnitOnTaxi = onTaxi
+	stub.slash("/lode trails off")
+	walk(0.540, 0.500, 0.001, 0, 4)
+	stub.slash("/lode trails on")
+	check(T[18].n == cells, "dead, on taxi or recording off: no cells recorded, got +" .. (T[18].n - cells))
+	-- path query: end to end of the L goes via the corner, string-pulled to start / corner / goal
+	local path = G:TrailPath(18, 0.200, 0.200, 0.260, 0.260)
+	check(path and #path == 3, "L path found and string-pulled to 3 nodes, got " .. tostring(path and #path))
+	check(path and math.abs(path[2].x - 0.261) < 0.005 and math.abs(path[2].y - 0.201) < 0.005, "middle node is the corner (within a cell or two): " .. tostring(path and path[2].x) .. "," .. tostring(path and path[2].y))
+	check(path and path[3].x == 0.260 and path[3].y == 0.260 and path[3].rest == 0, "last node is the exact goal")
+	check(path and math.abs(path[1].rest - 1200) < 40, "path length ~1200 yd, got " .. tostring(path and path[1].rest))
+	check(G:TrailPath(18, 0.200, 0.200, 0.260, 0.260) == path, "repeated query served from the cache")
+	check(G:TrailPath(18, 0.200, 0.200, 0.300, 0.300) == nil, "no path to a point off the trail")
+	check(G:TrailPath(18, 0.200, 0.200, 0.262, 0.262) ~= nil, "a goal one cell off the trail is still reachable")
+	-- arrow: from the start with the far end as target, it points at the corner (east), not diagonally
+	stub.playerMap.x, stub.playerMap.y = 0.200, 0.200
+	local rotation
+	LodestarArrow.arrow.SetRotation = function(_, r) rotation = r end
+	stub.waypoint = { uiMapID = 18, position = { x = 0.260, y = 0.260 } }
+	stub.slash("/lode arrow waypoint")
+	G:RetargetArrow()
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	local toCorner, toGoal = -math.pi / 2, math.atan2(-600, -600) -- world bearing: east is -pi/2, the goal is south-east
+	check(rotation and math.abs(rotation - toCorner) < 0.1, "arrow points east at the corner node, not diagonally: " .. tostring(rotation))
+	check((LodestarArrow.dist.text or ""):find("848 yd", 1, true) and LodestarArrow.dist.text:find("via trail %(1%d%d%d yd%)"), "distance line shows the real distance and the trail length: " .. tostring(LodestarArrow.dist.text))
+	-- follow toggle off: straight line again
+	stub.slash("/lode trails follow off")
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	check(math.abs(rotation - toGoal) < 0.05 and not LodestarArrow.dist.text:find("via trail", 1, true), "follow off: straight line")
+	stub.slash("/lode trails follow on")
+	-- no trail near the player or target: straight-line fallback
+	stub.playerMap.x, stub.playerMap.y = 0.100, 0.900
+	stub.waypoint = { uiMapID = 18, position = { x = 0.150, y = 0.950 } }
+	G:RetargetArrow()
+	stub.advance(1.1)
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	check(math.abs(rotation - toGoal) < 0.05 and not LodestarArrow.dist.text:find("via trail", 1, true), "no trail: straight line, " .. tostring(LodestarArrow.dist.text))
+	-- seeded roads: Deathknell -> Brill is routable on the 0.4 % seed resampled onto the 20 yd grid
+	local seed = G:TrailSeedFor(18)
+	check(seed and seed.n > 300, "Tirisfal seed resampled: " .. tostring(seed and seed.n) .. " cells")
+	local road = G:TrailPath(18, 0.308, 0.662, 0.610, 0.525)
+	check(road and #road >= 3 and road[1].rest > 3000, "seeded road Deathknell -> Brill routes: " .. tostring(road and #road) .. " nodes, " .. tostring(road and math.floor(road[1].rest)) .. " yd")
+	-- explicit step waypoints: walked point by point, 12 yd arrival, then the step's own goto
+	stub.playerMap.x, stub.playerMap.y = 0.200, 0.200
+	stub.slash("/lode guide load Deathknell")
+	local step = G:CurrentStep()
+	check(step and step.go, "guide step with a goto is current")
+	step.path = { { x = 21, y = 20 }, { 22, 20 } }
+	stub.slash("/lode arrow guide")
+	G:RetargetArrow()
+	local t = G:GetArrowTarget()
+	check(t and t.waypoint == 1 and math.abs(t.x - 0.21) < 1e-9, "arrow targets waypoint 1: " .. tostring(t and t.waypoint))
+	stub.playerMap.x = 0.210
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	t = G:GetArrowTarget()
+	check(t and t.waypoint == 2 and math.abs(t.x - 0.22) < 1e-9, "reaching waypoint 1 moves on to waypoint 2: " .. tostring(t and t.waypoint))
+	stub.playerMap.x = 0.220
+	LodestarArrow.scripts.OnUpdate(LodestarArrow, 0.1)
+	t = G:GetArrowTarget()
+	check(t and not t.waypoint and math.abs(t.x - step.go.x / 100) < 1e-9, "after the last waypoint the step's goto is the target")
+	step.path = nil
+	-- slash + wipe
+	stub.slash("/lode trails")
+	stub.slash("/lode trails wipe")
+	check(T[18] ~= nil, "wipe without confirm keeps the data")
+	stub.slash("/lode trails wipe confirm")
+	check(next(T) == nil and G:TrailStats().cells == 0, "wipe confirm empties the store")
+	stub.slash("/lode trails nonsense")
+	-- restore
+	LodestarArrow.arrow.SetRotation = nil
+	stub.slash("/way clear")
+	stub.slash("/lode arrow auto")
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = savedMap, savedX, savedY
+end)
 try("guide menus", function() G:ShowGuideMenu() G:ShowArrowMenu() end)
 try("guide options", function()
 	local opts = Lodestar:BuildOptions()

@@ -569,6 +569,9 @@ MAX_QUESTS = 25
 C_GuildInfo.GuildRoster = function() stub.rosterRequested = (stub.rosterRequested or 0) + 1 end
 Enum.PlayerInteractionType = { Merchant = 5 }
 C_Texture = { GetAtlasInfo = function(name) if name == "Navigation-Tracked-Arrow" then return { width = 34, height = 44 } end end }
+-- Trails APIs -------------------------------------------------------------------------------------
+C_Map.GetMapWorldSize = function() return 10000, 10000 end -- matches the fake GetWorldPosFromMapPos scale above
+UnitIsDeadOrGhost = function() return stub.dead or false end
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1

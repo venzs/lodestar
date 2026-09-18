@@ -1,0 +1,36 @@
+# Lodestar trail seeds: main roads of the Horde starting zones.
+#
+# One polyline per line:   <zone name as C_Map reports it>|x,y;x,y;x,y...   (percent map coordinates)
+# Blank lines and lines starting with # are ignored. A zone may have any number of lines.
+# python3 tools/trails/seed_roads.py tools/trails/roads_horde.txt   regenerates Lodestar_Guide/Data/Trails_Seed.lua
+#
+# APPROXIMATE. These points were written from memory of the classic maps, not measured in the client.
+# They are meant to be within a couple of grid cells (~20 yd) of the real road; the recorder overrides
+# them with real walked ground as soon as someone runs the route. Verify with /lode loc while walking
+# and fix any point that is off.
+
+# --- Tirisfal Glades ---------------------------------------------------------------------------
+# Deathknell (Shadow Priest Sarvis) -> the graveyard gate -> east along the road -> Brill
+Tirisfal Glades|30.8,66.2;33.0,65.0;35.5,63.5;38.0,61.5;41.0,60.0;44.5,58.5;48.0,57.0;51.5,55.5;55.0,54.0;58.0,53.0;61.0,52.5
+# Brill -> zeppelin towers -> Ruins of Lordaeron (Undercity entrance)
+Tirisfal Glades|61.0,52.5;61.0,55.5;61.0,58.5;61.5,61.5;62.5,64.5;63.0,66.0
+# Brill -> Stillwater Pond -> Agamand Mills (north-west)
+Tirisfal Glades|61.0,52.5;58.0,49.5;54.5,46.5;51.0,43.0;49.0,38.5;48.0,34.0;47.0,30.0;46.5,27.0
+# Brill -> Balnir Farmstead -> the Bulwark (east, then south-east to the Plaguelands border)
+Tirisfal Glades|61.0,52.5;65.0,53.5;69.0,55.5;73.0,58.0;76.5,61.5;79.5,65.5;82.0,69.5;83.5,71.5
+
+# --- Durotar -----------------------------------------------------------------------------------
+# Valley of Trials -> out of the valley -> north to Razor Hill
+Durotar|43.0,68.5;46.0,66.0;48.5,63.0;50.0,58.5;51.0,53.5;52.0,48.5;52.5,43.5
+# Razor Hill -> Orgrimmar gate (north)
+Durotar|52.5,43.5;52.0,38.5;50.5,33.0;49.0,27.5;47.5,22.0;46.5,17.0;46.0,13.0
+# Razor Hill -> Sen'jin Village (south, along the coast road)
+Durotar|52.5,43.5;52.5,49.0;53.0,55.0;53.5,61.0;54.5,67.0;55.5,73.5
+# Razor Hill -> west over the Southfury bridge -> the Barrens road
+Durotar|52.5,43.5;48.5,45.0;44.5,46.5;40.5,47.5;36.5,48.5;33.5,49.0
+
+# --- Mulgore -----------------------------------------------------------------------------------
+# Camp Narache -> down the Red Cloud Mesa ramp -> Bloodhoof Village
+Mulgore|44.5,77.0;46.5,73.5;48.5,69.5;49.0,65.5;48.0,62.5;47.5,60.5
+# Bloodhoof Village -> north along the road -> Thunder Bluff (base of the lifts)
+Mulgore|47.5,60.5;46.0,55.5;44.5,50.5;43.0,45.5;42.0,40.5;41.0,35.0;40.0,30.5;39.5,27.5
