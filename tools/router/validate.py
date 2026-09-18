@@ -18,6 +18,7 @@ from .world import World, travel_options
 @dataclass
 class Report:
     issues: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)      # adjustments the replay made (a hearth that became a run)
     total_seconds: float = 0.0
     final_level: int = 0
     xp_per_minute: float = 0.0
@@ -36,10 +37,18 @@ def replay(steps: list[Step], cat: Catalog, world: World, cm: CostModel, start: 
         s.sim_level = st.level
         xp_before = st.total_xp
         if s.goto is not None:
-            opt = travel_options(world, cat, st, s.goto)[0]
+            opts = travel_options(world, cat, st, s.goto)
+            opt = opts[0]
+            if s.kind == StepKind.TRAVEL and s.text and s.text.startswith("Use your Hearthstone"):
+                hearth = next((o for o in opts if o.kind == "hearth"), None)
+                if hearth is not None:
+                    opt = hearth          # the plan says hearth: do it even if a run would be marginally faster now
+                else:
+                    # the planner's clock had the cooldown ready; after pruning/merging it is not - the player
+                    # runs instead (or waits for it), so the step text says so rather than failing the plan
+                    rep.notes.append(f"step {i}: hearth not ready at t={st.t:.0f}s, replayed as a run")
+                    s.text = s.text.replace("Use your Hearthstone to", "Hearth (if it is up) or run to", 1)
             travel(st, world, s.goto, opt.seconds, opt.kind, opt.via)
-            if s.kind == StepKind.TRAVEL and opt.kind != "hearth" and s.text and s.text.startswith("Use your Hearthstone"):
-                rep.issues.append(f"step {i}: hearth planned but cooldown not ready at t={st.t:.0f}s")
         if s.kind == StepKind.HUB:
             for kind, qid in hub_actions(s):   # the exact order the guide text will show
                 q = cat.quests[qid]

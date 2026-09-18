@@ -52,7 +52,6 @@ step
   .goto Tirisfal Glades,59.4,52.4
   .turnin 365 >>Turn in Fields of Grief to Apothecary Johaan
   .accept 407 >>Accept Fields of Grief (part 2)
-  .accept 367 >>Accept A New Plague
 
 step
   .goto Tirisfal Glades,62.0,51.3
@@ -81,6 +80,11 @@ step
 step
   .goto Tirisfal Glades,61.3,50.8
   .accept 358 >>Accept Graverobbers from Magistrate Sevren in the town hall
+
+step
+  .goto Tirisfal Glades,59.4,52.4
+  .xp 6
+  .accept 367 >>Accept A New Plague from Apothecary Johaan — it needs level 6, which the Brill turn-ins give you
 
 -- Class trainers in Brill (the guide window also flags "New spells available" on its own)
 
@@ -184,15 +188,10 @@ step
   .xp 7
   .accept 354 >>Accept Deaths in the Family from Coleman Farthing at the inn (level 7)
   .accept 362 >>Accept The Haunted Mills
-  .accept 355 >>Accept Speak with Sevren
 
 step
   .goto Tirisfal Glades,61.9,52.7
   .accept 375 >>Accept The Chill of Death from Gretchen Dedmar
-
-step
-  .goto Tirisfal Glades,61.3,50.8
-  .turnin 355 >>Turn in Speak with Sevren to Magistrate Sevren
 
 -- North-west loop: Calvin, Scarlet camp, murlocs, Agamand Mills ---------------------------------
 
@@ -246,6 +245,7 @@ step
   .goto Tirisfal Glades,61.7,52.3
   .turnin 354 >>Turn in Deaths in the Family to Coleman Farthing
   .turnin 362 >>Turn in The Haunted Mills
+  .accept 355 >>Accept Speak with Sevren (offered once Deaths in the Family is handed in)
 
 step
   .goto Tirisfal Glades,58.2,51.4
@@ -319,6 +319,7 @@ step
 step
   .goto Tirisfal Glades,61.3,50.8
   .turnin 360 >>Turn in Return to the Magistrate to Magistrate Sevren
+  .turnin 355 >>Turn in Speak with Sevren
 
 step
   .goto Tirisfal Glades,60.6,51.8
@@ -364,6 +365,17 @@ step
   .goto Tirisfal Glades,60.6,51.8
   .optional >>Captain Melrache (lvl 12) sits in the far north-east; do it on the way to the Monastery or with a group
   .accept 372 >>Accept At War With The Scarlet Crusade (part 4) from Executor Zygand — Captain Melrache, for later
+
+step
+  .goto Tirisfal Glades,79.5,25.1
+  .optional >>At War With The Scarlet Crusade (part 4): a long run to the far north-east
+  .complete 372,1 >>Kill Captain Melrache's Scarlet Bodyguards at the camp on the road to the Monastery (lvl 8)
+  .complete 372,2 >>Kill Captain Melrache (lvl 12)
+
+step
+  .goto Tirisfal Glades,60.6,51.8
+  .optional >>At War With The Scarlet Crusade (part 4)
+  .turnin 372 >>Turn in At War With The Scarlet Crusade to Executor Zygand (hearth to Brill)
 
 -- Undercity and Gunther's Retreat: the Prodigal Lich (completionist) --------------------------------
 -- Two Undercity round trips and an island loop for four turn-ins; a speed run skips the whole chain.
@@ -432,6 +444,18 @@ step
   .goto Tirisfal Glades,61.3,50.8
   .optional >>A level 13 elite-area quest (Captain Dargol in the Agamand crypt); needs a partner or level 12+
   .accept 408 >>Accept The Family Crypt from Magistrate Sevren — do it now with a partner or come back at 12
+
+step
+  .goto Tirisfal Glades,51.3,28.1
+  .optional >>The Family Crypt: the Agamand crypt, north of the mills — a partner helps
+  .complete 408,1 >>Kill 5 Rotting Ancestors in the Agamand Family Crypt (lvl 10-11)
+  .complete 408,2 >>Kill 5 Wailing Ancestors (lvl 9-10)
+  .complete 408,3 >>Kill Captain Dargol at the bottom of the crypt (lvl 13) and loot his skull
+
+step
+  .goto Tirisfal Glades,61.3,50.8
+  .optional >>The Family Crypt
+  .turnin 408 >>Turn in The Family Crypt to Magistrate Sevren
 
 step
   .zone Silverpine Forest >>Head south-west out of Brill along the road into Silverpine Forest (The Sepulcher)

@@ -59,7 +59,8 @@ step
 
 step
   .goto Tirisfal Glades,30.9,66.1
-  .accept 376 >>Accept The Damned from Novice Elreth (next to Sarvis)
+  .xp 2
+  .accept 376 >>Accept The Damned from Novice Elreth (next to Sarvis) — it needs level 2, which the zombies give you
 
 step
   .goto Tirisfal Glades,32.7,65.6
@@ -107,7 +108,8 @@ step
 step
   .goto Tirisfal Glades,30.9,66.1
   .turnin 376 >>Turn in The Damned to Novice Elreth
-  .accept 6395 >>Accept Marla's Last Wish
+  .xp 3
+  .accept 6395 >>Accept Marla's Last Wish (level 3)
 
 step
   .goto Tirisfal Glades,31.6,65.6

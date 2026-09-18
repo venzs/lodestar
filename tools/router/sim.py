@@ -62,10 +62,12 @@ class PlayerState:
             return False
         if any(p not in self.turned_in for p in q.prereqs):
             return False
+        if q.prereqs_any and not any(p in self.turned_in for p in q.prereqs_any):
+            return False
         if any(e in self.turned_in or e in self.accepted for e in q.exclusive_with):
             return False
-        if q.classes and self.player_class and self.player_class.lower() not in {c.lower() for c in q.classes}:
-            return False
+        if q.classes and (not self.player_class or self.player_class.lower() not in {c.lower() for c in q.classes}):
+            return False   # class quests only in a plan for that class; generic routes add them as .class steps by hand
         if q.races and self.race and self.race.lower() not in {r.lower() for r in q.races}:
             return False
         return self.log_size() < QUEST_LOG_CAP

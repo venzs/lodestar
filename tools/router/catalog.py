@@ -45,10 +45,13 @@ def load(path: str) -> tuple[Catalog, World, PlayerState, dict]:
         quests[q["id"]] = Quest(
             id=q["id"], name=q["name"], level=q["level"], min_level=q.get("min_level", 1), xp=q["xp"],
             giver=q.get("giver"), turnin=q.get("turnin"), objectives=objs, prereqs=tuple(q.get("prereqs", [])),
+            prereqs_any=tuple(q.get("prereqs_any", [])),
             exclusive_with=tuple(q.get("exclusive_with", [])), classes=tuple(q.get("classes", [])),
             races=tuple(q.get("races", [])), faction=q.get("faction", "Both"), repeatable=q.get("repeatable", False),
             breadcrumb=q.get("breadcrumb", False), zone=q.get("zone", ""))
     cat = Catalog(quests=quests, npcs=npcs, faction=raw.get("faction", "Both"), race=raw.get("race", ""))
+    for k, v in raw.get("map_names", {}).items():   # uiMapID / zone id -> name written in .goto lines
+        cat.zone_map_names[int(k)] = v
     for fl in raw.get("flights", []):
         cat.flights[fl["name"]] = FlightNode(fl["name"], fl["npc_id"], _pos(fl))
     for k, v in raw.get("flight_seconds", {}).items():

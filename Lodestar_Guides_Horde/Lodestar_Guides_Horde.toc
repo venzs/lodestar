@@ -11,3 +11,7 @@
 
 Undead_Deathknell.lua
 Undead_Tirisfal.lua
+Orc_Troll_Durotar.lua
+Tauren_Mulgore.lua
+Horde_Silverpine.lua
+Horde_Barrens.lua

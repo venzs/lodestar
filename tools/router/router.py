@@ -567,15 +567,25 @@ def merge_grinds(steps: list[Step]) -> list[Step]:
     return out
 
 
-def plan_two_pass(cat: Catalog, world: World, cm: CostModel, cfg: PlannerConfig, start: PlayerState) -> tuple[list[Step], Planner]:
-    """Pass 1 accepts liberally and prunes; pass 2 replans refusing the pruned quests, which frees
-    quest-log slots and dialogue time. Keep whichever pass simulates faster."""
-    p1 = Planner(cat, world, cm, cfg)
-    s1 = p1.plan(start.clone())
-    if not p1.pruned:
-        return s1, p1
-    p2 = Planner(cat, world, cm, cfg, never_accept=p1.pruned)
-    s2 = p2.plan(start.clone())
-    t1 = s1[-1].sim_t_end if s1 else math.inf
-    t2 = s2[-1].sim_t_end if s2 else math.inf
-    return (s2, p2) if t2 <= t1 else (s1, p1)
+def plan_two_pass(cat: Catalog, world: World, cm: CostModel, cfg: PlannerConfig, start: PlayerState,
+                  max_passes: int = 4) -> tuple[list[Step], Planner]:
+    """Pass 1 accepts liberally and prunes; the next pass replans refusing the pruned quests, which frees
+    quest-log slots and dialogue time. Pruning also drops the kill XP of objectives that only served a
+    pruned quest, so a pruned plan is replayed before it is trusted: it can be slower than the planner
+    thought, or invalid (an accept that needed a level the dropped kills would have given). Passes repeat
+    while they still prune, and the best valid replay wins (fewest issues, then simulated time)."""
+    from .validate import replay   # local import: validate depends on the model, not on the planner
+    never: set[int] = set()
+    best: Optional[tuple[int, float, list[Step], Planner]] = None
+    for _ in range(max_passes):
+        p = Planner(cat, world, cm, cfg, never_accept=never)
+        steps = p.plan(start.clone())
+        rep = replay(steps, cat, world, cm, start)
+        key = (len(rep.issues), rep.total_seconds)
+        if best is None or key < (best[0], best[1]):
+            best = (key[0], key[1], steps, p)
+        if not p.pruned:
+            break
+        never |= p.pruned
+    assert best is not None
+    return best[2], best[3]

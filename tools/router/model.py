@@ -70,7 +70,8 @@ class Quest:
     giver: Optional[int]             # NPC id (None: auto-accepted / item-started)
     turnin: Optional[int]            # NPC id
     objectives: list[Objective] = field(default_factory=list)
-    prereqs: tuple[int, ...] = ()    # quest ids that must be turned in first (chain)
+    prereqs: tuple[int, ...] = ()    # quest ids that must ALL be turned in first (chain)
+    prereqs_any: tuple[int, ...] = ()  # at least ONE of these must be turned in first (pfQuest `pre`: alternatives)
     exclusive_with: tuple[int, ...] = ()
     classes: tuple[str, ...] = ()    # empty = all
     races: tuple[str, ...] = ()

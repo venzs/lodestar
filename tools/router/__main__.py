@@ -1,6 +1,7 @@
 """CLI.
 
   python -m tools.router plan examples/deathknell.json --target 6 [--class Warlock] [--lap recording.json] [-o out.txt]
+  python -m tools.router /tmp/durotar.json                                         # "plan" is the default subcommand
   python -m tools.router score examples/deathknell.json --lap recording.json      # replay a human lap under the model
   python -m tools.router xp-table 1 12                                            # sanity: XP to level
 """
@@ -23,7 +24,7 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("plan")
     p.add_argument("catalog")
-    p.add_argument("--target", type=int, default=6)
+    p.add_argument("--target", type=int, default=None, help="level to plan to (default: the catalog's level band, else 6)")
     p.add_argument("--class", dest="player_class", default=None)
     p.add_argument("--lap", action="append", default=[], help="recording.json from sv2json.lua; repeatable")
     p.add_argument("--name", default=None)
@@ -36,6 +37,9 @@ def main(argv=None) -> int:
     x = sub.add_parser("xp-table")
     x.add_argument("lo", type=int)
     x.add_argument("hi", type=int)
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] not in ("plan", "score", "xp-table", "-h", "--help"):
+        argv.insert(0, "plan")
     args = ap.parse_args(argv)
 
     if args.cmd == "xp-table":
@@ -61,11 +65,14 @@ def main(argv=None) -> int:
               f"{len(stats['ttk_samples'])} kill samples, class_factor={cm.class_factor:.2f}", file=sys.stderr)
     if args.player_class:
         start.player_class = args.player_class
-    cfg = PlannerConfig(target_level=args.target)
+    target = args.target or (raw.get("levels") or [0, 6])[1]
+    cfg = PlannerConfig(target_level=target)
     steps, planner = plan_two_pass(cat, world, cm, cfg, start)
     rep = replay(steps, cat, world, cm, start)   # recompute times after pruning/merging, check invariants
     for issue in rep.issues:
         print("VALIDATION:", issue, file=sys.stderr)
+    for note in rep.notes:
+        print("note:", note, file=sys.stderr)
     zone = raw.get("zone") or planner.hubs[0].name
     name = args.name or f"{cat.faction}/{cat.race} {start.level}-{rep.final_level}: {zone} (router)"
     header = GuideHeader(name=name, faction=cat.faction, races=[cat.race] if cat.race else [],

@@ -47,11 +47,14 @@ def hub_actions(s: Step) -> list[tuple[str, int]]:
     return [("turnin", q) for q in s.turnins] + [("accept", q) for q in s.accepts]
 
 
-def _goto(step: Step, radius: Optional[float] = None) -> Optional[str]:
+def _goto(step: Step, radius: Optional[float] = None, names: Optional[dict[int, str]] = None) -> Optional[str]:
+    """`.goto <map>,x,y[,radius]`; the map is written as its zone name when the catalog knows one (the
+    parser accepts either a uiMapID or a name, and names survive uiMapID changes between builds)."""
     if not step.goto:
         return None
     r = f",{int(radius)}" if radius else ""
-    return f"  .goto {step.goto.map},{step.goto.x:.1f},{step.goto.y:.1f}{r}"
+    where = (names or {}).get(step.goto.map, step.goto.map)
+    return f"  .goto {where},{step.goto.x:.1f},{step.goto.y:.1f}{r}"
 
 
 def emit(header: GuideHeader, steps: list[Step], cat: Catalog, with_sim_comments: bool = True) -> str:
@@ -69,12 +72,13 @@ def emit(header: GuideHeader, steps: list[Step], cat: Catalog, with_sim_comments
     out.append("")
 
     last_level = None
+    names = cat.zone_map_names
     for s in steps:
         lines = ["step"]
         if s.classes:
             lines.append("  .class " + ",".join(s.classes))
         if s.kind == StepKind.HUB:
-            g = _goto(s)
+            g = _goto(s, names=names)
             if g: lines.append(g)
             for kind, qid in hub_actions(s):
                 q = cat.quests[qid]
@@ -84,7 +88,7 @@ def emit(header: GuideHeader, steps: list[Step], cat: Catalog, with_sim_comments
                     giver = cat.npcs[q.giver].name if q.giver in cat.npcs else "?"
                     lines.append(f"  .accept {qid} >>Accept {q.name} from {giver}   -- quest lvl {q.level}")
         elif s.kind == StepKind.OBJECTIVE:
-            g = _goto(s)
+            g = _goto(s, names=names)
             if g: lines.append(g)
             for qid, idx in s.completes:
                 q = cat.quests[qid]
@@ -94,22 +98,22 @@ def emit(header: GuideHeader, steps: list[Step], cat: Catalog, with_sim_comments
                     lvl = f" (lvl {o.mob_level_min}-{o.mob_level_max})" if o.mob_level_min != o.mob_level_max else f" (lvl {o.mob_level_min})"
                 lines.append(f"  .complete {qid},{idx} >>{o.text}{lvl}")
         elif s.kind == StepKind.GRIND:
-            g = _goto(s, radius=40)
+            g = _goto(s, radius=40, names=names)
             if g: lines.append(g)
             lines.append(f"  .xp {s.level_gate} >>{s.text}")
         elif s.kind == StepKind.TRAVEL:
-            g = _goto(s, radius=30)
+            g = _goto(s, radius=30, names=names)
             if g: lines.append(g + (f" >>{s.text}" if s.text else ""))
         elif s.kind == StepKind.FLY:
-            g = _goto(s)
+            g = _goto(s, names=names)
             if g: lines.append(g)
             lines.append(f"  .fly {s.name} >>{s.text or ('Fly to ' + str(s.name))}")
         elif s.kind == StepKind.HEARTH_BIND:
-            g = _goto(s)
+            g = _goto(s, names=names)
             if g: lines.append(g)
             lines.append(f"  .hs {s.name} >>{s.text or ('Set your hearthstone at ' + str(s.name))}")
         elif s.kind == StepKind.TRAIN:
-            g = _goto(s)
+            g = _goto(s, names=names)
             if g: lines.append(g)
             lines.append(f"  .train >>{s.text or 'Train new skills'}")
         elif s.kind == StepKind.ZONE:

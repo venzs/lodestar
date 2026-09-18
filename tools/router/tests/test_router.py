@@ -135,3 +135,40 @@ if __name__ == "__main__":
         if name.startswith("test_") and callable(fn):
             fn()
             print("ok", name)
+
+
+# --- real data: Deathknell from Data/Vanilla.lua ----------------------------------------------------------
+
+DEATHKNELL_QUESTS = {363, 364, 3901, 376, 6395, 3902, 380, 381, 382}   # the Undead starting loop, all classes
+
+
+def test_vanilla_deathknell():
+    """Build the catalog from the Vanilla database (Tirisfal Glades, Undead 1-6) and plan the Deathknell
+    loop: Rude Awakening (363) is accepted before The Mindless Ones (364, which it unlocks), the plan
+    validates, and every Deathknell quest is turned in by the time the player is level 6."""
+    from tools.router.vanilla_catalog import build, load_vanilla
+    data = load_vanilla()
+    raw = build(data, [85], "Horde", "Undead", (1, 6), bbox=(20.0, 50.0, 45.0, 80.0))   # Deathknell corner of the map
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        import json
+        json.dump(raw, f)
+        path = f.name
+    try:
+        cat, world, start, _ = load(path)
+    finally:
+        os.unlink(path)
+    assert DEATHKNELL_QUESTS <= set(cat.quests), "Deathknell quests missing from the catalog"
+    assert cat.quests[364].prereqs_any == (363,)
+    assert cat.zone_map_names[85] == "Tirisfal Glades"
+    cm = CostModel()
+    steps, _ = plan_two_pass(cat, world, cm, PlannerConfig(target_level=6), start)
+    rep = replay(steps, cat, world, cm, start)
+    assert rep.ok(), rep.issues
+    assert rep.final_level >= 6
+    order = [(k, q) for s in steps if s.kind == StepKind.HUB for k, q in hub_actions(s)]
+    assert ("accept", 363) in order and ("accept", 364) in order
+    assert order.index(("accept", 363)) < order.index(("turnin", 363)) < order.index(("accept", 364))
+    turned = {q for s in steps for q in s.turnins}
+    assert DEATHKNELL_QUESTS <= turned, f"not turned in: {DEATHKNELL_QUESTS - turned}"
+    text = emit(GuideHeader(name="Test 1-6: Deathknell", faction="Horde", races=["Undead"], levels=(1, 6)), steps, cat)
+    assert ".goto Tirisfal Glades," in text
