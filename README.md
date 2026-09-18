@@ -116,9 +116,18 @@ python3 tools/att/import_att.py data/att/att-camelot.json
 ```
 
 `Lodestar_Guide/Data/Forever.lua` is the Forever overlay: quests, NPCs, positions and XP harvested on the beta by
-Lodestar itself (`LodestarScanDB`, see `Lodestar_Guide/Harvest.lua`). Export a SavedVariables file with
-`lua5.1 tools/pfquest/sv_to_json.lua <WTF/.../SavedVariables/Lodestar_Guide.lua> > data/beta/scan-<date>.json`, then
-`python3 tools/pfquest/merge_scan.py` regenerates the overlay from every export in `data/beta/`.
+Lodestar itself (`LodestarHarvest`, see `Lodestar_Guide/Harvest.lua`). One command folds a play session in:
+
+```sh
+tools/refresh_harvest.sh <WTF/.../SavedVariables/Lodestar_Guide.lua>
+```
+
+It converts the file to JSON in `data/beta/`, re-merges **every** export there into the overlay (so a position
+recorded in August still counts in September and no single session can delete what others contributed),
+regenerates the routes that were derived from it, and runs the guide lint and the smoke suite. Derived routes
+carry a `--regen-args:` line in their header saying exactly how to rebuild them; a guide without one is treated
+as hand-authored and left alone. Merging is idempotent — the same exports always produce the same file — so a
+diff after a session shows what that session actually added and nothing else.
 
 ## Contributing data
 

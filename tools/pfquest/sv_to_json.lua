@@ -1,11 +1,34 @@
 -- Convert a WoW SavedVariables file (Lua assignments) to JSON on stdout.
 -- Usage: lua5.1 tools/pfquest/sv_to_json.lua <file.lua> [GlobalName]
-local path, name = arg[1], arg[2] or "LodestarScanDB"
+--
+-- The world data has lived under three names: LodestarScanDB before the local/shareable split,
+-- LodestarShareDB after it, and LodestarHarvest since the rename (Lodestar/Core/Saved.lua). Exports
+-- sitting in data/beta/ span all three, so with no name given this picks whichever the file actually
+-- defines, newest first, and says which on stderr rather than silently emitting an empty object.
+local CANDIDATES = { "LodestarHarvest", "LodestarShareDB", "LodestarScanDB" }
+local path, name = arg[1], arg[2]
 local env = {}
 local chunk = assert(loadfile(path))
 setfenv(chunk, env)
 chunk()
-local t = env[name]
+local t = name and env[name]
+if not t and not name then
+	for _, candidate in ipairs(CANDIDATES) do
+		if type(env[candidate]) == "table" then
+			t, name = env[candidate], candidate
+			io.stderr:write("sv_to_json: reading " .. candidate .. "\n")
+			break
+		end
+	end
+end
+if type(t) ~= "table" then
+	local found = {}
+	for k, v in pairs(env) do if type(v) == "table" then found[#found + 1] = k end end
+	table.sort(found)
+	io.stderr:write(("sv_to_json: %s holds no %s (globals present: %s)\n")
+		:format(path, name or "world data", #found > 0 and table.concat(found, ", ") or "none"))
+	os.exit(1)
+end
 local function esc(s) return '"' .. s:gsub('[%c"\\]', function(c) if c == '"' then return '\\"' elseif c == "\\" then return "\\\\" elseif c == "\n" then return "\\n" else return string.format("\\u%04x", c:byte()) end end) .. '"' end
 local function isArray(v) local n = 0 for k in pairs(v) do if type(k) ~= "number" then return false end n = n + 1 end return n == #v end
 local out = {}

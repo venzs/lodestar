@@ -59,11 +59,11 @@ F.quests[92421]={lvl=22,o={{n=25,text="Intact Limbs",type="item"}},t="Light's Ju
 F.quests[92422]={lvl=22,o={{n=1,text="Rath'mael slain",type="monster"}},t="The Wrath of Rath'mael",tag="Dungeon"}
 F.quests[92454]={lvl=1,t="Welcome!"}
 F.quests[92460]={["end"]={npcs={251361}},lvl=1,start={npcs={251362}},t="Coming of Age",xp={1,40}}
-F.quests[92461]={acceptAt={[1]=0,[2]=42.1,[3]=23.5,m=2521},["end"]={npcs={251361}},lvl=1,o={{n=8,text="Juvenile Vuldren slain",type="monster"}},spots={[1]={{[1]=0,[2]=45.3,[3]=24.3,m=2521},{[1]=0,[2]=43.9,[3]=26,m=2521}}},t="Harmony in Balance",xp={2,80}}
-F.quests[92462]={acceptAt={[1]=0,[2]=43.4,[3]=24.7,m=2521},["end"]={npcs={251368}},lvl=2,o={{n=8,text="Pesky Cirrusfly slain",type="monster"}},spots={[1]={{[1]=0,[2]=45.8,[3]=28.1,m=2521},{[1]=0,[2]=44.9,[3]=25.3,m=2521},{[1]=0,[2]=44.4,[3]=27.3,m=2521}}},t="Infestation Investigation",xp={2,170}}
+F.quests[92461]={acceptAt={[1]=0,[2]=42.1,[3]=23.5,m=2521},["end"]={npcs={251361}},lvl=1,o={{n=8,text="Juvenile Vuldren slain",type="monster"}},spots={[1]={{[1]=0,[2]=43.9,[3]=26,m=2521},{[1]=0,[2]=45.3,[3]=24.3,m=2521}}},t="Harmony in Balance",xp={2,80}}
+F.quests[92462]={acceptAt={[1]=0,[2]=43.4,[3]=24.7,m=2521},["end"]={npcs={251368}},lvl=2,o={{n=8,text="Pesky Cirrusfly slain",type="monster"}},spots={[1]={{[1]=0,[2]=44.4,[3]=27.3,m=2521},{[1]=0,[2]=44.9,[3]=25.3,m=2521},{[1]=0,[2]=45.8,[3]=28.1,m=2521}}},t="Infestation Investigation",xp={2,170}}
 F.quests[92463]={acceptAt={[1]=0,[2]=43.4,[3]=24.9,m=2521},["end"]={npcs={251368}},lvl=3,o={{n=1,text="Cirrusfly Queen slain",type="monster"}},spots={[1]={{[1]=0,[2]=48.2,[3]=27.5,m=2521}}},t="The Cirrusfly Queen",xp={3,320}}
 F.quests[92464]={["end"]={npcs={249363}},lvl=3,start={npcs={251361}},t="Elemental Unrest",xp={2,25}}
-F.quests[92465]={["end"]={npcs={249363}},lvl=3,o={{n=7,text="Al'Aketh Convert slain",type="monster"},{n=6,text="Roiling Winds destroyed",type="monster"}},spots={[1]={{[1]=0,[2]=46.5,[3]=18.9,m=2521},{[1]=0,[2]=46.9,[3]=20.4,m=2521}},[2]={{[1]=0,[2]=45.9,[3]=19.2,m=2521},{[1]=0,[2]=46.9,[3]=20.9,m=2521},{[1]=0,[2]=46.6,[3]=18.4,m=2521}}},start={npcs={249363}},t="Agitators",xp={3,250}}
+F.quests[92465]={["end"]={npcs={249363}},lvl=3,o={{n=7,text="Al'Aketh Convert slain",type="monster"},{n=6,text="Roiling Winds destroyed",type="monster"}},spots={[1]={{[1]=0,[2]=46.5,[3]=18.9,m=2521},{[1]=0,[2]=46.9,[3]=20.4,m=2521}},[2]={{[1]=0,[2]=45.9,[3]=19.2,m=2521},{[1]=0,[2]=46.6,[3]=18.4,m=2521},{[1]=0,[2]=46.9,[3]=20.9,m=2521}}},start={npcs={249363}},t="Agitators",xp={3,250}}
 F.quests[92466]={lvl=4,o={{n=1,text="Signet of Akir",type="item"}},t="Call of Earth"}
 F.quests[92467]={lvl=4,t="Call of Earth"}
 F.quests[92468]={lvl=4,t="Call of Earth"}
@@ -155,7 +155,7 @@ F.quests[93319]={lvl=7,t="Pilfered Windstones"}
 F.quests[93320]={lvl=11,t="Tower Defense"}
 F.quests[93459]={lvl=13,o={{n=5,text="Al'Alketh Cultist's Ear",type="item"}},t="More Al'Aketh Ears"}
 F.quests[93461]={lvl=6,o={{n=1,text="Speak with Rathiril Sunlance",type="monster"},{n=1,text="Speak with the Innkeeper",type="monster"}},t="Welcome to Shen'dar Village"}
-F.quests[93552]={acceptAt={[1]=0,[2]=43.3,[3]=24,m=2521},["end"]={npcs={251363}},lvl=4,o={{n=15,text="Windstone Cluster",type="item"}},spots={[1]={{[1]=0,[2]=46.6,[3]=17.9,m=2521},{[1]=0,[2]=42.9,[3]=28.7,m=2521},{[1]=0,[2]=47.4,[3]=26.5,m=2521},{[1]=0,[2]=49.9,[3]=24.3,m=2521},{[1]=0,[2]=48.3,[3]=19.1,m=2521}}},t="Harvesting Windstones",xp={3,360}}
+F.quests[93552]={acceptAt={[1]=0,[2]=43.3,[3]=24,m=2521},["end"]={npcs={251363}},lvl=4,o={{n=15,text="Windstone Cluster",type="item"}},spots={[1]={{[1]=0,[2]=42.9,[3]=28.7,m=2521},{[1]=0,[2]=46.6,[3]=17.9,m=2521},{[1]=0,[2]=47.4,[3]=26.5,m=2521},{[1]=0,[2]=48.3,[3]=19.1,m=2521},{[1]=0,[2]=49.9,[3]=24.3,m=2521}}},t="Harvesting Windstones",xp={3,360}}
 F.quests[93735]={lvl=9,t="The Broken Construct"}
 F.quests[93736]={lvl=9,t="Unwelcome Spirits"}
 F.quests[93737]={lvl=9,o={{n=1,text="Listen to what Riaani Nightwind has to say",type="monster"}},t="The Broken Construct"}
@@ -707,12 +707,12 @@ F.npcs[1860]={c={{[1]=0,[2]=66.3,[3]=25.4,m=1458}},lvl={10,10},n="Sargrave"}
 F.npcs[211022]={c={{[1]=0,[2]=73.8,[3]=33,m=1458}},kind={quest=true},lvl={40,40},n="Owen Thadd"}
 F.npcs[246152]={c={{[1]=0,[2]=60.2,[3]=53.1,m=1420}},lvl={16,16},n="Shari Stilwell"}
 F.npcs[249363]={c={{[1]=0,[2]=47.2,[3]=21.9,m=2521}},kind={quest=true},lvl={5,5},n="Yala Windwatcher"}
-F.npcs[250873]={c={{[1]=0,[2]=43.5,[3]=25,m=2521},{[1]=0,[2]=44.6,[3]=28.2,m=2521},{[1]=0,[2]=47.6,[3]=26.6,m=2521},{[1]=0,[2]=46.8,[3]=21.1,m=2521},{[1]=0,[2]=42,[3]=27,m=2521}},lvl={1,1},n="Juvenile Vuldren"}
-F.npcs[250926]={c={{[1]=0,[2]=41.8,[3]=25.6,m=2521},{[1]=0,[2]=41.9,[3]=27.1,m=2521},{[1]=0,[2]=38.3,[3]=30.2,m=2521}},lvl={3,4},n="Scrawny Ursera"}
+F.npcs[250873]={c={{[1]=0,[2]=42,[3]=27,m=2521},{[1]=0,[2]=43.5,[3]=25,m=2521},{[1]=0,[2]=44.6,[3]=28.2,m=2521},{[1]=0,[2]=46.8,[3]=21.1,m=2521},{[1]=0,[2]=47.6,[3]=26.6,m=2521}},lvl={1,1},n="Juvenile Vuldren"}
+F.npcs[250926]={c={{[1]=0,[2]=38.3,[3]=30.2,m=2521},{[1]=0,[2]=41.8,[3]=25.6,m=2521},{[1]=0,[2]=41.9,[3]=27.1,m=2521}},lvl={3,4},n="Scrawny Ursera"}
 F.npcs[250937]={c={{[1]=0,[2]=38.2,[3]=28.5,m=2521}},lvl={4,4},n="Ursera Scavenger"}
-F.npcs[251143]={c={{[1]=0,[2]=48.5,[3]=20.3,m=2521},{[1]=0,[2]=45.5,[3]=19.1,m=2521}},lvl={2,3},n="Roiling Winds"}
+F.npcs[251143]={c={{[1]=0,[2]=45.5,[3]=19.1,m=2521},{[1]=0,[2]=48.5,[3]=20.3,m=2521}},lvl={2,3},n="Roiling Winds"}
 F.npcs[251145]={c={{[1]=0,[2]=37.9,[3]=31.8,m=2521}},lvl={4,4},n="Al'Aketh Brute"}
-F.npcs[251160]={c={{[1]=0,[2]=48.9,[3]=21.8,m=2521},{[1]=0,[2]=45.8,[3]=19,m=2521}},lvl={2,3},n="Al'Aketh Convert"}
+F.npcs[251160]={c={{[1]=0,[2]=45.8,[3]=19,m=2521},{[1]=0,[2]=48.9,[3]=21.8,m=2521}},lvl={2,3},n="Al'Aketh Convert"}
 F.npcs[251169]={c={{[1]=0,[2]=44.3,[3]=25.7,m=2521},{[1]=0,[2]=47.4,[3]=26.5,m=2521}},lvl={1,1},n="Pesky Cirrusfly"}
 F.npcs[251361]={c={{[1]=0,[2]=42.1,[3]=23.5,m=2521}},kind={quest=true},lvl={20,20},n="Rorian the Dayseeker"}
 F.npcs[251362]={c={{[1]=0,[2]=42.8,[3]=23.3,m=2521}},kind={quest=true},lvl={1,1},n="Ailee Farheart"}

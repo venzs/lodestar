@@ -25,6 +25,10 @@
   unchanged: not knowing should not hide every guide, only stop one being loaded on a guess.
 - `tools/check_events.py`: rejects two files in one module registering the same event, which
   AceEvent silently collapses to one handler.
+- `tools/refresh_harvest.sh`: one command to fold a play session's harvest back into the shipped
+  database and rebuild the routes derived from it. Merging is now idempotent, so a diff after a
+  session shows what the session added rather than reordered coordinates, and `sv_to_json.lua`
+  detects which of the three historical global names an export actually uses.
 - Guide: **corpse run** — while a ghost the arrow points at your body, ahead of the guide, the quest
   log and any pin, since nothing else can be done until you get there.
 - Guide: **travel hints** on the arrow — "Hearth to Deathknell, then 240 yd" or "Fly to The

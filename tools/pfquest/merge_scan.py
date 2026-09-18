@@ -90,14 +90,18 @@ def coord(pos):
 
 
 def coord_list(entries):
-    out, seen = [], set()
+    """Deduplicated positions in a stable order.
+
+    Sorted, not input-ordered. Merging the same exports twice used to emit the same coordinates in a
+    different sequence — dict iteration order upstream — so Data/Forever.lua churned on every run and
+    the diff for a session was buried in reordered lines that said nothing. Whether a merge ADDED
+    anything should be visible at a glance, which means identical data has to produce an identical
+    file.
+    """
+    keys = set()
     for p in entries:
-        key = xyz(p)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(coord(key))
-    return out
+        keys.add(xyz(p))
+    return [coord(k) for k in sorted(keys)]
 
 
 def index_map(v):
