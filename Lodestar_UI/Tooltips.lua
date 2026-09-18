@@ -22,7 +22,7 @@ end
 
 local function decorateUnit(tooltip)
 	local c = cfg()
-	local _, unit = tooltip:GetUnit()
+	local _, unit = TooltipUtil.GetDisplayedUnit(tooltip)
 	if not unit or not UnitExists(unit) then return end
 	local isPlayer = UnitIsPlayer(unit)
 
@@ -81,7 +81,8 @@ local function decorateItem(tooltip, data)
 	local _, link, itemID = TooltipUtil.GetDisplayedItem(tooltip)
 	itemID = itemID or (data and data.id)
 	if c.itemLevel and link then
-		local _, _, _, _, _, _, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
+		-- GetItemInfoInstant returns itemID, itemType, itemSubType, itemEquipLoc, icon, classID, subClassID.
+		local _, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
 		if equipLoc and equipLoc ~= "" and equipLoc ~= "INVTYPE_NON_EQUIP_IGNORE" and equipLoc ~= "INVTYPE_BAG" then
 			local ilvl = C_Item.GetDetailedItemLevelInfo(link)
 			if ilvl and ilvl > 0 then

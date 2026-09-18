@@ -7,6 +7,9 @@ local FormatMoney = Lodestar.FormatMoney
 local SELL_INTERVAL = 0.15 -- seconds between sells; the server rejects a burst of UseContainerItem calls
 local queue = {}
 local sellTimer, soldCount, soldValue
+-- Tracked from MERCHANT_SHOW/CLOSED rather than MerchantFrame:IsShown(): on this client the panel is opened
+-- by the interaction manager, not by MERCHANT_SHOW, so the frame is still hidden while we handle the event.
+local merchantOpen = false
 
 local function numBags()
 	return _G.NUM_TOTAL_EQUIPPED_BAG_SLOTS or _G.NUM_BAG_SLOTS or 4
@@ -35,7 +38,7 @@ local function sellNext()
 		end
 		return
 	end
-	if not (MerchantFrame and MerchantFrame:IsShown()) then
+	if not merchantOpen then
 		wipe(queue)
 		return sellNext()
 	end
@@ -48,6 +51,8 @@ local function sellNext()
 end
 
 function Economy:SellJunk()
+	-- A second MERCHANT_SHOW while a queue is draining must not orphan the running timer.
+	if sellTimer then self:CancelTimer(sellTimer) sellTimer = nil end
 	wipe(queue)
 	soldCount, soldValue = 0, 0
 	for bag = 0, numBags() do
@@ -61,9 +66,8 @@ function Economy:SellJunk()
 	end
 	if #queue == 0 then return end
 	sellNext()
-	if #queue > 0 then
-		sellTimer = self:ScheduleRepeatingTimer(sellNext, SELL_INTERVAL)
-	end
+	-- Always schedule: with a single item the first tick finds the queue empty, prints the summary and cancels itself.
+	sellTimer = self:ScheduleRepeatingTimer(sellNext, SELL_INTERVAL)
 end
 
 function Economy:AutoRepair()
@@ -71,27 +75,34 @@ function Economy:AutoRepair()
 	local cost, canRepair = GetRepairAllCost()
 	if not canRepair or not cost or cost <= 0 then return end
 	local cfg = self.db.profile.merchant
-	local usedGuild = false
+	local guildPart = 0
 	if cfg.guildRepair and CanGuildBankRepair and CanGuildBankRepair() then
-		local available = GetGuildBankWithdrawMoney and GetGuildBankWithdrawMoney() or -1
-		if available == -1 or available >= cost then
-			RepairAllItems(true)
-			usedGuild = true
-		end
+		-- Mirror Blizzard's guild-repair button: the usable amount is the bank balance capped by the daily
+		-- withdraw limit (-1 = unlimited); the server bills anything beyond that to the player's own gold.
+		local limit = GetGuildBankWithdrawMoney and GetGuildBankWithdrawMoney() or -1
+		local bank = GetGuildBankMoney and GetGuildBankMoney() or 0
+		local guildAvail = (limit == -1) and bank or math.min(limit, bank)
+		guildPart = math.max(0, math.min(cost, guildAvail))
 	end
-	if not usedGuild then
-		if GetMoney() < cost then
-			if cfg.announce then Lodestar:Msg("Repairs cost %s — not enough gold.", FormatMoney(cost)) end
-			return
-		end
-		RepairAllItems()
+	local personal = cost - guildPart
+	if personal > 0 and GetMoney() < personal then
+		if cfg.announce then Lodestar:Msg("Repairs cost %s — not enough gold.", FormatMoney(cost)) end
+		return
 	end
+	RepairAllItems(guildPart > 0)
 	if cfg.announce then
-		Lodestar:Msg("Repaired for %s%s.", FormatMoney(cost), usedGuild and " (guild funds)" or "")
+		local how = ""
+		if guildPart >= cost then
+			how = " (guild funds)"
+		elseif guildPart > 0 then
+			how = (" (%s guild funds, %s personal)"):format(FormatMoney(guildPart), FormatMoney(personal))
+		end
+		Lodestar:Msg("Repaired for %s%s.", FormatMoney(cost), how)
 	end
 end
 
 function Economy:MERCHANT_SHOW()
+	merchantOpen = true
 	if IsShiftKeyDown() then return end
 	local cfg = self.db.profile.merchant
 	-- Repair first so the repair cost is not affected by the junk we are about to sell (it isn't, but
@@ -101,6 +112,7 @@ function Economy:MERCHANT_SHOW()
 end
 
 function Economy:MERCHANT_CLOSED()
+	merchantOpen = false
 	wipe(queue)
 	if sellTimer then self:CancelTimer(sellTimer) sellTimer = nil end
 end
