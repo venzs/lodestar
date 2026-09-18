@@ -23,14 +23,17 @@ local Guide = Lodestar:GetModule("Guide")
 
 local MAX_SAMPLES = 6          -- approximate positions kept per creature
 local SAMPLE_MIN_APART = 3     -- percent-of-map units; closer samples are merged
-local SCAN_BATCH, SCAN_TICK = 8, 0.25   -- 32 quest ids per second
+local SCAN_BATCH, SCAN_TICK = 4, 0.25   -- 16 quest ids per second; the first census at 32/s answered ~1 in 4
+local SCAN_MAX_PENDING = 40              -- requests in flight before the ticker waits for answers
+local SCAN_TIMEOUT = 8                   -- seconds without an answer -> counted as missed (retried later)
 
 local db                        -- LodestarScanDB
 local objectiveState = {}       -- [questID] = { [i] = { finished, num } }
 local diffQueued = false
 local lastInteraction           -- { id, kind = "npc"|"object", name, t }
 local scanTicker
-local scanPending = {}          -- [questID] = true while a load is in flight
+local scanPending = {}          -- [questID] = GetTime() while a load is in flight
+local scanPendingCount = 0
 
 local function plain(v)
 	if v == nil then return nil end
@@ -234,7 +237,7 @@ local function diffObjectives()
 					end
 					if o.finished and before and not before.finished then
 						q = q or questEntry(qid, info.title)
-						recordSpot(q, "done", idx, true)
+						recordSpot(q, "fin", idx, true)
 					end
 				end
 			end
@@ -361,12 +364,11 @@ function Guide:HarvestOnEvent(event, ...)
 			if (avail and #avail > 0) or (active and #active > 0) then e.kind.quest = true end
 			noteOffered(e, avail, false)
 			noteOffered(e, active, true)
+			-- Only the innkeeper bind is safe to infer from gossip text: guards offer "Class trainer" directions,
+			-- so vendor/trainer/taxi roles are tagged by their own frames (MERCHANT_SHOW, TRAINER_SHOW, TAXIMAP_OPENED).
 			for _, opt in ipairs((C_GossipInfo.GetOptions and C_GossipInfo.GetOptions()) or {}) do
 				local name = opt.name and opt.name:lower() or ""
 				if name:find("inn your home", 1, true) or name:find("make this inn", 1, true) then e.kind.inn = true end
-				if name:find("vendor", 1, true) or name:find("browse your goods", 1, true) then e.kind.vendor = true end
-				if name:find("train", 1, true) then e.kind.trainer = true end
-				if name:find("flight", 1, true) or name:find("fly", 1, true) then e.kind.taxi = true end
 			end
 		end
 	elseif event == "QUEST_GREETING" then
@@ -505,7 +507,7 @@ function Guide:HarvestQuestPosition(questID, complete)
 		local idx
 		for i, o in ipairs(objectives or {}) do if not o.finished then idx = i break end end
 		idx = idx or 1
-		local spot = q.done and q.done[idx]
+		local spot = type(q.fin) == "table" and q.fin[idx]
 		if spot then mapID, x, y, how = spot[1], spot[2], spot[3], "done" end
 		if not mapID and q.prog and q.prog[idx] and q.prog[idx][1] then
 			local s = q.prog[idx][1]
@@ -571,19 +573,53 @@ local function scanRecord(questID)
 	return true
 end
 
+local function markMissed(s, questID)
+	s.missed = s.missed or {}
+	s.missed[questID] = (s.missed[questID] or 0) + 1
+	s.missedCount = (s.missedCount or 0) + 1
+end
+
 function Guide:ScanOnLoadResult(questID, success)
 	if not scanPending[questID] then return end
 	scanPending[questID] = nil
+	scanPendingCount = scanPendingCount - 1
 	local s = db.scan
-	if success and scanRecord(questID) then s.found = (s.found or 0) + 1 end
+	if success then
+		if scanRecord(questID) then
+			s.found = (s.found or 0) + 1
+			if s.missed and s.missed[questID] then s.missed[questID] = nil end
+		else
+			-- the client said yes but the title is not readable yet: look again shortly
+			self:ScheduleTimer(function()
+				if scanRecord(questID) then s.found = (s.found or 0) + 1 else markMissed(s, questID) end
+			end, 1)
+		end
+	else
+		s.absent = (s.absent or 0) + 1
+	end
+end
+
+--- Requests that never got an answer are counted as missed and retried by `/lode scan retry`.
+local function expirePending(s)
+	local now = GetTime()
+	for id, at in pairs(scanPending) do
+		if now - at > SCAN_TIMEOUT then
+			scanPending[id] = nil
+			scanPendingCount = scanPendingCount - 1
+			markMissed(s, id)
+		end
+	end
 end
 
 local function scanTick()
 	local s = db.scan
+	expirePending(s)
 	if not s.next or s.next > s.to then
+		if scanPendingCount > 0 then return end -- let the last answers land
 		Guide:StopScan(true)
 		return
 	end
+	if scanPendingCount >= SCAN_MAX_PENDING then return end
 	local n = 0
 	while n < (s.batch or SCAN_BATCH) and s.next <= s.to do
 		local id = s.next
@@ -592,14 +628,50 @@ local function scanTick()
 		if scanRecord(id) then
 			s.found = (s.found or 0) + 1        -- already cached; no request needed
 		else
-			scanPending[id] = true
+			scanPending[id] = GetTime()
+			scanPendingCount = scanPendingCount + 1
 			pcall(C_QuestLog.RequestLoadQuestByID, id)
 		end
 		n = n + 1
 	end
 	if s.checked % 500 == 0 then
-		Lodestar:Msg("Quest scan: %d/%d checked, %d quests found.", s.next - s.from, s.to - s.from + 1, s.found or 0)
+		Lodestar:Msg("Quest scan: %d/%d checked, %d quests found, %d unanswered.", s.next - s.from, s.to - s.from + 1, s.found or 0, s.missedCount or 0)
 	end
+end
+
+--- Second pass over ids that got no answer: one request per tick.
+function Guide:RetryScan()
+	if not db then ensureDB() end
+	local s = db.scan
+	local list = {}
+	for id in pairs(s.missed or {}) do tinsert(list, id) end
+	table.sort(list)
+	if #list == 0 then Lodestar:Say("Nothing to retry.") return end
+	if scanTicker then Lodestar:Say("A scan is running; /lode scan stop first.") return end
+	Lodestar:Say("Retrying %d unanswered quest ids slowly (4 per second).", #list)
+	local i = 0
+	scanTicker = self:ScheduleRepeatingTimer(function()
+		expirePending(s)
+		if i >= #list then
+			if scanPendingCount > 0 then return end
+			self:CancelTimer(scanTicker) scanTicker = nil
+			local left = 0
+			for _ in pairs(s.missed or {}) do left = left + 1 end
+			Lodestar:Say("Retry finished: %d quests found in total, %d ids still unanswered.", s.found or 0, left)
+			return
+		end
+		i = i + 1
+		local id = list[i]
+		s.missedCount = math.max(0, (s.missedCount or 1) - 1)
+		if scanRecord(id) then
+			s.found = (s.found or 0) + 1
+			s.missed[id] = nil
+		else
+			scanPending[id] = GetTime()
+			scanPendingCount = scanPendingCount + 1
+			pcall(C_QuestLog.RequestLoadQuestByID, id)
+		end
+	end, SCAN_TICK)
 end
 
 function Guide:StartScan(from, to)
@@ -607,7 +679,7 @@ function Guide:StartScan(from, to)
 	local s = db.scan
 	if scanTicker then Lodestar:Say("A scan is already running (%d/%d). /lode scan stop", s.next - s.from, s.to - s.from + 1) return end
 	if from then
-		s.from, s.to, s.next, s.checked, s.found = from, to, from, 0, 0
+		s.from, s.to, s.next, s.checked, s.found, s.absent, s.finishedAt = from, to, from, 0, 0, 0, nil
 	elseif not s.next or not s.to or s.next > s.to then
 		Lodestar:Say("Usage: /lode scan quests <from> <to>   e.g. /lode scan quests 1 10000")
 		return
@@ -639,8 +711,8 @@ local function scanStatus()
 	for _ in pairs(db.taxi) do nT = nT + 1 end
 	Lodestar:Say("Harvest: %d quests, %d NPCs, %d objects, %d flight nodes.", nQ, nN, nO, nT)
 	if s.to then
-		Lodestar:Say("Quest scan %s: ids %d-%d, at %d, %d checked, %d found.", scanTicker and "running" or "stopped",
-			s.from or 0, s.to, s.next or 0, s.checked or 0, s.found or 0)
+		Lodestar:Say("Quest scan %s: ids %d-%d, at %d, %d checked, %d found, %d absent, %d unanswered (/lode scan retry).", scanTicker and "running" or "stopped",
+			s.from or 0, s.to, s.next or 0, s.checked or 0, s.found or 0, s.absent or 0, s.missedCount or 0)
 	end
 end
 
@@ -654,6 +726,8 @@ local function handleScan(rest)
 		if from and to and to >= from then Guide:StartScan(math.max(1, from), to) else Guide:StartScan() end
 	elseif verb == "resume" then
 		Guide:StartScan()
+	elseif verb == "retry" then
+		Guide:RetryScan()
 	elseif verb == "stop" or verb == "pause" then
 		if scanTicker then Guide:StopScan(false) else Lodestar:Say("No scan running.") end
 	elseif verb == "status" or verb == "" then
@@ -679,7 +753,7 @@ local function handleScan(rest)
 			Lodestar:Say("This deletes everything harvested on this account. Type /lode scan wipe confirm to do it.")
 		end
 	else
-		Lodestar:Say("Usage: /lode scan [status | quests <from> <to> | resume | stop | rate <n> | npc | wipe]")
+		Lodestar:Say("Usage: /lode scan [status | quests <from> <to> | resume | retry | stop | rate <n> | npc | wipe]")
 	end
 end
 

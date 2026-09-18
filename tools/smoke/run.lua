@@ -1443,6 +1443,20 @@ try("sync on load", function()
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
 	G:LoadGuide("Horde/Undead 1-5: Deathknell", 1)
 end)
+try("forever overlay", function()
+	check(G.ForeverData and G.VanillaData.quests[99142] and G.VanillaData.quests[99142].t == "Tomb Weed", "Forever quest merged into the data")
+	check(G.VanillaData.quests[99142].forever == true and G.VanillaData.quests[356].xp ~= nil, "overlay adds xp to a Vanilla quest and flags Forever ones")
+	check(G.VanillaData.npcs[246152] and G.VanillaData.npcs[246152].n == "Shari Stilwell", "Forever-only NPC merged")
+	stub.questLog[99142] = { title = "Tomb Weed", complete = true, objectives = { { text = "Tomb Weed: 5/5", finished = true } } }
+	local mapID, _, _, how = G:DataQuestPosition(99142, true)
+	check(mapID == 18 and how and how:find("Holland", 1, true), "turn-in for a Forever quest resolves to its harvested ender: " .. tostring(how))
+	stub.questLog[99142].complete = false
+	stub.questLog[99142].objectives[1] = { text = "Tomb Weed: 2/5", finished = false }
+	local m2, x2, y2, how2 = G:DataQuestPosition(99142, false)
+	check(m2 == 1420 and math.abs(x2 - 0.75) < 0.01 and math.abs(y2 - 0.592) < 0.01 and how2 == "Objective area", "objective for a Forever quest uses harvested spots: " .. tostring(m2))
+	stub.slash("/lode quest 99142")
+	stub.questLog[99142] = nil
+end)
 try("guide menus", function() G:ShowGuideMenu() G:ShowArrowMenu() end)
 try("guide options", function()
 	local opts = Lodestar:BuildOptions()

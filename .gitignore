@@ -12,3 +12,4 @@ tools/pfquest/src/
 Thumbs.db
 __pycache__/
 *.pyc
+data/beta/*.lua

@@ -32,11 +32,12 @@ local function zoneToMap(zone)
 end
 
 --- Distance from the player to a data coordinate, with its map (nil when unknown/other continent).
+--- Vanilla coordinates are { zoneID, x, y }; Forever overlay coordinates are { 0, x, y, m = uiMapID }.
 local function distanceTo(c)
-	local key = c[1] .. ":" .. c[2] .. ":" .. c[3]
+	local key = (c.m or c[1]) .. ":" .. c[2] .. ":" .. c[3]
 	local w = worldCache[key]
 	if not w then
-		local mapID = zoneToMap(c[1])
+		local mapID = c.m or zoneToMap(c[1])
 		if not mapID then return nil end
 		local continent, wx, wy = Guide:WorldPos(mapID, c[2] / 100, c[3] / 100)
 		if not continent then return nil end
@@ -90,14 +91,28 @@ function Guide:DataQuestPosition(questID, complete)
 	if not q then return nil end
 	if complete then
 		local e = q["end"]
-		if not e then return nil end
-		local mapID, x, y, name = nearest(d.npcs, e.npcs)
-		if not mapID then mapID, x, y, name = nearest(d.objs, e.objs) end
+		local mapID, x, y, name
+		if e then
+			mapID, x, y, name = nearest(d.npcs, e.npcs)
+			if not mapID then mapID, x, y, name = nearest(d.objs, e.objs) end
+		end
+		if not mapID and q.turninAt and q.turninAt.m then mapID, x, y = q.turninAt.m, q.turninAt[2], q.turninAt[3] end
 		if mapID then return mapID, x, y, name and ("Turn in to " .. name) or "Turn in" end
 		return nil
 	end
 	local o = q.obj
-	if not o then return nil end
+	if not o then
+		-- Forever overlay: where the objective was worked on by other players (per objective index)
+		if type(q.spots) == "table" then
+			local objectives = C_QuestLog.GetQuestObjectives(questID)
+			local idx = 1
+			for i, ob in ipairs(objectives or {}) do if not ob.finished then idx = i break end end
+			local list = q.spots[idx] or q.spots[1]
+			local spot = list and list[1]
+			if spot and spot.m then return spot.m, spot[2] / 100, spot[3] / 100, "Objective area" end
+		end
+		return nil
+	end
 	local mapID, x, y, name, dist = nearest(d.npcs, o.npcs)
 	local mapID2, x2, y2, name2, dist2 = nearest(d.objs, o.objs)
 	if mapID2 and (not mapID or dist2 < dist) then mapID, x, y, name = mapID2, x2, y2, name2 end
@@ -213,7 +228,7 @@ function Guide:DataAvailableItems(items, mapID)
 			local e = store[id]
 			if e and e.c then
 				local mapHere = false
-				for _, c in ipairs(e.c) do if zoneToMap(c[1]) == mapID then mapHere = true break end end
+				for _, c in ipairs(e.c) do if (c.m or zoneToMap(c[1])) == mapID then mapHere = true break end end
 				if mapHere then
 					for _, qid in ipairs(qids) do
 						local q = d.quests[qid]
@@ -289,7 +304,46 @@ function Guide:DataLookup(arg)
 	if #hits > 6 then Lodestar:Say("…and %d more.", #hits - 6) end
 end
 
+--- Merge the Forever overlay (Data/Forever.lua, harvested on the beta) into the Vanilla tables once.
+--- Overlay quests add/replace fields (title, level, objectives, start/end, spots, xp); overlay NPCs and
+--- objects add entries or append positions; NPCs with `trains` join Data/Trainers.lua's lists.
+function Guide:MergeForeverData()
+	local F, V = self.ForeverData, self.VanillaData
+	if not (F and V) or V.foreverMerged then return end
+	V.foreverMerged = true
+	for id, fq in pairs(F.quests or {}) do
+		local q = V.quests[id]
+		if not q then
+			q = {}
+			V.quests[id] = q
+		end
+		for k, v in pairs(fq) do q[k] = v end
+		q.forever = true
+	end
+	for _, storeName in ipairs({ "npcs", "objs" }) do
+		for id, fe in pairs(F[storeName] or {}) do
+			local e = V[storeName][id]
+			if not e then
+				e = {}
+				V[storeName][id] = e
+			end
+			if fe.n and not e.n then e.n = fe.n end
+			if fe.lvl and not e.lvl then e.lvl = fe.lvl end
+			if fe.kind then e.kind = fe.kind end
+			if fe.c then
+				e.c = e.c or {}
+				for _, c in ipairs(fe.c) do tinsert(e.c, c) end
+			end
+			if fe.trains and storeName == "npcs" and self.TrainerData then
+				self.TrainerData[fe.trains] = self.TrainerData[fe.trains] or {}
+				tinsert(self.TrainerData[fe.trains], id)
+			end
+		end
+	end
+end
+
 function Guide:EnableData()
+	self:MergeForeverData()
 	if not self.dataSlash then
 		self.dataSlash = true
 		Lodestar:RegisterSlashVerb("quest", function(rest) self:DataLookup(strtrim(rest or "")) end, "look up a quest in the built-in database: /lode quest <id|name>")
