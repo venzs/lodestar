@@ -2,7 +2,7 @@
 ## Title: |cff4fc3f7Lodestar|r Economy
 ## Notes: Auto-sell junk, auto-repair, a gold ledger across your characters, vendor and auction prices in tooltips, and auction house price memory. Part of the Lodestar suite.
 ## Author: Abhi
-## Version: @project-version@
+## Version: 0.1.0-dev
 ## IconTexture: Interface\Icons\INV_Misc_Coin_01
 ## Dependencies: Lodestar
 ## X-Category: Auction & Economy

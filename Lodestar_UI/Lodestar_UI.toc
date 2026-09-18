@@ -2,7 +2,7 @@
 ## Title: |cff4fc3f7Lodestar|r UI
 ## Notes: Quality-of-life tweaks — richer tooltips (IDs, target of target), map and minimap coordinates, clickable chat links with timestamps, and faster looting. Part of the Lodestar suite.
 ## Author: Abhi
-## Version: @project-version@
+## Version: 0.1.0-dev
 ## IconTexture: Interface\Icons\INV_Misc_Gear_01
 ## Dependencies: Lodestar
 ## X-Category: Interface Enhancements

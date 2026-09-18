@@ -190,6 +190,17 @@ local function noteBind()
 		scanHadTrails = (type(scan) == "table" and type(scan.trails) == "table") or false,
 	}
 	Guide.lastBind = record
+	-- Losing a harvest silently is the worst failure this addon has: the player walks a zone, the
+	-- client hands back an empty table next session, and nothing says so. If the saved variables
+	-- came back missing, say it out loud, once, and say what to do about it.
+	if record.shareType ~= "table" then
+		Guide.harvestDidNotLoad = true
+		Lodestar:ScheduleTimer(function()
+			Lodestar:Say("|cffff5555Your harvest did not load.|r The client handed Lodestar an empty database this session.")
+			Lodestar:Say("  If you have harvested before, that data is still on disk in |cffffff7fLodestar_Guide.lua.bak|r next to the live file -- |cffffff7f/lode share|r prints the folder. Copy it somewhere safe BEFORE you log out, or this session will overwrite it.")
+			Lodestar:Say("  This is a client-level fault, not lost work: |cffffff7f/lode harvest|r shows the load probe.")
+		end, 12)
+	end
 	local probe = _G.LodestarProbeDB
 	if type(probe) ~= "table" then probe = {} _G.LodestarProbeDB = probe end
 	probe.harvestBinds = type(probe.harvestBinds) == "table" and probe.harvestBinds or {}

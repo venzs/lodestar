@@ -2,3 +2,7 @@
 # LF-only .cmd and exits silently, which looks to the user like nothing happened.
 *.cmd text eol=crlf
 *.bat text eol=crlf
+
+# TOC files are read by a Windows game client and every other addon on disk ships CRLF. Pinning
+# this also stops a stray rewrite from silently changing how the client parses ## SavedVariables.
+*.toc text eol=crlf
