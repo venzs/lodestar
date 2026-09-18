@@ -2,15 +2,15 @@
 --
 --   lua5.1 tools/router/sv2json.lua "WTF/Account/<acct>/SavedVariables/Lodestar.lua" [recording name] > recording.json
 --
--- The recording lives at LodestarDB.namespaces.Guide.char["Name - Realm"].recording (active) or
--- .recordingPaused (stopped). The first argument may also be a plain Lua file that sets LodestarDB.
+-- The recording lives at LodestarCore.namespaces.Guide.char["Name - Realm"].recording (active) or
+-- .recordingPaused (stopped). The first argument may also be a plain Lua file that sets LodestarCore.
 local path, wanted = arg[1], arg[2]
 if not path then io.stderr:write("usage: sv2json.lua <SavedVariables/Lodestar.lua> [recording name]\n") os.exit(1) end
 local chunk = assert(loadfile(path))
 chunk()
-local db = _G.LodestarDB
+local db = _G.LodestarCore
 if not (db and db.namespaces and db.namespaces.Guide and db.namespaces.Guide.char) then
-	io.stderr:write("no LodestarDB.namespaces.Guide.char in " .. path .. "\n") os.exit(1)
+	io.stderr:write("no LodestarCore.namespaces.Guide.char in " .. path .. "\n") os.exit(1)
 end
 
 local function esc(s) return (tostring(s):gsub('[%c"\\]', function(c) return ("\\u%04x"):format(c:byte()) end)) end

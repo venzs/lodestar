@@ -148,18 +148,26 @@ local function questCount(t)
 	return n
 end
 
+-- Both the current names and the ones they replaced, because either can be the one the client
+-- hands back: a player coming from an older build has data under the legacy name and nothing under
+-- the new one, and on a client that refuses "DB"-suffixed names (Core/Saved.lua) it is the other
+-- way round. Sampling both at both moments is what says which case we are in.
 local loadProbe = {
-	atFileLoad = type(_G.LodestarShareDB),
-	atFileLoadQuests = questCount(_G.LodestarShareDB),
+	atFileLoad = type(_G.LodestarHarvest),
+	atFileLoadQuests = questCount(_G.LodestarHarvest),
+	legacyAtFileLoad = type(_G.LodestarShareDB),
+	legacyAtFileLoadQuests = questCount(_G.LodestarShareDB),
 }
 do
 	local f = CreateFrame("Frame")
 	f:RegisterEvent("ADDON_LOADED")
 	f:SetScript("OnEvent", function(self, _, addon)
 		if addon == "Lodestar_Guide" then
-			loadProbe.atAddonLoaded = type(_G.LodestarShareDB)
-			loadProbe.atAddonLoadedQuests = questCount(_G.LodestarShareDB)
-			loadProbe.scanAtAddonLoaded = type(_G.LodestarScanDB)
+			loadProbe.atAddonLoaded = type(_G.LodestarHarvest)
+			loadProbe.atAddonLoadedQuests = questCount(_G.LodestarHarvest)
+			loadProbe.scanAtAddonLoaded = type(_G.LodestarScans)
+			loadProbe.legacyAtAddonLoaded = type(_G.LodestarShareDB)
+			loadProbe.legacyAtAddonLoadedQuests = questCount(_G.LodestarShareDB)
 			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end)
@@ -174,7 +182,7 @@ local bindNoted = false
 local function noteBind()
 	if bindNoted then return end
 	bindNoted = true
-	local share, scan = _G.LodestarShareDB, _G.LodestarScanDB
+	local share, scan = _G.LodestarHarvest, _G.LodestarScans
 	local countQuests = questCount
 	local record = {
 		at = date("%Y-%m-%d %H:%M:%S"),
@@ -183,6 +191,10 @@ local function noteBind()
 		atAddonLoaded = loadProbe.atAddonLoaded or "never fired",
 		atAddonLoadedQuests = loadProbe.atAddonLoadedQuests,
 		scanAtAddonLoaded = loadProbe.scanAtAddonLoaded,
+		legacyAtFileLoad = loadProbe.legacyAtFileLoad,
+		legacyAtFileLoadQuests = loadProbe.legacyAtFileLoadQuests,
+		legacyAtAddonLoaded = loadProbe.legacyAtAddonLoaded or "never fired",
+		legacyAtAddonLoadedQuests = loadProbe.legacyAtAddonLoadedQuests,
 		shareType = type(share),
 		shareQuests = countQuests(share),
 		scanType = type(scan),
@@ -193,7 +205,9 @@ local function noteBind()
 	-- Losing a harvest silently is the worst failure this addon has: the player walks a zone, the
 	-- client hands back an empty table next session, and nothing says so. If the saved variables
 	-- came back missing, say it out loud, once, and say what to do about it.
-	if record.shareType ~= "table" then
+	-- Only a genuine loss is worth shouting about: if the harvest came back under the name it used
+	-- to have, Core/Saved.lua is about to adopt it and nothing was lost.
+	if record.shareType ~= "table" and record.legacyAtAddonLoaded ~= "table" then
 		Guide.harvestDidNotLoad = true
 		Lodestar:ScheduleTimer(function()
 			Lodestar:Say("|cffff5555Your harvest did not load.|r The client handed Lodestar an empty database this session.")
@@ -201,18 +215,18 @@ local function noteBind()
 			Lodestar:Say("  This is a client-level fault, not lost work: |cffffff7f/lode harvest|r shows the load probe.")
 		end, 12)
 	end
-	local probe = _G.LodestarProbeDB
-	if type(probe) ~= "table" then probe = {} _G.LodestarProbeDB = probe end
+	local probe = _G.LodestarProbes
+	if type(probe) ~= "table" then probe = {} _G.LodestarProbes = probe end
 	probe.harvestBinds = type(probe.harvestBinds) == "table" and probe.harvestBinds or {}
 	tinsert(probe.harvestBinds, record)
 	while #probe.harvestBinds > 6 do tremove(probe.harvestBinds, 1) end
 end
 
 local function ensureDB()
+	-- noteBind first: it records what the CLIENT handed back, which adoption is about to paper over.
 	noteBind()
-	if type(_G.LodestarShareDB) ~= "table" then _G.LodestarShareDB = {} end
-	if type(_G.LodestarScanDB) ~= "table" then _G.LodestarScanDB = {} end
-	db, scanDB = _G.LodestarShareDB, _G.LodestarScanDB
+	db = Lodestar:AdoptSaved("LodestarHarvest", "LodestarShareDB")
+	scanDB = Lodestar:AdoptSaved("LodestarScans", "LodestarScanDB")
 	migrate(scanDB, db)
 	local build = select(2, GetBuildInfo())
 	db.v = SHARE_V
@@ -1437,8 +1451,8 @@ function Guide:Diagnose()
 	end
 	out.guide = self.current and { name = self.current.name, step = self.stepIndex } or "smart mode"
 	out.harvest = self:HarvestSummary()
-	if type(_G.LodestarProbeDB) ~= "table" then _G.LodestarProbeDB = {} end
-	_G.LodestarProbeDB.guideDiag = out
+	if type(_G.LodestarProbes) ~= "table" then _G.LodestarProbes = {} end
+	_G.LodestarProbes.guideDiag = out
 
 	Lodestar:Say("Guide diag — map %s (%s), %s, arrow target: %s", tostring(mapID), tostring(out.mapName), type(out.guide) == "table" and out.guide.name or out.guide, t and t.title or "none")
 	local n = 0
@@ -1448,7 +1462,7 @@ function Guide:Diagnose()
 			type(d.nextWaypoint) == "table" and "yes" or tostring(d.nextWaypoint), d.poi and "yes" or "no", d.harvest and d.harvest[4] or "no",
 			type(d.distSq) == "number" and tostring(math.floor(math.sqrt(math.max(d.distSq, 0)))) or tostring(d.distSq))
 	end
-	Lodestar:Say("%d quests. Saved to LodestarProbeDB.guideDiag (written on /reload or logout).", n)
+	Lodestar:Say("%d quests. Saved to LodestarProbes.guideDiag (written on /reload or logout).", n)
 end
 
 -- Lifecycle -------------------------------------------------------------------------------------------------------

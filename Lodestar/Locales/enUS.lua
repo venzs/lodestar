@@ -27,7 +27,7 @@ L["No modules loaded. Install Lodestar_Leveling, Lodestar_Economy, Lodestar_UI o
 L["Usage: /lode [config|modules|probe|version|debug]"] = true
 L["Module %s not found."] = true
 L["Module %s %s. /reload to apply."] = true
-L["Probe written to LodestarProbeDB (%d symbols checked, %d missing). Log out or /reload to flush it to disk."] = true
+L["Probe written to LodestarProbes (%d symbols checked, %d missing). Log out or /reload to flush it to disk."] = true
 L["Debug output %s."] = true
 L["on"] = true
 L["off"] = true

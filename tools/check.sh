@@ -24,5 +24,9 @@ echo "--- luacheck ---"
 luacheck . --no-color -q
 echo "--- apicheck ---"
 python3 tools/apicheck.py .
+echo "--- tocs ---"
+python3 tools/check_tocs.py
 echo "--- smoke ---"
 lua5.1 tools/smoke/run.lua
+echo "--- persistence across a logout ---"
+lua5.1 tools/smoke/persist.lua

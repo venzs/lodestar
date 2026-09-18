@@ -192,13 +192,13 @@ function Lodestar:RunProbe()
 	-- Carry the keys this probe does not own: /lode guide diag writes guideDiag here and promises the
 	-- player it lands on the next /reload, and Errors.lua accumulates `blocked` into the same table.
 	-- Keys the probe does own (checks/missing/restrictions/errors/...) are intentionally replaced.
-	local existing = _G.LodestarProbeDB
+	local existing = _G.LodestarProbes
 	if type(existing) == "table" then
 		probe.guideDiag = existing.guideDiag
 		probe.blocked = existing.blocked
 	end
-	_G.LodestarProbeDB = probe
-	self:Say(L["Probe written to LodestarProbeDB (%d symbols checked, %d missing). Log out or /reload to flush it to disk."], total, missing)
+	_G.LodestarProbes = probe
+	self:Say(L["Probe written to LodestarProbes (%d symbols checked, %d missing). Log out or /reload to flush it to disk."], total, missing)
 	if missing > 0 then
 		self:Say("Missing: " .. table.concat(probe.missing, ", "))
 	end

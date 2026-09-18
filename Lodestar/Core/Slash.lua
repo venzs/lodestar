@@ -41,7 +41,7 @@ function Lodestar:SetupSlash()
 			self:Say(L["Loaded modules: %s"], self:GetModuleSummary())
 		end
 	end, "list modules, or /lode modules <name> [on|off]")
-	self:RegisterSlashVerb("probe", function() self:RunProbe() end, "record API availability to LodestarProbeDB")
+	self:RegisterSlashVerb("probe", function() self:RunProbe() end, "record API availability to LodestarProbes")
 	self:RegisterSlashVerb("version", function()
 		local _, build, _, toc = GetBuildInfo()
 		self:Say("Lodestar %s on client %s (toc %s)%s", self.version, tostring(build), tostring(toc), self.IsForever and " — Forever" or "")

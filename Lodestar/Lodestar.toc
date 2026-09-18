@@ -4,7 +4,7 @@
 ## Author: Abhi
 ## Version: 0.1.0-dev
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
-## SavedVariables: LodestarDB,LodestarProbeDB
+## SavedVariables: LodestarCore,LodestarProbes,LodestarDB,LodestarProbeDB
 ## X-Category: Suite
 ## X-License: MIT
 ## X-Lodestar-Module: Core
@@ -15,6 +15,7 @@
 Libs\Libs.xml
 Locales\enUS.lua
 Core\Init.lua
+Core\Saved.lua
 Core\Utils.lua
 Core\Errors.lua
 Core\CopyBox.lua

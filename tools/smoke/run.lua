@@ -107,7 +107,7 @@ for _, line in ipairs({ "/lode", "/lode version", "/lode modules", "/lode xp", "
 	try("slash " .. line, function() stub.slash(line) end)
 end
 check(stub.openedCategory ~= nil, "/lode opened settings")
-check(LodestarProbeDB and LodestarProbeDB.checks, "probe wrote LodestarProbeDB")
+check(LodestarProbes and LodestarProbes.checks, "probe wrote LodestarProbes")
 try("way syntax", function()
 	stub.slash("/way 18 45.0 63.0 pasted pin")
 	check(stub.waypoint and stub.waypoint.uiMapID == 18 and math.abs(stub.waypoint.position.x - 0.45) < 1e-9, "Blizzard's '<mapID> x y' pin-command form accepted")
@@ -793,7 +793,7 @@ try("options build", function()
 end)
 try("blocked call capture", function()
 	stub.fire("ADDON_ACTION_FORBIDDEN", "Lodestar", "SomeProtectedFunction")
-	check(LodestarProbeDB.blocked and LodestarProbeDB.blocked[1].func == "SomeProtectedFunction", "forbidden call recorded")
+	check(LodestarProbes.blocked and LodestarProbes.blocked[1].func == "SomeProtectedFunction", "forbidden call recorded")
 	ScriptErrorsFrame.errorData[1] = { message = "Interface/AddOns/Lodestar_UI/Chat.lua:12: boom", stack = "stack", count = 2, time = "x" }
 	ScriptErrorsFrame.errorData[2] = { message = "SomeOtherAddon.lua:1: nope", stack = "stack", count = 1, time = "x" }
 	check(#Lodestar:GetRecordedErrors() == 1, "only Lodestar errors listed")
@@ -1145,13 +1145,13 @@ try("vanilla data", function()
 	G:RetargetArrow()
 	check(G:GetArrowTarget() and G:GetArrowTarget().questID == 3901, "arrow points at the data turn-in")
 	stub.slash("/lode guide diag")
-	check(LodestarProbeDB.guideDiag and LodestarProbeDB.guideDiag.quests[3901], "diag saved per-quest details")
+	check(LodestarProbes.guideDiag and LodestarProbes.guideDiag.quests[3901], "diag saved per-quest details")
 	stub.slash("/lode guide next")
 	stub.slash("/lode guide prev")
 end)
 try("harvest", function()
 	local H = G:HarvestDB()
-	check(H and H.npcs, "LodestarScanDB initialised")
+	check(H and H.npcs, "LodestarScans initialised")
 	stub.fire("GOSSIP_SHOW")
 	local npc = H.npcs[6]
 	check(npc and npc.gives and npc.gives[6] and npc.ends and npc.ends[5], "gossip harvested offered/accepted quests for npc 6")
@@ -1453,9 +1453,9 @@ end)
 
 -- The one-time split: world data moves out of LodestarScanDB, the census cursor and trails stay put
 try("harvest migration", function()
-	local share, account = _G.LodestarShareDB, _G.LodestarScanDB
-	_G.LodestarShareDB = nil
-	_G.LodestarScanDB = {
+	local share, account = _G.LodestarHarvest, _G.LodestarScans
+	_G.LodestarHarvest = nil
+	_G.LodestarScans = {
 		v = 1, build = "69893",
 		npcs = { [42] = { name = "Old Timer", seen = 3, map = 18, x = 10, y = 20, exact = true } },
 		objects = { [7] = { name = "Old Chest", seen = 1, map = 18, x = 1, y = 2 } },
@@ -1467,15 +1467,15 @@ try("harvest migration", function()
 	}
 	G:HarvestBindDB()
 	local W, A = G:HarvestDB(), G:ScanDB()
-	check(W.npcs[42] and W.npcs[42].name == "Old Timer" and W.objects[7] and W.quests[99] and W.taxi[3] and W.levels[5] == 1000, "world data moved into LodestarShareDB")
-	check(A.npcs == nil and A.objects == nil and A.quests == nil and A.taxi == nil and A.levels == nil, "world data removed from LodestarScanDB")
+	check(W.npcs[42] and W.npcs[42].name == "Old Timer" and W.objects[7] and W.quests[99] and W.taxi[3] and W.levels[5] == 1000, "world data moved into LodestarHarvest")
+	check(A.npcs == nil and A.objects == nil and A.quests == nil and A.taxi == nil and A.levels == nil, "world data removed from LodestarScans")
 	check(A.scan.found == 7 and A.scan.next == 101 and A.trails[18] and A.trails[18].n == 3, "the census cursor and the trails stayed behind")
 	check(A.migrated, "a migration marker was left")
 	check(W.meta and W.meta.v == 1 and type(W.meta.contributors) == "table", "meta created on the shared db")
 	local marker = A.migrated
 	G:HarvestBindDB()
 	check(A.migrated == marker and W.npcs[42] ~= nil, "loading again does not migrate again")
-	_G.LodestarShareDB, _G.LodestarScanDB = share, account
+	_G.LodestarHarvest, _G.LodestarScans = share, account
 	G:HarvestBindDB()
 	check(G:HarvestDB() == share and G:ScanDB() == account, "saved variables rebound for the rest of the run")
 	G.db.profile.trails.record = true
@@ -1487,7 +1487,7 @@ try("trails", function()
 	if not G.TrailSeed then loadLua("Lodestar_Guide/Data/Trails_Seed.lua") end
 	G:EnableTrails()
 	local T = G:ScanDB().trails
-	check(type(T) == "table", "LodestarScanDB.trails created")
+	check(type(T) == "table", "LodestarScans.trails created")
 	local savedMap, savedX, savedY = stub.playerMap.map, stub.playerMap.x, stub.playerMap.y
 	stub.playerMap.map = 18
 	-- walk an L: 600 yd east, then 600 yd south, one 10 yd step per second (cells are 20 yd on the 10000 yd stub map)

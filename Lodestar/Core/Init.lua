@@ -32,7 +32,10 @@ local defaults = {
 }
 
 function Lodestar:OnInitialize()
-	self.db = LibStub("AceDB-3.0"):New("LodestarDB", defaults, true)
+	-- Saved.lua explains why these are not called LodestarDB and LodestarProbeDB any more.
+	self:AdoptSaved("LodestarCore", "LodestarDB")
+	self:AdoptSaved("LodestarProbes", "LodestarProbeDB")
+	self.db = LibStub("AceDB-3.0"):New("LodestarCore", defaults, true)
 	self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
 	self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
 	self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")

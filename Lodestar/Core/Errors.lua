@@ -10,10 +10,10 @@ local Lodestar = _G.Lodestar
 local MAX = 40
 
 local function probeDB()
-	local db = _G.LodestarProbeDB
+	local db = _G.LodestarProbes
 	if type(db) ~= "table" then
 		db = {}
-		_G.LodestarProbeDB = db
+		_G.LodestarProbes = db
 	end
 	return db
 end

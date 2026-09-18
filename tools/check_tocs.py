@@ -14,6 +14,10 @@ import sys
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 problems = []
 
+# Names Lodestar used before the rename. They stay declared so a player upgrading from an older
+# build has their data adopted once (Lodestar/Core/Saved.lua), and are exempt from the rule below.
+ADOPTED = {"LodestarDB", "LodestarProbeDB", "LodestarScanDB", "LodestarShareDB"}
+
 for toc in sorted(glob.glob(os.path.join(ROOT, "*", "*.toc"))):
     rel = os.path.relpath(toc, ROOT)
     raw = open(toc, "rb").read()
@@ -32,10 +36,9 @@ for toc in sorted(glob.glob(os.path.join(ROOT, "*", "*.toc"))):
     for line in text.replace("\r\n", "\n").split("\n"):
         if line.startswith("## SavedVariables"):
             _, _, rest = line.partition(":")
-            # One space after the colon is the convention and the client handles it (a working
-            # single-variable addon on the test machine uses exactly that). What is worth flagging
-            # is padding BETWEEN entries, where a parser that does not trim would end up looking
-            # for a global named " LodestarShareDB".
+            # One space after the colon is the convention and the client handles it. What is worth
+            # flagging is padding BETWEEN entries, where a parser that does not trim would end up
+            # looking for a global named " LodestarHarvest".
             rest = rest.lstrip(" ")
             for i, part in enumerate(rest.split(",")):
                 if i > 0 and part != part.lstrip(" "):
@@ -47,6 +50,10 @@ for toc in sorted(glob.glob(os.path.join(ROOT, "*", "*.toc"))):
                     declared.append(name)
                     if not re.match(r"^[A-Za-z_]\w*$", name):
                         problems.append("%s: %r is not a valid global name" % (rel, name))
+                    if name.endswith("DB") and name not in ADOPTED:
+                        problems.append(
+                            "%s: %r ends in 'DB' -- Forever's beta client writes those at logout and "
+                            "hands back nil at login, silently. See Lodestar/Core/Saved.lua." % (rel, name))
         if line.startswith("## Version:") and "@" in line:
             problems.append("%s: unreplaced packager token in %r" % (rel, line.strip()))
         if line.startswith("## Interface:") and not re.search(r"\d", line):
