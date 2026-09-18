@@ -1648,6 +1648,45 @@ end)
 -- Travel hints: hearth and flight, but only when the detour actually saves something.
 -- The failure mode worth guarding is a hint that sends the player to an inn further from the target
 -- than they already are, so every check here is about the saving rather than about the wording.
+-- Corpse run: while a ghost, the body is the only thing worth pointing at.
+try("corpse arrow", function()
+	local wasMode = G.db.profile.arrow.mode
+	G.db.profile.arrow.mode = "AUTO"
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.308, 0.662
+
+	-- Alive: whatever the guide or the quest log says.
+	stub.ghost = false
+	G:RetargetArrow()
+	local alive = G:GetArrowTarget()
+	check(not alive or alive.kind ~= "corpse", "no corpse target while alive")
+
+	-- A ghost with a body on this map: the body, ahead of everything else including a pin.
+	stub.ghost = true
+	stub.corpse = { map = 18, x = 0.44, y = 0.51 }
+	G:PinPosition(18, 0.9, 0.9, "Pinned thing")
+	G:RetargetArrow()
+	local t = G:GetArrowTarget()
+	check(t and t.kind == "corpse" and t.mapID == 18 and math.abs(t.x - 0.44) < 0.001,
+		"a ghost is pointed at the corpse, ahead of a pin: " .. tostring(t and t.kind))
+	check(t.title == "Your corpse", "and it is labelled as such: " .. tostring(t.title))
+
+	-- The client answers 0,0 for a corpse that is not on this map. That is not a body in the
+	-- top-left corner, and pointing there is worse than leaving the arrow where it was.
+	stub.corpse = { map = 99, x = 0.44, y = 0.51 }
+	G:RetargetArrow()
+	t = G:GetArrowTarget()
+	check(not t or t.kind ~= "corpse", "0,0 from another map is not treated as a position")
+
+	-- Back alive: normal targeting resumes.
+	stub.ghost = false
+	stub.corpse = nil
+	G:ClearPinnedPosition()
+	G:RetargetArrow()
+	t = G:GetArrowTarget()
+	check(not t or t.kind ~= "corpse", "corpse target released on resurrection")
+	G.db.profile.arrow.mode = wasMode
+end)
+
 try("travel hints", function()
 	local hearthWas = G.db.char.hearth
 	G.db.profile.travel.hints = true

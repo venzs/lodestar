@@ -173,9 +173,35 @@ local function questTarget()
 end
 
 --- Pick the arrow target according to the mode.
+--- While a ghost, the corpse is the only target that matters: nothing else in the guide can be done
+--- until the body is reached. C_DeathInfo.GetCorpseMapPosition answers per map and only for the map
+--- the corpse is actually on, so the current map is tried first and the corpse map second -- a
+--- player who ran a long way as a ghost is usually looking at a different map by then.
+local function corpseTarget()
+	if not (UnitIsGhost and UnitIsGhost("player")) then return nil end
+	if not (C_DeathInfo and C_DeathInfo.GetCorpseMapPosition) then return nil end
+	local mapID = C_Map.GetBestMapForUnit("player")
+	if not mapID then return nil end
+	local ok, pos = pcall(C_DeathInfo.GetCorpseMapPosition, mapID)
+	if not (ok and pos and pos.GetXY) then return nil end
+	local x, y = pos:GetXY()
+	-- 0,0 is what the client returns when the corpse is not on this map, not a body in the corner.
+	if not x or (x == 0 and y == 0) then return nil end
+	return { kind = "corpse", mapID = mapID, x = x, y = y, title = "Your corpse", subtitle = "corpse run" }
+end
+
 function Guide:RetargetArrow()
 	local mode = self.db.profile.arrow.mode
 	local t
+	-- Ahead of the mode, and ahead of a pin: a ghost cannot accept, turn in or kill anything, so
+	-- whatever was being pointed at is not actionable until the body is back.
+	local corpse = corpseTarget()
+	if corpse and mode ~= "OFF" then
+		target = corpse
+		corpse.continent, corpse.wx, corpse.wy = worldPos(corpse.mapID, corpse.x, corpse.y)
+		self:UpdateArrowFrame()
+		return
+	end
 	if mode == "OFF" then
 		t = nil
 		pinned = nil
@@ -477,7 +503,9 @@ end
 
 local ARROW_EVENTS = { QUEST_LOG_UPDATE = true, QUEST_ACCEPTED = true, QUEST_TURNED_IN = true, QUEST_REMOVED = true,
 	USER_WAYPOINT_UPDATED = true, ZONE_CHANGED_NEW_AREA = true, PLAYER_ENTERING_WORLD = true, LODESTAR_STEP_CHANGED = true,
-	QUESTLINE_UPDATE = true, AREA_POIS_UPDATED = true }
+	QUESTLINE_UPDATE = true, AREA_POIS_UPDATED = true,
+	-- Dying and coming back both change what the arrow should point at, in both directions.
+	PLAYER_DEAD = true, PLAYER_UNGHOST = true, PLAYER_ALIVE = true, CORPSE_IN_RANGE = true }
 
 --- Called by Guide:OnGameEvent for every game event the module listens to.
 function Guide:ArrowOnEvent(event)

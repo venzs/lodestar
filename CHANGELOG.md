@@ -16,6 +16,8 @@
   variables to disk in the client's format and reloading them in the client's window — after the
   addon's files, before its `ADDON_LOADED`. It covers frame positions, settings, the harvest and the
   upgrade path, and is the test that would have caught the frame-position bug.
+- Guide: **corpse run** — while a ghost the arrow points at your body, ahead of the guide, the quest
+  log and any pin, since nothing else can be done until you get there.
 - Guide: **travel hints** on the arrow — "Hearth to Deathknell, then 240 yd" or "Fly to The
   Sepulcher, then 180 yd" when the detour saves more than 700 yards and the hearthstone is actually
   off cooldown. Flight points are only the ones this character has visited.

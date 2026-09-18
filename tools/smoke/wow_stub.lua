@@ -637,6 +637,16 @@ C_Texture = { GetAtlasInfo = function(name) if name == "Navigation-Tracked-Arrow
 -- Trails APIs -------------------------------------------------------------------------------------
 C_Map.GetMapWorldSize = function() return 10000, 10000 end -- matches the fake GetWorldPosFromMapPos scale above
 UnitIsDeadOrGhost = function() return stub.dead or false end
+UnitIsGhost = function() return stub.ghost or false end
+-- stub.corpse = { map = , x = , y = }: the client answers per map and returns 0,0 for "not here".
+C_DeathInfo = {
+	GetCorpseMapPosition = function(mapID)
+		local c = stub.corpse
+		if not c then return nil end
+		if c.map ~= mapID then return { GetXY = function() return 0, 0 end } end
+		return { GetXY = function() return c.x, c.y end }
+	end,
+}
 -- Guide DSL: items, professions, trainers -------------------------------------------------------
 stub.itemCounts = {}                 -- [itemID] = count in bags (+bank)
 stub.professions = {}                -- { "Skinning", "Herbalism" } in the two primary slots
