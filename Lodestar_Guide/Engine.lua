@@ -13,6 +13,9 @@ local evalQueued = false
 local arrivalTicker
 local recentTurnIn, recentAccept = {}, {}   -- questID -> GetTime(); the server flag lags the event by a few seconds
 local TURNIN_GRACE, ACCEPT_GRACE = 6, 3
+local TRAINER_RANGE = 300                   -- yards; farther trainers are not suggested
+local TRAINER_RECHECK = 5                   -- seconds between trainer suggestion recomputes
+local trainerSuggestion, trainerSuggestedAt
 
 -- Registry ---------------------------------------------------------------------------------------
 
@@ -53,10 +56,26 @@ function Guide:PlayerFilters()
 	}
 end
 
+local function hasItem(itemID)
+	if not (C_Item and C_Item.GetItemCount) then return true end -- cannot tell: never skip
+	return (C_Item.GetItemCount(itemID, true) or 0) > 0
+end
+
 local function stepApplies(step, pf)
 	if step.classes and not (step.classes[pf.class] or step.classes[pf.className]) then return false end
 	if step.races and not (step.races[pf.race] or step.races[pf.raceFile]) then return false end
+	if step.optional and not Guide.db.profile.steps.completionist then return false end
+	if step.requireItems then
+		for _, id in ipairs(step.requireItems) do
+			if not hasItem(id) then return false end
+		end
+	end
 	return true
+end
+
+--- Does a step of the current guide apply to this character right now (class, race, optional, items)?
+function Guide:StepApplies(step, pf)
+	return stepApplies(step, pf or self:PlayerFilters())
 end
 
 local function guideApplies(guide, pf, ignoreLevel)
@@ -247,8 +266,40 @@ local function objectiveText(questID, index)
 	return #parts > 0 and table.concat(parts, ", ") or nil
 end
 
+local pendingItemLoads = {}
+
+--- Item name, or nil until the client has the item data (a load is requested; ITEM_DATA_LOAD_RESULT refreshes).
+local function itemName(itemID)
+	local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
+	if name and name ~= "" then return name end
+	if C_Item.RequestLoadItemDataByID and not pendingItemLoads[itemID] then
+		pendingItemLoads[itemID] = true
+		pcall(C_Item.RequestLoadItemDataByID, itemID)
+	end
+	return nil
+end
+
 function Guide:StepText(step)
-	return Parser.StepText(step, questName, objectiveText, function(map) return self:MapName(map) end)
+	return Parser.StepText(step, questName, objectiveText, function(map) return self:MapName(map) end, itemName)
+end
+
+function Guide:ActionText(action)
+	return Parser.ActionText(action, questName, objectiveText, itemName)
+end
+
+--- Lower-case names of the professions the character knows, or nil when the client cannot say.
+local function knownProfessions()
+	if not (GetProfessions and GetProfessionInfo) then return nil end
+	local known = {}
+	local slots = { GetProfessions() }   -- prof1, prof2, archaeology, fishing, cooking, firstAid (nil = empty slot)
+	for i = 1, 6 do
+		local idx = slots[i]
+		if idx then
+			local name = GetProfessionInfo(idx)
+			if type(name) == "string" then known[name:lower()] = true end
+		end
+	end
+	return known
 end
 
 -- Completion -------------------------------------------------------------------------------------------
@@ -300,7 +351,19 @@ function Guide:IsActionComplete(action, flags)
 		return flags and flags.vendor or false
 	elseif t == "repair" then
 		return flags and (flags.repair or flags.vendor) or false
-	else -- text
+	elseif t == "buy" then
+		if flags and flags.manual then return true end
+		if not (C_Item and C_Item.GetItemCount) then return false end
+		return (C_Item.GetItemCount(action.itemID, true) or 0) >= (action.count or 1)
+	elseif t == "profession" then
+		if flags and flags.manual then return true end
+		local known = knownProfessions()
+		if not known then return false end -- no profession API: click Next
+		for _, name in ipairs(action.names or {}) do
+			if not known[name:lower()] then return false end
+		end
+		return true
+	else -- text, camp, cook
 		return flags and flags.manual or false
 	end
 end
@@ -400,9 +463,40 @@ end
 local ENGINE_EVENTS = {
 	QUEST_ACCEPTED = true, QUEST_TURNED_IN = true, QUEST_REMOVED = true, QUEST_LOG_UPDATE = true, UNIT_QUEST_LOG_CHANGED = true,
 	PLAYER_LEVEL_UP = true, ZONE_CHANGED_NEW_AREA = true, ZONE_CHANGED = true, PLAYER_ENTERING_WORLD = true, QUEST_DATA_LOAD_RESULT = true,
+	BAG_UPDATE_DELAYED = true, SKILL_LINES_CHANGED = true,
 }
 
+--- A trainer window opened. Class trainers (anything that is not a tradeskill trainer — the client
+--- only opens a class trainer for its own class) mark the character as trained at this level and
+--- tag the harvested NPC with the class it teaches, so the suggestion can use it later.
+function Guide:NoteTrainerVisit()
+	if IsTradeskillTrainer and IsTradeskillTrainer() then
+		self.classTrainerOpen = nil
+		return
+	end
+	self.classTrainerOpen = true
+	self.db.char.lastTrainedLevel = math.max(self.db.char.lastTrainedLevel or 0, UnitLevel("player") or 0)
+	local npcID = Lodestar.NpcIDFromGUID(UnitGUID("npc"))
+	local db = self.HarvestDB and self:HarvestDB()
+	local e = npcID and db and db.npcs[npcID]
+	if e then e.trains = Lodestar.player.class or select(2, UnitClass("player")) end
+	trainerSuggestedAt = nil
+end
+
 function Guide:EngineOnEvent(event, ...)
+	if event == "TRAINER_SHOW" then
+		self:NoteTrainerVisit()
+	elseif event == "TRAINER_CLOSED" then
+		if self.classTrainerOpen then
+			self.classTrainerOpen = nil
+			self.db.char.lastTrainedLevel = math.max(self.db.char.lastTrainedLevel or 0, UnitLevel("player") or 0)
+		end
+		trainerSuggestedAt = nil
+	elseif event == "PLAYER_LEVEL_UP" or event == "ZONE_CHANGED_NEW_AREA" then
+		trainerSuggestedAt = nil
+	elseif event == "ITEM_DATA_LOAD_RESULT" then
+		self:RefreshStepFrame()
+	end
 	if not self.current then return end
 	local flags = self.stepFlags
 	local i = self.stepIndex
@@ -452,6 +546,76 @@ function Guide:EngineOnEvent(event, ...)
 	if ENGINE_EVENTS[event] or event == "HEARTHSTONE_BOUND" or event == "TRAINER_CLOSED" or event == "MERCHANT_CLOSED" then
 		self:QueueEvaluate()
 	end
+end
+
+-- Class trainers ----------------------------------------------------------------------------------
+
+local function playerClass()
+	return Lodestar.player.class or select(2, UnitClass("player"))
+end
+
+--- The highest level at or below `level` at which the class gets new spells (nil when none yet).
+local function spellLevelReached(classFile, level)
+	local levels = Guide.SpellLevels and Guide.SpellLevels[classFile]
+	if not levels then return nil end
+	local best
+	for l in pairs(levels) do
+		if l <= level and (not best or l > best) then best = l end
+	end
+	return best
+end
+
+--- Nearest known trainer for the player's class within `range` yards: { npcID, name, mapID, x, y, dist }
+--- or nil. Sources: NPCs this account has seen open a class trainer window (harvest, exact position)
+--- and the built-in trainer list resolved through the Vanilla database.
+function Guide:NearestClassTrainer(range)
+	local classFile = playerClass()
+	local ids = self.TrainerData and self.TrainerData[classFile]
+	local idSet = {}
+	for _, id in ipairs(ids or {}) do idSet[id] = true end
+	local best
+	local function consider(npcID, name, mapID, x, y, dist)
+		if dist and (not range or dist <= range) and (not best or dist < best.dist) then
+			best = { npcID = npcID, name = name, mapID = mapID, x = x, y = y, dist = dist }
+		end
+	end
+	local db = self.HarvestDB and self:HarvestDB()
+	for id, e in pairs(db and db.npcs or {}) do
+		if e.kind and e.kind.trainer and e.map and e.x and e.y and (idSet[id] or e.trains == classFile) then
+			consider(id, e.name, e.map, e.x / 100, e.y / 100, (self:VectorTo(e.map, e.x / 100, e.y / 100)))
+		end
+	end
+	if ids and self.DataNearestNPC then
+		local mapID, x, y, name, dist, npcID = self:DataNearestNPC(ids)
+		if mapID then consider(npcID, name, mapID, x, y, dist) end
+	end
+	return best
+end
+
+--- "New spells available": the character has reached a level with new spells for the class, has
+--- not visited a class trainer since, and a trainer is close. Recomputed at most every 5 s.
+--- Returns { npcID, name, mapID, x, y, dist, level, title } or nil.
+function Guide:TrainerSuggestion(force)
+	local now = GetTime()
+	if not force and trainerSuggestedAt and now - trainerSuggestedAt < TRAINER_RECHECK then return trainerSuggestion end
+	trainerSuggestedAt = now
+	trainerSuggestion = nil
+	local due = spellLevelReached(playerClass(), UnitLevel("player") or 1)
+	if not due or (self.db.char.lastTrainedLevel or 0) >= due then return nil end
+	local t = self:NearestClassTrainer(TRAINER_RANGE)
+	if not t then return nil end
+	t.level = due
+	t.title = "Train new spells at " .. (t.name or "your class trainer")
+	trainerSuggestion = t
+	return t
+end
+
+--- Smart-mode hook (called from CollectSmartItems): the trainer suggestion as a list item.
+function Guide:TrainItems(items, mapID)
+	local t = self:TrainerSuggestion()
+	if not (t and t.mapID) then return end
+	tinsert(items, { kind = "train", mapID = t.mapID, x = t.x, y = t.y, npcID = t.npcID, source = "trainer",
+		title = t.title, subtitle = ("Level %d spells · class trainer"):format(t.level) })
 end
 
 -- Slash ----------------------------------------------------------------------------------------------
@@ -506,11 +670,30 @@ local function handleGuideSlash(rest)
 		Lodestar:Say("Smart mode: nearest turn-ins, objectives and quest givers.")
 	elseif verb == "nextup" or verb == "up" then
 		Guide:PrintNextUp()
+	elseif verb == "completionist" or verb == "optional" then
+		local on
+		if arg == "on" then on = true elseif arg == "off" then on = false else on = not Guide.db.profile.steps.completionist end
+		Guide:SetCompletionist(on)
+	elseif verb == "train" then
+		local t = Guide:TrainerSuggestion(true)
+		if t then
+			Lodestar:Say("New level %d spells: %s is %d yd away.", t.level, t.name or ("NPC " .. tostring(t.npcID)), math.floor(t.dist))
+		else
+			Lodestar:Say("No class trainer suggestion right now (last trained at level %s).", tostring(Guide.db.char.lastTrainedLevel or "never"))
+		end
 	elseif verb == "diag" then
 		Guide:Diagnose()
 	else
-		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | sync | auto | smart | nextup | diag]")
+		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | sync | auto | smart | nextup | completionist | train | diag]")
 	end
+end
+
+--- Completionist mode shows `.optional` steps (extra quests, professions, camp); speed-run mode skips them.
+function Guide:SetCompletionist(on)
+	self.db.profile.steps.completionist = on and true or false
+	Lodestar:Msg("Guide: %s.", on and "completionist — optional quests and steps are shown" or "speed run — optional steps are skipped")
+	self:EvaluateStep()
+	self:RefreshStepFrame()
 end
 
 function Guide:EnableEngine()

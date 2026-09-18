@@ -7,6 +7,7 @@
 --   available  quests you can pick up nearby (Blizzard quest lines when the client has them,
 --              otherwise quest givers Lodestar has seen on this character or account)
 --   hubs       quest hubs Blizzard marks on the map
+--   train      your class trainer, when you have new spells to learn (Engine.lua: TrainerSuggestion)
 -- Completed quests are known from the client (IsQuestFlaggedCompleted), so nothing is re-suggested.
 --
 -- Where a quest is comes from the first source that answers:
@@ -18,7 +19,7 @@
 local Lodestar = _G.Lodestar
 local Guide = Lodestar:GetModule("Guide")
 
-local WEIGHT = { turnin = 0.6, objective = 1.0, available = 1.3, hub = 1.6 }
+local WEIGHT = { turnin = 0.6, train = 0.8, objective = 1.0, available = 1.3, hub = 1.6 }
 local questLineRequests = {} -- [mapID] = GetTime() of last request
 local pinned                 -- item the player clicked in the list; arrow follows it until done
 local cache, cacheAt = nil, 0
@@ -144,6 +145,7 @@ function Guide:CollectSmartItems(force)
 		hubItems(items, mapID)
 		if self.HarvestAvailableItems then self:HarvestAvailableItems(items, mapID) end
 		if self.DataAvailableItems then self:DataAvailableItems(items, mapID) end
+		if self.TrainItems then self:TrainItems(items, mapID) end
 	end
 	for _, it in ipairs(items) do
 		if it.mapID and it.x and it.y then

@@ -32,6 +32,7 @@ Guide.defaults = {
 			autoAdvance = true,
 			autoPickGuide = true,
 			announce = true,
+			completionist = false,   -- false = speed run (skip .optional steps), true = do everything
 		},
 	},
 	char = {
@@ -39,6 +40,7 @@ Guide.defaults = {
 		progress = {},               -- [guideName] = step index
 		recording = nil,             -- active recording (see Recorder.lua)
 		recordings = {},             -- [name] = text
+		lastTrainedLevel = nil,      -- level at the last class trainer visit (trainer suggestions)
 	},
 }
 
@@ -121,6 +123,12 @@ Guide.options = {
 		get = function() return Guide.db.profile.steps.announce end,
 		set = function(_, v) Guide.db.profile.steps.announce = v end,
 	},
+	completionist = {
+		type = "toggle", order = 28, name = "Completionist (do optional quests)",
+		desc = "Guides mark side quests, professions and camp/cooking stops as optional. Off = speed run: those steps are skipped. On = every step is shown.",
+		get = function() return Guide.db.profile.steps.completionist end,
+		set = function(_, v) Guide:SetCompletionist(v) end,
+	},
 	guidesHeader = { type = "header", order = 30, name = "Guides" },
 	guidesDesc = {
 		type = "description", order = 31, fontSize = "medium",
@@ -141,6 +149,7 @@ local EVENTS = {
 	"PLAYER_LEVEL_UP", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "USER_WAYPOINT_UPDATED", "PLAYER_ENTERING_WORLD",
 	"HEARTHSTONE_BOUND", "TRAINER_SHOW", "TRAINER_CLOSED", "TAXIMAP_OPENED", "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED",
 	"MERCHANT_SHOW", "MERCHANT_CLOSED", "GOSSIP_SHOW", "QUEST_DETAIL", "QUEST_COMPLETE", "QUEST_DATA_LOAD_RESULT", "QUESTLINE_UPDATE", "AREA_POIS_UPDATED",
+	"BAG_UPDATE_DELAYED", "SKILL_LINES_CHANGED", "ITEM_DATA_LOAD_RESULT",   -- .buy / .profession steps, item names
 	-- harvest
 	"QUEST_GREETING", "QUEST_PROGRESS", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED",
 }

@@ -569,6 +569,14 @@ MAX_QUESTS = 25
 C_GuildInfo.GuildRoster = function() stub.rosterRequested = (stub.rosterRequested or 0) + 1 end
 Enum.PlayerInteractionType = { Merchant = 5 }
 C_Texture = { GetAtlasInfo = function(name) if name == "Navigation-Tracked-Arrow" then return { width = 34, height = 44 } end end }
+-- Guide DSL: items, professions, trainers -------------------------------------------------------
+stub.itemCounts = {}                 -- [itemID] = count in bags (+bank)
+stub.professions = {}                -- { "Skinning", "Herbalism" } in the two primary slots
+C_Item.GetItemCount = function(id) return stub.itemCounts[id] or 0 end
+C_Item.RequestLoadItemDataByID = function() end
+GetProfessions = function() return stub.professions[1] and 1 or nil, stub.professions[2] and 2 or nil, nil, nil, nil, nil end
+GetProfessionInfo = function(index) local n = stub.professions[index] if n then return n, 134, 1, 75, 0, 0, 0, 0 end end
+IsTradeskillTrainer = function() return stub.tradeskillTrainer or false end
 -- Complain (but don't crash) on unknown globals so the stub can be extended deliberately.
 setmetatable(_G, { __index = function(_, k)
 	stub.unknownGlobals[k] = (stub.unknownGlobals[k] or 0) + 1
