@@ -19,9 +19,13 @@ if not exist "%BETA%\WTF\Account" (
   exit /b 1
 )
 
+rem Date stamp for the filename. wmic is gone from recent Windows 11 builds, so fall back to
+rem PowerShell, then to no date at all if neither answers.
+set "STAMP="
 for /f "tokens=2 delims==" %%D in ('wmic os get localdatetime /value 2^>nul ^| find "="') do set "LDT=%%D"
-set "STAMP=%LDT:~0,8%"
-if "%STAMP%"=="" set "STAMP=undated"
+if defined LDT set "STAMP=!LDT:~0,8!"
+if not defined STAMP for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd" 2^>nul`) do set "STAMP=%%D"
+if not defined STAMP set "STAMP=undated"
 
 set "DESK=%USERPROFILE%\Desktop"
 if not exist "%DESK%" set "DESK=%USERPROFILE%"
