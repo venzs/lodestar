@@ -146,7 +146,10 @@ function Guide:LoadGuide(name, stepIndex)
 		-- without the guide) lands on the step after the last one its completed quests account for.
 		local start, _, open = self:SuggestStartIndex(guide)
 		if not saved then
-			stepIndex, synced = start, { open = open }
+			-- No saved progress: this character has never run this guide, so it may be half way
+			-- through the zone already. Resume from what it actually holds rather than from step 1.
+			local resumed, actionable = self:ReconcileToLog(guide)
+			stepIndex, synced = resumed or start, { open = open, reconciled = actionable and #actionable or nil }
 		elseif start > saved then
 			-- Never step over work the character still has open: that is the player's real position.
 			-- The window's Sync button (and /lode guide sync) still jump on demand.
@@ -468,6 +471,55 @@ function Guide:SuggestStartIndex(guide)
 	local open = 0
 	for idx in pairs(openBefore) do if idx < start then open = open + 1 end end
 	return start, math.max(0, start - 1), open
+end
+
+--- Reconcile a route against what this character actually holds, for someone who installs the addon
+--- half way through a character rather than at level 1. Walking in from step 1 is wrong (they have
+--- done most of it) and so is jumping past the last thing they finished (the route's order is not
+--- the order they played it, and quests they are still carrying would be stranded behind them).
+---
+--- Returns startIndex, actionable ({ idx, held }), done (set), lastProof.
+function Guide:ReconcileToLog(guide)
+	local pf = self:PlayerFilters()
+	local actionable, done = {}, {}
+	local lastProof = 0
+	for idx, step in ipairs(guide.steps) do
+		if self:StepApplies(step, pf) then
+			local quests, complete, held, proof = 0, 0, false, false
+			for _, a in ipairs(step.actions) do
+				if a.questID then
+					quests = quests + 1
+					if C_QuestLog.IsOnQuest(a.questID) then held = true end
+					if self:IsActionComplete(a, nil) then
+						complete = complete + 1
+						if a.type ~= "accept" or turnedIn(a.questID) then proof = true end
+					end
+				end
+			end
+			if quests > 0 then
+				if complete >= quests then
+					done[idx] = true
+					if proof then lastProof = idx end
+				else
+					actionable[#actionable + 1] = { idx = idx, held = held }
+				end
+			end
+		end
+	end
+	-- Resume where the character can actually pick the thread up: a step for a quest already in the
+	-- log beats one they have not started, then whichever is physically closest, then route order.
+	local best, bestRank
+	for _, c in ipairs(actionable) do
+		local step = guide.steps[c.idx]
+		local dist
+		if step.go then
+			local map = self:ResolveMap(step.go.map)
+			if map and self.VectorTo then dist = self:VectorTo(map, step.go.x / 100, step.go.y / 100) end
+		end
+		local rank = (c.held and 0 or 1e7) + (dist or 5e6) + c.idx * 0.001
+		if not bestRank or rank < bestRank then best, bestRank = c.idx, rank end
+	end
+	return best or math.min(lastProof + 1, #guide.steps), actionable, done, lastProof
 end
 
 --- Steps before `upto` whose quests are still open (for the window's "earlier steps" hint).

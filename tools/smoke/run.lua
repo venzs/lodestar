@@ -1876,6 +1876,27 @@ try("sync on load", function()
 	start, _, open = G:SuggestStartIndex(G.current)
 	check(open >= 1, "earlier open steps counted: " .. tostring(open))
 	G:RefreshStepFrame()
+	-- Installing the addon half way through a character: no saved progress, a log that is already
+	-- part done, and a quest still being carried. It must resume at real work, not step 1, and not
+	-- past the quest in hand.
+	stub.flagged = { [363] = true, [364] = true, [376] = true }
+	stub.questLog = { [3901] = { title = "Rattling the Rattlecages", complete = false, objectives = { { text = "0/8", finished = false } } } }
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+	G.current = nil
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+	check(G.stepIndex > 1, "a half-done log does not restart at step 1, at " .. tostring(G.stepIndex))
+	local resumed, actionable, doneSet = G:ReconcileToLog(G.current)
+	check(type(actionable) == "table" and #actionable > 0, "reconcile finds actionable steps, got " .. tostring(actionable and #actionable))
+	check(type(doneSet) == "table" and next(doneSet) ~= nil, "reconcile marks finished steps as done")
+	local held, resumedIsHeld = {}, false
+	for _, c in ipairs(actionable) do if c.held then held[c.idx] = true end end
+	check(next(held) ~= nil, "the quest still in the log shows up as held work")
+	resumedIsHeld = held[resumed] == true
+	-- Held work outranks unstarted work; among held steps the closest wins, so assert the rule
+	-- rather than one particular index.
+	check(resumedIsHeld, "resume lands on a step for the quest still in hand, got " .. tostring(resumed))
+	check(doneSet[resumed] == nil, "resume never lands on a step that is already finished")
+	stub.questLog = {}
 	stub.flagged = {}
 	stub.questLog = {}
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
