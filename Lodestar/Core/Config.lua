@@ -74,7 +74,7 @@ local function moduleToggleArgs()
 			order = i,
 			width = "full",
 			name = module.displayName,
-			desc = module.description or L["Enable or disable this module. Changes take effect after /reload."],
+			desc = module.description or L["Enable %s"]:format(module.displayName),
 			get = function() return Lodestar:IsModuleEnabled(module.key) end,
 			set = function(_, v) Lodestar:SetModuleEnabled(module.key, v) end,
 		}

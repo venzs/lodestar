@@ -8,17 +8,32 @@ local session -- see ResetXPSession
 local samples = {} -- { t = GetTime(), xp = gained } for the rolling window
 local frame
 
+--- Mirrors GameRulesUtil.GetEffectiveMaxLevelForPlayer: the expansion cap clamped by the realm/phase cap
+--- (GetMaxPlayerLevel), which is how a capped beta or a Classic-style pre-patch reports its max level.
 local function maxLevel()
-	if GetMaxLevelForPlayerExpansion then
-		local ok, v = pcall(GetMaxLevelForPlayerExpansion)
+	if GameRulesUtil and GameRulesUtil.GetEffectiveMaxLevelForPlayer then
+		local ok, v = pcall(GameRulesUtil.GetEffectiveMaxLevelForPlayer)
 		if ok and type(v) == "number" then return v end
 	end
-	return _G.MAX_PLAYER_LEVEL or 60
+	local expansionMax = GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion() or 60
+	local realmMax = GetMaxPlayerLevel and GetMaxPlayerLevel() or expansionMax
+	return math.min(expansionMax, realmMax)
 end
 
-local function atMaxLevel()
+--- True when the client would not show an XP bar at all (XP turned off, or the game mode disables it).
+local function xpDisabled()
 	if IsXPUserDisabled and IsXPUserDisabled() then return true end
-	return UnitLevel("player") >= maxLevel()
+	local rules = Enum and Enum.GameRule
+	local rule = rules and rules.ExperienceBarDisabled
+	if rule and C_GameRules and C_GameRules.IsGameRuleActive and C_GameRules.IsGameRuleActive(rule) then return true end
+	return false
+end
+
+--- `level` is the PLAYER_LEVEL_UP payload: the unit fields may not be updated yet when that event fires.
+local function atMaxLevel(level)
+	if xpDisabled() then return true end
+	if type(level) ~= "number" then level = UnitLevel("player") end
+	return level >= maxLevel()
 end
 
 function Leveling:ResetXPSession()
@@ -70,11 +85,12 @@ end
 function Leveling:PLAYER_XP_UPDATE(_, unit)
 	if unit ~= "player" or not session then return end
 	local xp, xpMax, level = UnitXP("player"), UnitXPMax("player"), UnitLevel("player")
-	local gained
+	local gained, leveled
 	if level > session.level then
-		gained = (session.lastMax - session.lastXP) + xp
+		gained = (session.lastMax - session.lastXP) + xp -- lastMax is still the previous level's max here
 		session.levels = session.levels + (level - session.level)
 		session.level = level
+		leveled = true
 	else
 		gained = xp - session.lastXP
 	end
@@ -90,7 +106,11 @@ function Leveling:PLAYER_XP_UPDATE(_, unit)
 			session.killXP = session.killXP + gained
 		end
 	end
-	self:RefreshXPText()
+	if leveled then
+		self:UpdateXPFrame() -- the unit fields are fresh now: re-check the level cap
+	else
+		self:RefreshXPText()
+	end
 end
 
 function Leveling:QUEST_TURNED_IN(_, _, xpReward)
@@ -101,11 +121,10 @@ function Leveling:QUEST_TURNED_IN(_, _, xpReward)
 	end
 end
 
-function Leveling:OnLevelUpXP()
-	if session then
-		session.lastMax = UnitXPMax("player")
-	end
-	self:UpdateXPFrame()
+--- PLAYER_LEVEL_UP: only the payload level is trustworthy here. session.lastMax is deliberately left
+--- alone so the following PLAYER_XP_UPDATE can compute the carry-over from the previous level's max.
+function Leveling:OnLevelUpXP(level)
+	self:UpdateXPFrame(level)
 end
 
 -- Frame ---------------------------------------------------------------------------
@@ -203,10 +222,11 @@ function Leveling:RefreshXPText()
 	frame:SetWidth(math.max(120, frame.text:GetStringWidth() + 24))
 end
 
-function Leveling:UpdateXPFrame()
+--- `level` is optional (PLAYER_LEVEL_UP payload); otherwise the unit's current level is used.
+function Leveling:UpdateXPFrame(level)
 	if not frame then return end
 	local db = self.db.profile.xp
-	if not self:IsEnabled() or not db.show or atMaxLevel() then
+	if not self:IsEnabled() or not db.show or atMaxLevel(level) then
 		frame:Hide()
 		return
 	end
@@ -229,6 +249,10 @@ function Leveling:EnableXPTracker()
 	self:RegisterEvent("UPDATE_EXHAUSTION", "RefreshXPText")
 	self.xpTicker = self:ScheduleRepeatingTimer("RefreshXPText", 5)
 	self:UpdateXPFrame()
+
+	-- Module toggles are live, so OnEnable can run more than once per session: register once.
+	if self.xpTooltipRegistered then return end
+	self.xpTooltipRegistered = true
 
 	Lodestar:RegisterTooltipProvider(function(tooltip)
 		if not self:IsEnabled() or atMaxLevel() then return end

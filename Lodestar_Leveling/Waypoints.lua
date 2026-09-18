@@ -2,6 +2,7 @@
 --
 --   /way 45.2 63.1 Optional note      pin on the current map (also accepts 45,2 63,1 or 45.2, 63.1)
 --   /way #1429 45 63 note             pin on a specific uiMapID
+--   /way 1429 45.0 63.0               Blizzard's own pin-command form (what shift-clicking a map pin copies)
 --   /way clear                        remove the pin
 --   /way                              print where you are
 local Lodestar = _G.Lodestar
@@ -28,7 +29,8 @@ local function mapName(mapID)
 	return info and info.name or ("map " .. tostring(mapID))
 end
 
---- Parse "[#mapID] x y [note]" with , or . decimal separators. Returns mapID, x, y, note or nil, err.
+--- Parse "[#mapID] x y [note]" or "mapID x y [note]" with , or . decimal separators.
+--- Returns mapID, x, y, note or nil, err.
 local function parseWay(input)
 	local text = strtrim(input or "")
 	local mapID
@@ -36,6 +38,14 @@ local function parseWay(input)
 	if hash then
 		mapID = tonumber(hash)
 		text = strtrim(text:sub(#hash + 2))
+	else
+		-- Blizzard's map-pin command form "<mapID> <x> <y>": three leading numbers, the first an integer
+		-- that names an existing map (so "/way 45 63 3 kobolds" still reads as x y note when 45 is no map).
+		local id, remainder = text:match("^(%d+)%s+(%d+[%.,]?%d*[%s,]+%d+[%.,]?%d*.*)$")
+		if id and C_Map.GetMapInfo(tonumber(id)) then
+			mapID = tonumber(id)
+			text = remainder
+		end
 	end
 	-- Normalise "45,2 63,1" (comma decimals) and "45.2, 63.1" (comma separators).
 	local a, b, rest = text:match("^([%d]+[%.,]?[%d]*)[%s,]+([%d]+[%.,]?[%d]*)%s*(.*)$")
@@ -44,7 +54,9 @@ local function parseWay(input)
 	if not x or not y or x < 0 or x > 100 or y < 0 or y > 100 then
 		return nil, "coordinates must be between 0 and 100"
 	end
-	return mapID or currentMapID(), x, y, rest ~= "" and rest or nil
+	mapID = mapID or currentMapID()
+	if not mapID then return nil, "Can't tell which map you are on." end
+	return mapID, x, y, rest ~= "" and rest or nil
 end
 
 function Leveling:SetWaypoint(mapID, x, y, note)
@@ -57,7 +69,10 @@ function Leveling:SetWaypoint(mapID, x, y, note)
 		return false
 	end
 	local point = UiMapPoint.CreateFromCoordinates(mapID, x / 100, y / 100)
-	C_Map.SetUserWaypoint(point)
+	if C_Map.SetUserWaypoint(point) == false then -- documented `wasSet` return
+		Lodestar:Say("Couldn't place a waypoint on %s.", mapName(mapID))
+		return false
+	end
 	if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
 		C_SuperTrack.SetSuperTrackedUserWaypoint(true)
 	end

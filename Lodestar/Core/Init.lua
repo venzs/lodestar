@@ -76,6 +76,7 @@ end
 
 function Lodestar:OnProfileChanged()
 	self:ApplyModuleStates()
+	self:UpdateMinimapButton() -- rebinds LibDBIcon to the new profile's minimap table (hide + drag position)
 	for _, module in self:IterateModules() do
 		if module.OnProfileChanged then module:OnProfileChanged() end
 	end

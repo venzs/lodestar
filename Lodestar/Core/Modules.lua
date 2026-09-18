@@ -45,34 +45,32 @@ function Lodestar:IsModuleEnabled(key)
 	return state and true or false
 end
 
+--- Set a module's desired state and, when it changed, run AceAddon's Enable/Disable so OnEnable /
+--- OnDisable actually fire. IsEnabled() only reports the desired state (enabledState), so the previous
+--- value has to be captured before it is overwritten. Enable/Disable are idempotent: during core OnEnable
+--- (before AceAddon's own EnableAddon loop reaches the modules) they are no-ops for the login path.
+local function applyModuleState(self, module, enabled)
+	enabled = enabled and true or false
+	local was = module:IsEnabled() and true or false
+	module:SetEnabledState(enabled)
+	if self.enabledState and was ~= enabled then
+		if enabled then module:Enable() else module:Disable() end
+	end
+end
+
 --- Persist and apply a module's enabled state.
 function Lodestar:SetModuleEnabled(key, enabled)
 	local module = self.moduleByKey[key]
 	if not module then return false end
 	self.db.profile.modules[key] = enabled and true or false
-	module:SetEnabledState(enabled)
-	if self.enabledState then -- core already enabled: toggle live
-		if enabled and not module:IsEnabled() then
-			module:Enable()
-		elseif not enabled and module:IsEnabled() then
-			module:Disable()
-		end
-	end
+	applyModuleState(self, module, enabled)
 	return true
 end
 
 --- Called from OnEnable / profile change: set the enabled state of every module from the profile.
 function Lodestar:ApplyModuleStates()
 	for _, module in ipairs(self.moduleList) do
-		local enabled = self:IsModuleEnabled(module.key)
-		module:SetEnabledState(enabled)
-		if self.enabledState then
-			if enabled and not module:IsEnabled() then
-				module:Enable()
-			elseif not enabled and module:IsEnabled() then
-				module:Disable()
-			end
-		end
+		applyModuleState(self, module, self:IsModuleEnabled(module.key))
 	end
 end
 

@@ -80,6 +80,11 @@ end
 function Leveling:QUEST_DETAIL(_, questStartItemID)
 	local cfg = questCfg()
 	if self:IsPaused() then return end
+	-- Mirrors QuestFrame_OnEvent's early-outs: item-started quests and area-trigger auto-accepts are
+	-- closed by Blizzard (CloseQuest) and re-offered from the objective tracker's OFFER popup, which
+	-- fires a fresh QUEST_DETAIL without these flags. Only act when the quest frame is really open.
+	if questStartItemID and questStartItemID ~= 0 then return end
+	if QuestGetAutoAccept and QuestGetAutoAccept() and QuestIsFromAreaTrigger and QuestIsFromAreaTrigger() then return end
 	if QuestFlagsPVP and QuestFlagsPVP() then return end -- let Blizzard's PvP-flag confirmation run
 
 	-- Shared by a party member: the "quest giver" is a player.
@@ -90,8 +95,7 @@ function Leveling:QUEST_DETAIL(_, questStartItemID)
 	end
 
 	if not cfg.autoAccept then return end
-	local fromItem = questStartItemID and questStartItemID ~= 0
-	if not fromItem and cfg.skipTrivial and isTrivialQuest(GetQuestID()) then return end
+	if cfg.skipTrivial and isTrivialQuest(GetQuestID()) then return end
 
 	-- Mirrors QuestDetailAcceptButton_OnClick: auto-offered quests are acknowledged, not accepted.
 	if QuestGetAutoAccept and QuestGetAutoAccept() then
@@ -104,7 +108,12 @@ end
 function Leveling:QUEST_ACCEPT_CONFIRM(_, name, questTitle)
 	local cfg = questCfg()
 	if not cfg.acceptEscort or self:IsPaused() then return end
+	-- Blizzard already showed its QUEST_ACCEPT (or QUEST_ACCEPT_LOG_FULL) dialog for this event. With a
+	-- full log the server would reject the confirm anyway, so leave that dialog to explain it.
+	local _, numQuests = C_QuestLog.GetNumQuestLogEntries()
+	if (numQuests or 0) >= (MAX_QUESTS or 25) then return end
 	ConfirmAcceptQuest()
+	if StaticPopup_Hide then StaticPopup_Hide("QUEST_ACCEPT") end
 	Lodestar:Msg("Accepted %s (started by %s).", tostring(questTitle), tostring(name))
 end
 
@@ -121,6 +130,10 @@ end
 function Leveling:QUEST_COMPLETE()
 	local cfg = questCfg()
 	if not cfg.autoTurnIn or self:IsPaused() then return end
+	-- Quests that cost money: leave the window open so Blizzard's CONFIRM_COMPLETE_EXPENSIVE_QUEST
+	-- prompt runs when the player clicks Complete, instead of paying silently.
+	local cost = GetQuestMoneyToGet and GetQuestMoneyToGet() or 0
+	if type(cost) == "number" and cost > 0 then return end
 	local choices = GetNumQuestChoices()
 	if choices == 0 then
 		GetQuestReward(0)

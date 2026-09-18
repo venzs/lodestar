@@ -18,6 +18,12 @@ local function probeDB()
 	return db
 end
 
+--- Error messages/stacks can be secret values (12.x); indexing or serialising those raises from
+--- insecure code, so entries we cannot read are skipped rather than inspected.
+local function accessible(v)
+	return canaccessvalue == nil or canaccessvalue(v)
+end
+
 local function isOurs(text)
 	return type(text) == "string" and text:find("Lodestar", 1, true) ~= nil
 end
@@ -31,7 +37,8 @@ function Lodestar:GetRecordedErrors()
 		if ok and type(count) == "number" then
 			for i = 1, count do
 				local ok2, data = pcall(frame.GetErrorData, frame, i)
-				if ok2 and type(data) == "table" and (isOurs(data.message) or isOurs(data.stack)) then
+				if ok2 and type(data) == "table" and accessible(data.message) and accessible(data.stack)
+					and (isOurs(data.message) or isOurs(data.stack)) then
 					tinsert(list, { message = data.message, stack = data.stack, count = data.count, time = data.time })
 				end
 			end

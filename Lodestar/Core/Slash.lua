@@ -36,7 +36,7 @@ function Lodestar:SetupSlash()
 			local enabled = state ~= "off" and state ~= "disable"
 			if state == nil or state == "" then enabled = not self:IsModuleEnabled(module.key) end
 			self:SetModuleEnabled(module.key, enabled)
-			self:Say(L["Module %s %s. /reload to apply."], module.displayName, enabled and L["Enabled"] or L["Disabled"])
+			self:Say("%s: %s.", module.displayName, enabled and L["Enabled"] or L["Disabled"])
 		else
 			self:Say(L["Loaded modules: %s"], self:GetModuleSummary())
 		end

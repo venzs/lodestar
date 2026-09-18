@@ -76,6 +76,23 @@ for _, line in ipairs({ "/lode", "/lode version", "/lode modules", "/lode xp", "
 end
 check(stub.openedCategory ~= nil, "/lode opened settings")
 check(LodestarProbeDB and LodestarProbeDB.checks, "probe wrote LodestarProbeDB")
+try("way syntax", function()
+	stub.slash("/way 18 45.0 63.0 pasted pin")
+	check(stub.waypoint and stub.waypoint.uiMapID == 18 and math.abs(stub.waypoint.position.x - 0.45) < 1e-9, "Blizzard's '<mapID> x y' pin-command form accepted")
+	stub.slash("/way #37 10 20")
+	check(stub.waypoint and stub.waypoint.uiMapID == 37, "#mapID form still works")
+	local savedMap = stub.playerMap.map
+	stub.playerMap.map = nil
+	stub.slash("/way 45 63")
+	check((stub.chat[#stub.chat] or ""):find("Can't tell which map", 1, true) ~= nil, "no current map reports an error, not the x coordinate")
+	stub.playerMap.map = savedMap
+	local setWaypoint = C_Map.SetUserWaypoint
+	C_Map.SetUserWaypoint = function() return false end
+	stub.slash("/way 45 63")
+	check((stub.chat[#stub.chat] or ""):find("Couldn't place a waypoint", 1, true) ~= nil, "SetUserWaypoint returning false is reported")
+	C_Map.SetUserWaypoint = setWaypoint
+	stub.slash("/way clear")
+end)
 
 -- Leveling: XP events and quest automation
 try("xp update", function()
@@ -85,10 +102,24 @@ try("xp update", function()
 	local rolling, average, ttl = Lodestar:GetModule("Leveling"):GetXPRates()
 	check(rolling > 0 and average > 0 and ttl, "xp rates computed")
 end)
+local function sessionXP() -- parses "/lode xp" output: "... · 1234 xp this session in ..."
+	stub.slash("/lode xp")
+	return tonumber((stub.chat[#stub.chat] or ""):match("(%d+) xp this session"))
+end
 try("level up", function()
+	local before = sessionXP()
+	-- fields already fresh when PLAYER_LEVEL_UP fires: carry-over must use the OLD max (10000 - 5400 + 100)
 	stub.level, stub.xp, stub.xpMax = 13, 100, 12000
 	stub.fire("PLAYER_LEVEL_UP", 13)
 	stub.fire("PLAYER_XP_UPDATE", "player")
+	check(sessionXP() == before + 4700, "level-up carry-over uses the previous level's max, got +" .. tostring(sessionXP() - before))
+	-- fields stale when PLAYER_LEVEL_UP fires (UnitLevel still 13): the payload decides the cap check
+	stub.fire("PLAYER_LEVEL_UP", 60)
+	check(LodestarXPFrame.shown == false, "xp frame hidden on the ding to max level (payload level)")
+	stub.fire("PLAYER_XP_UPDATE", "player") -- level unchanged: no corruption, frame stays as decided
+	check(sessionXP() == before + 4700, "stale-field level-up did not count phantom xp")
+	Lodestar:GetModule("Leveling"):UpdateXPFrame()
+	check(LodestarXPFrame.shown == true, "xp frame back at level 13")
 end)
 try("gossip", function() stub.fire("GOSSIP_SHOW") check(stub.gossipActive == 5, "gossip picked completed quest first") end)
 try("greeting", function() stub.fire("QUEST_GREETING") check(stub.selectedActive, "greeting selected active quest") end)
@@ -97,8 +128,39 @@ try("progress", function() stub.fire("QUEST_PROGRESS") check(stub.completed, "qu
 try("complete 0", function() stub.choices = 0 stub.fire("QUEST_COMPLETE") check(stub.rewardTaken == 0, "reward 0 taken") end)
 try("complete 1", function() stub.choices = 1 stub.fire("QUEST_COMPLETE") check(stub.rewardTaken == 1, "single reward taken") end)
 try("complete 2", function() stub.rewardTaken = nil stub.choices = 2 stub.fire("QUEST_COMPLETE") check(stub.rewardTaken == nil, "multi-choice left alone") end)
+try("complete costs money", function()
+	stub.rewardTaken = nil stub.choices = 0 stub.questMoneyToGet = 500
+	stub.fire("QUEST_COMPLETE")
+	check(stub.rewardTaken == nil, "quest with a money cost left for Blizzard's confirmation")
+	stub.questMoneyToGet = 0
+end)
 try("paused", function() stub.shift = true stub.accepted = 0 stub.fire("QUEST_DETAIL") check(stub.accepted == 0, "shift pauses automation") stub.shift = false end)
-try("escort", function() stub.fire("QUEST_ACCEPT_CONFIRM", "Bob", "Escort") check(stub.confirmed, "escort confirmed") end)
+try("detail closed by blizzard", function()
+	stub.accepted = 0
+	stub.fire("QUEST_DETAIL", 6948) -- item-started: QuestFrame already closed it and queued an OFFER popup
+	check(stub.accepted == 0, "item-started quest offer not accepted behind the tracker popup")
+	local autoAccept, areaTrigger = QuestGetAutoAccept, QuestIsFromAreaTrigger
+	QuestGetAutoAccept, QuestIsFromAreaTrigger = function() return true end, function() return true end
+	stub.acknowledged = nil
+	stub.fire("QUEST_DETAIL", 0)
+	check(stub.accepted == 0 and not stub.acknowledged, "area-trigger auto-accept offer left alone")
+	QuestGetAutoAccept, QuestIsFromAreaTrigger = autoAccept, areaTrigger
+	stub.fire("QUEST_DETAIL", 0)
+	check(stub.accepted == 1, "normal offer still accepted")
+end)
+try("escort", function()
+	stub.fire("QUEST_ACCEPT_CONFIRM", "Bob", "Escort")
+	check(stub.confirmed, "escort confirmed")
+	check(stub.hiddenPopups and stub.hiddenPopups.QUEST_ACCEPT, "Blizzard's QUEST_ACCEPT popup hidden after confirming")
+	-- full quest log: leave Blizzard's QUEST_ACCEPT_LOG_FULL dialog to explain it
+	local savedLog = stub.questLog
+	stub.questLog = {}
+	for i = 1, MAX_QUESTS do stub.questLog[90000 + i] = { title = "Filler " .. i, complete = false, objectives = {} } end
+	stub.confirmed = nil stub.hiddenPopups = {}
+	stub.fire("QUEST_ACCEPT_CONFIRM", "Bob", "Escort")
+	check(not stub.confirmed and not stub.hiddenPopups.QUEST_ACCEPT, "escort not confirmed with a full quest log")
+	stub.questLog = savedLog
+end)
 
 -- Economy: merchant
 try("merchant", function()
@@ -152,6 +214,9 @@ try("presence in", function()
 	check(G.presence["Guildie"] and G.presence["Guildie"].l == 20, "presence stored under short name")
 	local rows = G:CollectRows()
 	check(#rows == 1 and rows[1].lodestar and rows[1].note == "Deadmines", "board row merged roster + presence")
+	local dev = Lodestar:Serialize({ t = "V", v = "dev" })
+	Lodestar:OnCommReceived("Lodestar", dev, "GUILD", "Someone")
+	check(not Lodestar.versionNoticeShown, "unpackaged (dev) sender does not trigger the version notice")
 	local ser2 = Lodestar:Serialize({ t = "V", v = "9.9.9" })
 	Lodestar:OnCommReceived("Lodestar", ser2, "GUILD", "Someone")
 	check(Lodestar.versionNoticeShown, "newer version notice shown")
@@ -160,13 +225,44 @@ try("presence in", function()
 	stub.advance(5)
 end)
 
--- Module toggling and profile change
+-- Module toggling and profile change. AceAddon.statuses is the "actually running" flag that OnEnable /
+-- OnDisable flip; module:IsEnabled() only reports the desired state.
+local statuses = LibStub("AceAddon-3.0").statuses
 try("toggle module", function()
 	Lodestar:SetModuleEnabled("UI", false)
 	check(not Lodestar:GetModule("UI"):IsEnabled(), "UI disabled live")
+	check(statuses["Lodestar_UI"] == false, "UI OnDisable ran")
 	Lodestar:SetModuleEnabled("UI", true)
 	check(Lodestar:GetModule("UI"):IsEnabled(), "UI re-enabled live")
+	check(statuses["Lodestar_UI"] == true, "UI OnEnable ran")
+	stub.slash("/lode modules Economy off")
+	check(statuses["Lodestar_Economy"] == false and not Lodestar:IsModuleEnabled("Economy"), "/lode modules Economy off ran OnDisable")
+	stub.slash("/lode modules Economy on")
+	check(statuses["Lodestar_Economy"] == true, "/lode modules Economy on ran OnEnable")
+	-- re-enabling Leveling must not stack another minimap tooltip provider
+	local providers = #Lodestar.tooltipProviders
+	Lodestar:SetModuleEnabled("Leveling", false)
+	Lodestar:SetModuleEnabled("Leveling", true)
+	check(#Lodestar.tooltipProviders == providers, "tooltip provider registered once across toggles, got " .. #Lodestar.tooltipProviders .. " vs " .. providers)
+	-- profile switch: the new profile's module flags are applied live
+	Lodestar.db.profile.modules.Guild = false
 	Lodestar:OnProfileChanged()
+	check(statuses["Lodestar_Guild"] == false, "profile change disabled Guild")
+	Lodestar.db.profile.modules.Guild = nil
+	Lodestar:OnProfileChanged()
+	check(statuses["Lodestar_Guild"] == true, "profile change re-enabled Guild")
+end)
+try("profile change rebinds minimap", function()
+	local DBIcon = LibStub("LibDBIcon-1.0")
+	local newMinimap = { hide = true, minimapPos = 90 }
+	Lodestar.db.profile.minimap = newMinimap
+	Lodestar:OnProfileChanged()
+	local button = DBIcon:GetMinimapButton("Lodestar")
+	check(button and button.db == newMinimap, "LibDBIcon bound to the current profile's minimap table")
+	check(button and button.shown == false, "new profile's hide flag applied")
+	newMinimap.hide = false
+	Lodestar:UpdateMinimapButton()
+	check(button and button.shown == true, "button shown again")
 end)
 try("options build", function()
 	local opts = Lodestar:BuildOptions()

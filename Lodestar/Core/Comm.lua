@@ -61,7 +61,7 @@ end
 function Lodestar:CheckRemoteVersion(remote, sender)
 	if type(remote) ~= "string" or self.versionNoticeShown then return end
 	if not self.db.profile.versionNotices then return end
-	if self.version == "dev" then return end
+	if self.version == "dev" or remote == "dev" then return end -- unpackaged builds are not comparable
 	if self.CompareVersions(remote, self.version) > 0 then
 		self.versionNoticeShown = true
 		self:Say(L["A newer Lodestar (%s) is available — you have %s."], remote, self.version)
