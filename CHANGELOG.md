@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **A route must never send you to the other faction's NPCs.** The generator filtered on the quest's
+  race bitmask, which is almost always empty: in a contested zone the faction split is expressed by
+  *who stands there*, not by a flag on the quest. The generated Alliance Ashenvale route took 22 of
+  its 57 quests from Horde NPCs — Je'neu Sancrea at Zoram'gar, the whole Warsong Lumber Camp chain,
+  Senani Thunderheart at Splintertree — and passed every check there was, because nothing looked at
+  the NPC. Both the generator and the guide lint now do. A quest offered in every capital lists one
+  giver per city, so the generator picks one this faction can actually talk to rather than the first
+  in the list, and the lint only objects when none of them will.
+- Guide: **class-restricted quests carry `.class`.** A general route was handing warriors "Journey to
+  the Marsh", which is a mage quest — unfinishable, so the guide parked on it. The engine has always
+  filtered steps by class; it was never being told which steps to filter. Class quests also get a
+  step of their own, since `.class` hides the whole step and folding one in with three ordinary
+  quests from the same NPC would hide all four from everybody else.
+- **Alliance levelling reaches 30.** Duskwood (25-30) and Hillsbrad Foothills (30-35) close the last
+  gap, so both factions now run 1 to 30 unbroken — as far as the beta goes — and every `#next` in
+  that range leads to a route that exists.
+- `tools/router/regen.sh` rebuilds every generated route from its own recorded `--regen-args`. There
+  is no separate manifest to drift out of step with the files, and a hand-written guide has no such
+  line and is never touched.
+
 - **The completed-quest check asks the client's list, not its per-quest flag.** On this build
   `IsQuestFlaggedCompleted` answers true for every quest in Zephras Isle for a character who has done
   four of them, which is what sent a level 6 druid to step 36 of 36. The first attempt at handling

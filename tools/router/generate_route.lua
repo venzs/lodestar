@@ -77,6 +77,17 @@ local V, A, F = Guide.VanillaData, Guide.ATTData, Guide.ForeverData
 
 local function firstNPC(t) return t and t.npcs and t.npcs[1] or nil end
 
+-- Forward declaration: factionNPC needs npcUsable, which is defined below with the other NPC
+-- lookups, and Lua 5.1 resolves a local only after its declaration.
+local npcUsable
+local function factionNPC(t)
+	if not (t and t.npcs) then return nil end
+	for _, id in ipairs(t.npcs) do
+		if npcUsable(id, FACTION) then return id end
+	end
+	return t.npcs[1]
+end
+
 --- Position of an NPC on this map: x, y (percent) or nil.
 ---
 --- The two sources spell a coordinate differently and only one of them was being read. The harvest
@@ -106,6 +117,32 @@ local function npcPos(id)
 	return nil
 end
 
+--- Which faction an NPC will talk to: "A", "H", "AH", or nil when the data does not say.
+local function npcFaction(id)
+	for _, store in ipairs({ A.npcs, V.npcs }) do
+		local e = store and store[id]
+		if e and e.f then return e.f end
+	end
+	return nil
+end
+
+--- Can a character of this faction take a quest from, or hand one to, this NPC?
+---
+--- The race bitmask on the quest is not enough and never was. Most quests carry no race restriction
+--- at all -- in a contested zone the faction split is expressed by WHO stands there, not by a flag
+--- on the quest. Filtering on the bitmask alone produced an "Alliance" Ashenvale route in which 22
+--- of 57 quests were taken from Horde NPCs: Je'neu Sancrea at Zoram'gar, the whole Warsong Lumber
+--- Camp chain, Senani Thunderheart at Splintertree. Every one of those is a corpse run.
+---
+--- Unknown is treated as usable. Three and a half thousand NPCs carry no faction in the data and
+--- most of them are ordinary neutral quest givers; refusing those would empty the routes.
+function npcUsable(id, faction)
+	if faction == "Both" or not id then return true end
+	local f = npcFaction(id)
+	if not f or f == "AH" then return true end
+	return f == faction:sub(1, 1)
+end
+
 local function npcName(id)
 	for _, store in ipairs({ F.npcs, A.npcs, V.npcs }) do
 		local e = store and store[id]
@@ -115,6 +152,30 @@ local function npcName(id)
 end
 
 local quests = {}
+
+-- Classic's class bitmask. A quest with no class field is open to every class.
+--
+-- Without this a general route hands a warrior "Journey to the Marsh", which is a mage quest: the
+-- step can never be completed and the guide parks on it. The engine already filters steps by class
+-- (`.class Mage`), it was just never being told.
+local CLASS_NAME = {
+	[1] = "Warrior", [2] = "Paladin", [4] = "Hunter", [8] = "Rogue", [16] = "Priest",
+	[64] = "Shaman", [128] = "Mage", [256] = "Warlock", [1024] = "Druid",
+}
+
+--- "Mage" / "Priest,Warlock" for a class bitmask, or nil when the quest is open to everyone.
+local function classNames(mask)
+	if not mask or mask == 0 then return nil end
+	local out, bit, m = {}, 1, mask
+	local all = 0
+	for _ in pairs(CLASS_NAME) do all = all + 1 end
+	for _ = 1, 11 do
+		if (m % 2) == 1 and CLASS_NAME[bit] then out[#out + 1] = CLASS_NAME[bit] end
+		m, bit = math.floor(m / 2), bit * 2
+	end
+	if #out == 0 or #out >= all then return nil end
+	return table.concat(out, ",")
+end
 
 -- Classic's race bitmask, as pfQuest stores it. A quest with no race field is open to everyone.
 local RACE_BIT = { human = 1, orc = 2, dwarf = 4, nightelf = 8, undead = 16, tauren = 32, gnome = 64, troll = 128 }
@@ -153,12 +214,16 @@ for qid in pairs(ids) do
 	local title = (fq and fq.t) or (vq and vq.t)
 	if type(title) == "string" then title = title:match("^%s*(.-)%s*$") end
 	local lvl = (fq and fq.lvl) or (aq and aq.lvl) or (vq and vq.lvl)
-	local giver = firstNPC(fq and fq.start) or firstNPC(aq and aq.start) or firstNPC(vq and vq.start)
+	-- The FIRST giver of the right faction, not the first giver. A quest offered in every capital
+	-- lists one NPC per city -- "Journey to the Marsh" names Ursyn Ghull in Orgrimmar and Bink in
+	-- Ironforge -- and taking whichever happens to be first in the list sends half the players to a
+	-- city they cannot enter.
+	local giver = factionNPC(fq and fq.start) or factionNPC(aq and aq.start) or factionNPC(vq and vq.start)
 	-- The ender, and whether one is actually known. Defaulting to the giver is right for the common
 	-- case -- most quests are handed back to whoever gave them -- but not when the quest ends at a
 	-- world OBJECT: a shrine or a strongbox is not an NPC, firstNPC finds nothing, and silently
 	-- using the giver's position points the turn-in arrow across the zone.
-	local enderNPC = firstNPC(fq and fq["end"]) or firstNPC(aq and aq["end"]) or firstNPC(vq and vq["end"])
+	local enderNPC = factionNPC(fq and fq["end"]) or factionNPC(aq and aq["end"]) or factionNPC(vq and vq["end"])
 	local enderObj = (vq and vq["end"] and vq["end"].objs and vq["end"].objs[1])
 		or (aq and aq["end"] and aq["end"].objs and aq["end"].objs[1])
 	local ender = enderNPC or (not enderObj and giver) or nil
@@ -210,7 +275,11 @@ for qid in pairs(ids) do
 	local spots = (fq and fq.spots) or (aq and aq.spots) or nil
 	-- A contested zone's quest list is two routes interleaved. Without this an Alliance guide for
 	-- Ashenvale sends the player to Splintertree Post, which is a Horde camp that will kill them.
+	-- Both tests, because they catch different things: the bitmask covers a quest restricted to
+	-- particular races, and the NPC's own faction covers the far more common case of a quest that is
+	-- open to everyone but given by somebody who will not speak to you.
 	local allowed = maskAllows(vq and vq.race, FACTION)
+		and npcUsable(giver, FACTION) and npcUsable(ender, FACTION)
 	-- A quest whose hard minimum is above where this route leaves the player cannot be part of it:
 	-- they would reach the end of the zone still unable to accept it. The balanced level may sit a
 	-- little past the range (that is what --max-level is for); the minimum may not.
@@ -241,6 +310,7 @@ for qid in pairs(ids) do
 			-- reasonably offer that a little early; `min` is the level below which the client simply
 			-- refuses to hand it over. Scheduling below `min` produces a step nobody can action.
 			min = (vq and vq.min) or (aq and aq.min) or nil,
+			classes = classNames(vq and vq.class),
 		}
 	end
 end
@@ -547,12 +617,18 @@ local function addStop(x, y, npc, action)
 	if sameSpot and action.kind == "turnin" and action.q and stopHas(last, "accept", action.q.id) then
 		sameSpot = false
 	end
+	-- A class-restricted quest never shares a step. `.class` filters the whole step, so folding a
+	-- mage quest in with the three ordinary ones from the same NPC would hide all four from
+	-- everybody else.
+	if sameSpot and ((action.q and action.q.classes) or (last.classes and last.classes ~= (action.q and action.q.classes))) then
+		sameSpot = false
+	end
 	if sameSpot then
 		last.npc = last.npc or npc
 		last.actions[#last.actions + 1] = action
 		return
 	end
-	stops[#stops + 1] = { x = x, y = y, npc = npc, actions = { action } }
+	stops[#stops + 1] = { x = x, y = y, npc = npc, classes = action.q and action.q.classes or nil, actions = { action } }
 end
 
 for _, stepRec in ipairs(order) do
@@ -615,6 +691,7 @@ for i, stop in ipairs(stops) do
 		local target = npcName(stop.actions[1].q.ender)
 		w("  .optional >>Handed in outside this zone%s", target and (", to " .. target) or "")
 	end
+	if stop.classes then w("  .class %s", stop.classes) end
 	if stop.x then w("  .goto %s,%.1f,%.1f", ZONE, stop.x, stop.y) end
 	for _, a in ipairs(stop.actions) do
 		local q = a.q

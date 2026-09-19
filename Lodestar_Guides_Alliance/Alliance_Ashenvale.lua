@@ -4,7 +4,7 @@
 -- beta harvest). Regenerate rather than hand-editing, or the next harvest will overwrite you.
 -- --regen-args: 331 --name "Alliance 20-25: Ashenvale" --faction "Alliance" --levels "20-25" --next "Alliance 25-30: Duskwood" --zone "Ashenvale" --max-level "28" --min-level "17"
 --
--- 57 quests on uiMapID 331 had a known giver position; 36 carried a prerequisite chain, which is
+-- 34 quests on uiMapID 331 had a known giver position; 24 carried a prerequisite chain, which is
 -- what fixes the order. Quests the data cannot place yet are not in here at all -- smart mode
 -- covers those, and they appear as soon as someone walks past their giver.
 local Guide = _G.Lodestar:GetModule("Guide")
@@ -16,92 +16,6 @@ Guide:RegisterGuide([[
 #next Alliance 25-30: Duskwood
 #author Lodestar (generated)
 #note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.
-
-step
-  .goto Ashenvale,11.6,34.3
-  .accept 6563 >>Accept The Essence of Aku'Mai (lvl 17) from Je'neu Sancrea
-  .accept 6565 >>Accept Allegiance to the Old Gods (lvl 17) from Je'neu Sancrea
-
-step
-  .complete 6563 >>Finish The Essence of Aku'Mai
-
-step
-  .complete 6565 >>Finish Allegiance to the Old Gods
-
-step
-  .goto Ashenvale,11.6,34.3
-  .turnin 6563 >>Turn in The Essence of Aku'Mai to Je'neu Sancrea
-  .turnin 6565 >>Turn in Allegiance to the Old Gods to Je'neu Sancrea
-
-step
-  .goto Ashenvale,14.8,31.3
-  .accept 1007 >>Accept The Ancient Statuette (lvl 19) from Talen
-
-step
-  .complete 1007 >>Finish The Ancient Statuette
-
-step
-  .goto Ashenvale,14.8,31.3
-  .turnin 1007 >>Turn in The Ancient Statuette to Talen
-  .accept 1009 >>Accept Ruuzel (lvl 20) from Talen
-
-step
-  .complete 1009 >>Finish Ruuzel
-
-step
-  .goto Ashenvale,14.8,31.3
-  .turnin 1009 >>Turn in Ruuzel to Talen
-
-step
-  .goto Ashenvale,12.1,34.6
-  .accept 6641 >>Accept Vorsha the Lasher (lvl 20) from Muglash
-
-step
-  .goto Ashenvale,12.2,34.2
-  .turnin 6641 >>Turn in Vorsha the Lasher to Warsong Runner
-
-step
-  .goto Ashenvale,11.6,34.9
-  .accept 6462 >>Accept Troll Charm (lvl 19) from Mitsuwa
-
-step
-  .complete 6462 >>Finish Troll Charm
-
-step
-  .goto Ashenvale,11.6,34.9
-  .turnin 6462 >>Turn in Troll Charm to Mitsuwa
-
-step
-  .goto Ashenvale,26.4,38.6
-  .accept 1010 >>Accept Bathran's Hair (lvl 20) from Orendil Broadleaf
-
-step
-  .complete 1010 >>Finish Bathran's Hair
-
-step
-  .goto Ashenvale,26.4,38.6
-  .turnin 1010 >>Turn in Bathran's Hair to Orendil Broadleaf
-  .accept 1020 >>Accept Orendil's Cure (lvl 20) from Orendil Broadleaf
-
-step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1020 >>Turn in Orendil's Cure to Pelturas Whitemoon
-  .accept 1033 >>Accept Elune's Tear (lvl 20) from Pelturas Whitemoon
-
-step
-  .complete 1033 >>Finish Elune's Tear
-
-step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1033 >>Turn in Elune's Tear to Pelturas Whitemoon
-  .accept 1034 >>Accept The Ruins of Stardust (lvl 20) from Pelturas Whitemoon
-
-step
-  .complete 1034 >>Finish The Ruins of Stardust
-
-step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1034 >>Turn in The Ruins of Stardust to Pelturas Whitemoon
 
 step
   .goto Ashenvale,36.6,49.6
@@ -118,9 +32,6 @@ step
 step
   .goto Ashenvale,36.6,49.6
   .turnin 1054 >>Turn in Culling the Threat to Raene Wolfrunner
-
-step
-  .xp 21
 
 step
   .goto Ashenvale,20.3,42.3
@@ -155,6 +66,9 @@ step
 step
   .goto Ashenvale,53.5,46.2
   .turnin 1026 >>Turn in Raene's Cleansing to Shael'dryn
+
+step
+  .xp 21
 
 step
   .goto Ashenvale,36.6,49.6
@@ -199,9 +113,6 @@ step
   .turnin 1070 >>Turn in On Guard in Stonetalon to Kaela Shadowspear (not in this zone)
 
 step
-  .xp 22
-
-step
   .goto Ashenvale,34.7,48.8
   .accept 1134 >>Accept Pridewings of Stonetalon (lvl 18) from Shindrell Swiftfire
 
@@ -213,7 +124,39 @@ step
   .turnin 1134 >>Turn in Pridewings of Stonetalon to Shindrell Swiftfire
 
 step
+  .xp 22
+
+step
+  .goto Ashenvale,26.4,38.6
+  .accept 1010 >>Accept Bathran's Hair (lvl 20) from Orendil Broadleaf
+
+step
+  .complete 1010 >>Finish Bathran's Hair
+
+step
+  .goto Ashenvale,26.4,38.6
+  .turnin 1010 >>Turn in Bathran's Hair to Orendil Broadleaf
+  .accept 1020 >>Accept Orendil's Cure (lvl 20) from Orendil Broadleaf
+
+step
   .goto Ashenvale,37.4,51.8
+  .turnin 1020 >>Turn in Orendil's Cure to Pelturas Whitemoon
+  .accept 1033 >>Accept Elune's Tear (lvl 20) from Pelturas Whitemoon
+
+step
+  .complete 1033 >>Finish Elune's Tear
+
+step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1033 >>Turn in Elune's Tear to Pelturas Whitemoon
+  .accept 1034 >>Accept The Ruins of Stardust (lvl 20) from Pelturas Whitemoon
+
+step
+  .complete 1034 >>Finish The Ruins of Stardust
+
+step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1034 >>Turn in The Ruins of Stardust to Pelturas Whitemoon
   .accept 1035 >>Accept Fallen Sky Lake (lvl 20) from Pelturas Whitemoon
 
 step
@@ -238,6 +181,9 @@ step
 step
   .goto Ashenvale,56.4,49.2
   .turnin 1028 >>Turn in Raene's Cleansing
+
+step
+  .xp 23
 
 step
   .goto Ashenvale,49.8,67.2
@@ -276,21 +222,7 @@ step
 step
   .goto Ashenvale,61.9,83.8
   .turnin 8386 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
-
-step
-  .goto Ashenvale,68.6,89.1
-  .accept 6543 >>Accept The Warsong Reports (lvl 17) from Kadrak
-
-step
-  .complete 6543 >>Finish The Warsong Reports
-
-step
-  .goto Ashenvale,68.6,89.1
-  .turnin 6543 >>Turn in The Warsong Reports to Kadrak
-
-step
-  .goto Ashenvale,61.9,83.9
-  .accept 7921 >>Accept Talismans of Merit (lvl 25) from Sentinel Farsong
+  .accept 7921 >>Accept Talismans of Merit (lvl 25) from Alliance Brigadier General
 
 step
   .complete 7921 >>Finish Talismans of Merit
@@ -298,101 +230,6 @@ step
 step
   .goto Ashenvale,61.9,83.9
   .turnin 7921 >>Turn in Talismans of Merit to Sentinel Farsong
-
-step
-  .goto Ashenvale,68.3,75.3
-  .accept 6544 >>Accept Torek's Assault (lvl 20) from Torek
-
-step
-  .goto Ashenvale,73.0,62.5
-  .turnin 6544 >>Turn in Torek's Assault to Ertog Ragetusk
-
-step
-  .goto Ashenvale,73.1,61.5
-  .accept 6441 >>Accept Satyr Horns (lvl 21) from Pixel
-
-step
-  .complete 6441 >>Finish Satyr Horns
-
-step
-  .goto Ashenvale,73.1,61.5
-  .turnin 6441 >>Turn in Satyr Horns to Pixel
-
-step
-  .xp 23
-
-step
-  .goto Ashenvale,73.8,61.5
-  .accept 6383 >>Accept The Ashenvale Hunt (lvl 20) from Senani Thunderheart
-  .accept 247 >>Accept The Hunt Completed (lvl 20) from Senani Thunderheart
-
-step
-  .complete 6383 >>Finish The Ashenvale Hunt
-
-step
-  .complete 247 >>Finish The Hunt Completed
-
-step
-  .goto Ashenvale,73.8,61.5
-  .turnin 6383 >>Turn in The Ashenvale Hunt to Senani Thunderheart
-  .turnin 247 >>Turn in The Hunt Completed to Senani Thunderheart
-
-step
-  .goto Ashenvale,73.7,60.0
-  .accept 824 >>Accept Je'neu of the Earthen Ring (lvl 23) from Mastok Wrilehiss
-  .accept 25 >>Accept Stonetalon Standstill (lvl 23) from Mastok Wrilehiss
-
-step
-  .complete 25 >>Finish Stonetalon Standstill
-
-step
-  .goto Ashenvale,11.6,34.3
-  .turnin 824 >>Turn in Je'neu of the Earthen Ring to Je'neu Sancrea
-
-step
-  .goto Ashenvale,73.7,60.0
-  .turnin 25 >>Turn in Stonetalon Standstill to Mastok Wrilehiss
-
-step
-  .goto Ashenvale,11.9,34.5
-  .accept 216 >>Accept Between a Rock and a Thistlefur (lvl 21) from Karang Amakkar
-
-step
-  .complete 216 >>Finish Between a Rock and a Thistlefur
-
-step
-  .goto Ashenvale,11.9,34.5
-  .turnin 216 >>Turn in Between a Rock and a Thistlefur to Karang Amakkar
-  .accept 6621 >>Accept King of the Foulweald (lvl 21) from Karang Amakkar
-
-step
-  .complete 6621 >>Finish King of the Foulweald
-
-step
-  .goto Ashenvale,11.9,34.5
-  .turnin 6621 >>Turn in King of the Foulweald to Karang Amakkar
-
-step
-  .goto Ashenvale,11.6,34.3
-  .accept 6921 >>Accept Amongst the Ruins (lvl 21) from Je'neu Sancrea
-
-step
-  .complete 6921 >>Finish Amongst the Ruins
-
-step
-  .goto Ashenvale,11.6,34.3
-  .turnin 6921 >>Turn in Amongst the Ruins to Je'neu Sancrea
-
-step
-  .goto Ashenvale,12.2,34.2
-  .accept 6545 >>Accept Warsong Runner Update (lvl 19) from Warsong Runner
-
-step
-  .complete 6545 >>Finish Warsong Runner Update
-
-step
-  .goto Ashenvale,12.2,34.2
-  .turnin 6545 >>Turn in Warsong Runner Update to Warsong Runner
 
 step
   .goto Ashenvale,26.2,38.9
@@ -403,81 +240,29 @@ step
   .turnin 976 >>Turn in Supplies to Auberdine to Delgren the Purifier
 
 step
-  .goto Ashenvale,41.5,34.5
-  .accept 6482 >>Accept Freedom to Ruul (lvl 19) from Ruul Snowhoof
+  .goto Ashenvale,14.8,31.3
+  .accept 1007 >>Accept The Ancient Statuette (lvl 19) from Talen
 
 step
-  .goto Ashenvale,74.1,60.9
-  .turnin 6482 >>Turn in Freedom to Ruul to Yama Snowhoof
+  .complete 1007 >>Finish The Ancient Statuette
 
 step
-  .goto Ashenvale,71.4,67.6
-  .accept 6571 >>Accept Warsong Supplies (lvl 22) from Locke Okarr
-
-step
-  .complete 6571 >>Finish Warsong Supplies
-
-step
-  .goto Ashenvale,71.4,67.6
-  .turnin 6571 >>Turn in Warsong Supplies to Locke Okarr
+  .goto Ashenvale,14.8,31.3
+  .turnin 1007 >>Turn in The Ancient Statuette to Talen
 
 step
   .xp 24
 
 step
-  .goto Ashenvale,71.1,68.1
-  .accept 6503 >>Accept Ashenvale Outrunners (lvl 19) from Kuray'bin
+  .goto Ashenvale,14.8,31.3
+  .accept 1009 >>Accept Ruuzel (lvl 20) from Talen
 
 step
-  .complete 6503 >>Finish Ashenvale Outrunners
+  .complete 1009 >>Finish Ruuzel
 
 step
-  .goto Ashenvale,71.1,68.1
-  .turnin 6503 >>Turn in Ashenvale Outrunners to Kuray'bin
-
-step
-  .goto Ashenvale,71.0,68.4
-  .accept 6547 >>Accept Warsong Scout Update (lvl 21) from Warsong Scout
-
-step
-  .complete 6547 >>Finish Warsong Scout Update
-
-step
-  .goto Ashenvale,71.0,68.4
-  .turnin 6547 >>Turn in Warsong Scout Update to Warsong Scout
-
-step
-  .goto Ashenvale,70.0,71.2
-  .accept 6504 >>Accept The Lost Pages (lvl 23) from Gurda Ragescar
-
-step
-  .complete 6504 >>Finish The Lost Pages
-
-step
-  .goto Ashenvale,70.0,71.2
-  .turnin 6504 >>Turn in The Lost Pages to Gurda Ragescar
-
-step
-  .goto Ashenvale,73.1,61.5
-  .accept 6581 >>Accept Warsong Saw Blades (lvl 22) from Pixel
-
-step
-  .complete 6581 >>Finish Warsong Saw Blades
-
-step
-  .goto Ashenvale,73.1,61.5
-  .turnin 6581 >>Turn in Warsong Saw Blades to Pixel
-
-step
-  .goto Ashenvale,81.8,53.5
-  .accept 6546 >>Accept Warsong Outrider Update (lvl 25) from Warsong Outrider
-
-step
-  .complete 6546 >>Finish Warsong Outrider Update
-
-step
-  .goto Ashenvale,81.8,53.5
-  .turnin 6546 >>Turn in Warsong Outrider Update to Warsong Outrider
+  .goto Ashenvale,14.8,31.3
+  .turnin 1009 >>Turn in Ruuzel to Talen
 
 step
   .goto Ashenvale,34.7,48.8
@@ -521,16 +306,5 @@ step
 step
   .optional >>Handed in outside this zone, to Thyn'tel Bladeweaver
   .turnin 1037 >>Turn in Velinde Starsong to Thyn'tel Bladeweaver (not in this zone)
-
-step
-  .goto Ashenvale,11.6,34.3
-  .accept 908 >>Accept Amongst the Ruins (lvl 21) from Je'neu Sancrea
-
-step
-  .complete 908 >>Finish Amongst the Ruins
-
-step
-  .goto Ashenvale,11.6,34.3
-  .turnin 908 >>Turn in Amongst the Ruins to Je'neu Sancrea
 
 ]], "generated")

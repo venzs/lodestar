@@ -18,3 +18,5 @@ Alliance_Darkshore.lua
 Alliance_Redridge.lua
 Alliance_Wetlands.lua
 Alliance_Ashenvale.lua
+Alliance_Duskwood.lua
+Alliance_Hillsbrad.lua

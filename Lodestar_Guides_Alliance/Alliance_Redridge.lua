@@ -99,21 +99,30 @@ step
   .turnin 89 >>Turn in The Everstill Bridge to Foreman Oslow
 
 step
+  .class Rogue
   .goto Redridge Mountains,28.1,52.0
   .accept 2282 >>Accept Alther's Mill (lvl 16) from Lucius
 
 step
+  .class Rogue
   .complete 2282 >>Finish Alther's Mill
 
 step
+  .class Rogue
   .goto Redridge Mountains,28.1,52.0
   .turnin 2282 >>Turn in Alther's Mill to Lucius
-  .accept 2358 >>Accept Horns of Nez'ra (lvl 16) from Lucius
 
 step
+  .class Rogue
+  .goto Redridge Mountains,28.1,52.3
+  .accept 2358 >>Accept Horns of Nez'ra (lvl 16) from Arantir
+
+step
+  .class Rogue
   .complete 2358 >>Finish Horns of Nez'ra
 
 step
+  .class Rogue
   .goto Redridge Mountains,28.1,52.3
   .turnin 2358 >>Turn in Horns of Nez'ra to Arantir
 
@@ -121,19 +130,27 @@ step
   .xp 22
 
 step
+  .class Warrior
   .goto Redridge Mountains,26.6,44.7
   .accept 1699 >>Accept The Rethban Gauntlet (lvl 20) from Yorus Barleybrew
 
 step
+  .class Warrior
   .complete 1699 >>Finish The Rethban Gauntlet
 
 step
+  .class Warrior
   .goto Redridge Mountains,26.6,44.7
   .turnin 1699 >>Turn in The Rethban Gauntlet to Yorus Barleybrew
+
+step
+  .class Warrior
+  .goto Redridge Mountains,26.6,44.7
   .accept 1702 >>Accept The Shieldsmith (lvl 20) from Yorus Barleybrew
 
 step
   .optional >>Handed in outside this zone, to Furen Longbeard
+  .class Warrior
   .turnin 1702 >>Turn in The Shieldsmith to Furen Longbeard (not in this zone)
 
 step

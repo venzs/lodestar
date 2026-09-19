@@ -4,7 +4,7 @@
 -- beta harvest). Regenerate rather than hand-editing, or the next harvest will overwrite you.
 -- --regen-args: 405 --name "Horde 30-35: Desolace" --faction "Horde" --levels "30-35" --next "Horde 35-40: Stranglethorn Vale" --zone "Desolace" --max-level "37" --min-level "27"
 --
--- 46 quests on uiMapID 405 had a known giver position; 26 carried a prerequisite chain, which is
+-- 30 quests on uiMapID 405 had a known giver position; 14 carried a prerequisite chain, which is
 -- what fixes the order. Quests the data cannot place yet are not in here at all -- smart mode
 -- covers those, and they appear as soon as someone walks past their giver.
 local Guide = _G.Lodestar:GetModule("Guide")
@@ -18,142 +18,9 @@ Guide:RegisterGuide([[
 #note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.
 
 step
-  .goto Desolace,38.9,27.2
-  .accept 5741 >>Accept Sceptre of Light (lvl 30) from Azore Aldamort
-
-step
-  .complete 5741 >>Finish Sceptre of Light
-
-step
-  .goto Desolace,38.9,27.2
-  .turnin 5741 >>Turn in Sceptre of Light to Azore Aldamort
-  .accept 6027 >>Accept Book of the Ancients (lvl 30) from Azore Aldamort
-
-step
-  .complete 6027 >>Finish Book of the Ancients
-
-step
-  .goto Desolace,38.9,27.2
-  .turnin 6027 >>Turn in Book of the Ancients to Azore Aldamort
-
-step
-  .goto Desolace,66.4,11.8
-  .accept 1438 >>Accept Vahlarriel's Search (lvl 30) from Vahlarriel Demonslayer
-  .accept 1437 >>Accept Vahlarriel's Search (lvl 30) from Vahlarriel Demonslayer
-
-step
-  .goto Desolace,54.9,26.1
-  .turnin 1438 >>Turn in Vahlarriel's Search to Dalinda Malem
-
-step
-  .goto Desolace,56.5,17.8
-  .turnin 1437 >>Turn in Vahlarriel's Search
-
-step
-  .goto Desolace,54.9,26.1
-  .accept 1439 >>Accept Search for Tyranis (lvl 30) from Dalinda Malem
-
-step
-  .complete 1439 >>Finish Search for Tyranis
-
-step
-  .goto Desolace,54.9,26.1
-  .turnin 1439 >>Turn in Search for Tyranis to Dalinda Malem
-  .accept 1440 >>Accept Return to Vahlarriel (lvl 30) from Dalinda Malem
-
-step
-  .goto Desolace,66.4,11.8
-  .turnin 1440 >>Turn in Return to Vahlarriel to Vahlarriel Demonslayer
-
-step
-  .goto Desolace,66.2,9.6
-  .accept 1456 >>Accept The Karnitol Shipwreck (lvl 30) from Kreldig Ungor
-  .accept 1458 >>Accept Reagents for Reclaimers Inc. (lvl 30) from Kreldig Ungor
-  .accept 1454 >>Accept The Karnitol Shipwreck (lvl 30) from Kreldig Ungor
-
-step
-  .complete 1456 >>Finish The Karnitol Shipwreck
-
-step
-  .complete 1458 >>Finish Reagents for Reclaimers Inc.
-
-step
-  .goto Desolace,36.1,30.5
-  .turnin 1454 >>Turn in The Karnitol Shipwreck
-
-step
-  .goto Desolace,66.2,9.6
-  .turnin 1458 >>Turn in Reagents for Reclaimers Inc. to Kreldig Ungor
-  .turnin 1456 >>Turn in The Karnitol Shipwreck to Kreldig Ungor
-  .accept 1459 >>Accept Reagents for Reclaimers Inc. (lvl 30) from Kreldig Ungor
-  .accept 1457 >>Accept The Karnitol Shipwreck (lvl 30) from Kreldig Ungor
-
-step
-  .complete 1459 >>Finish Reagents for Reclaimers Inc.
-
-step
-  .goto Desolace,66.2,9.6
-  .turnin 1459 >>Turn in Reagents for Reclaimers Inc. to Kreldig Ungor
-
-step
-  .optional >>Handed in outside this zone, to Roetten Stonehammer
-  .turnin 1457 >>Turn in The Karnitol Shipwreck to Roetten Stonehammer (not in this zone)
-
-step
-  .xp 31
-
-step
-  .goto Desolace,66.2,9.6
-  .accept 1466 >>Accept Reagents for Reclaimers Inc. (lvl 30) from Kreldig Ungor
-
-step
-  .complete 1466 >>Finish Reagents for Reclaimers Inc.
-
-step
-  .goto Desolace,66.2,9.6
-  .turnin 1466 >>Turn in Reagents for Reclaimers Inc. to Kreldig Ungor
-  .accept 1467 >>Accept Reagents for Reclaimers Inc. (lvl 30) from Kreldig Ungor
-
-step
-  .optional >>Handed in outside this zone, to Roetten Stonehammer
-  .turnin 1467 >>Turn in Reagents for Reclaimers Inc. to Roetten Stonehammer (not in this zone)
-
-step
-  .goto Desolace,66.7,10.9
-  .accept 1387 >>Accept Centaur Bounty (lvl 30) from Corporal Melkins
-
-step
-  .complete 1387 >>Finish Centaur Bounty
-
-step
-  .goto Desolace,66.7,10.9
-  .turnin 1387 >>Turn in Centaur Bounty to Corporal Melkins
-  .accept 1385 >>Accept Brutal Politics (lvl 30) from Corporal Melkins
-  .accept 1382 >>Accept Strange Alliance (lvl 30) from Corporal Melkins
-
-step
-  .goto Desolace,36.2,79.2
-  .turnin 1382 >>Turn in Strange Alliance to Uthek the Wise
-
-step
-  .goto Desolace,75.0,68.2
-  .turnin 1385 >>Turn in Brutal Politics to Warug
-
-step
-  .goto Desolace,60.9,61.9
-  .accept 5561 >>Accept Kodo Roundup (lvl 30) from Smeed Scrabblescrew
-
-step
-  .complete 5561 >>Finish Kodo Roundup
-
-step
-  .goto Desolace,60.9,61.9
-  .turnin 5561 >>Turn in Kodo Roundup to Smeed Scrabblescrew
-
-step
   .goto Desolace,56.3,59.7
-  .accept 1367 >>Accept Magram Alliance (lvl 30) from Gurda Wildmane
   .accept 1368 >>Accept Gelkis Alliance (lvl 30) from Gurda Wildmane
+  .accept 1367 >>Accept Magram Alliance (lvl 30) from Gurda Wildmane
 
 step
   .goto Desolace,36.2,79.2
@@ -162,117 +29,6 @@ step
 step
   .goto Desolace,75.0,68.2
   .turnin 1367 >>Turn in Magram Alliance to Warug
-
-step
-  .xp 32
-
-step
-  .goto Desolace,75.0,68.2
-  .accept 1369 >>Accept Broken Tears (lvl 30) from Warug
-
-step
-  .complete 1369 >>Finish Broken Tears
-
-step
-  .goto Desolace,75.0,68.2
-  .turnin 1369 >>Turn in Broken Tears to Warug
-  .accept 1371 >>Accept Gizmo for Warug (lvl 30) from Warug
-
-step
-  .complete 1371 >>Finish Gizmo for Warug
-
-step
-  .goto Desolace,75.0,68.2
-  .turnin 1371 >>Turn in Gizmo for Warug to Warug
-  .accept 1375 >>Accept Khan Shaka (lvl 30) from Warug
-
-step
-  .complete 1375 >>Finish Khan Shaka
-
-step
-  .goto Desolace,75.0,68.2
-  .turnin 1375 >>Turn in Khan Shaka to Warug
-  .accept 1381 >>Accept Khan Hratha (lvl 30) from Warug
-
-step
-  .complete 1381 >>Finish Khan Hratha
-
-step
-  .goto Desolace,75.0,68.2
-  .turnin 1381 >>Turn in Khan Hratha to Warug
-
-step
-  .goto Desolace,56.2,59.6
-  .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
-
-step
-  .complete 1365 >>Finish Khan Dez'hepah
-
-step
-  .goto Desolace,56.2,59.6
-  .turnin 1365 >>Turn in Khan Dez'hepah to Felgur Twocuts
-  .accept 1366 >>Accept Centaur Bounty (lvl 30) from Felgur Twocuts
-
-step
-  .complete 1366 >>Finish Centaur Bounty
-
-step
-  .goto Desolace,56.2,59.6
-  .turnin 1366 >>Turn in Centaur Bounty to Felgur Twocuts
-
-step
-  .goto Desolace,55.4,55.8
-  .accept 5386 >>Accept Catch of the Day (lvl 32) from Nataka Longhorn
-
-step
-  .complete 5386 >>Finish Catch of the Day
-
-step
-  .goto Desolace,55.4,55.8
-  .turnin 5386 >>Turn in Catch of the Day to Nataka Longhorn
-
-step
-  .goto Desolace,52.6,54.4
-  .accept 1436 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
-  .accept 1433 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
-
-step
-  .goto Desolace,52.2,53.4
-  .turnin 1433 >>Turn in Alliance Relations to Maurin Bonesplitter
-
-step
-  .optional >>Handed in outside this zone, to Keldran
-  .turnin 1436 >>Turn in Alliance Relations to Keldran (not in this zone)
-
-step
-  .xp 33
-
-step
-  .goto Desolace,62.3,39.0
-  .accept 5501 >>Accept Bone Collector (lvl 33) from Bibbly F'utzbuckle
-
-step
-  .complete 5501 >>Finish Bone Collector
-
-step
-  .goto Desolace,62.3,39.0
-  .turnin 5501 >>Turn in Bone Collector to Bibbly F'utzbuckle
-
-step
-  .goto Desolace,88.6,46.7
-  .accept 1947 >>Accept Journey to the Marsh (lvl 30) from Ursyn Ghull
-
-step
-  .optional >>Handed in outside this zone, to Tabetha
-  .turnin 1947 >>Turn in Journey to the Marsh to Tabetha (not in this zone)
-
-step
-  .goto Desolace,88.5,48.2
-  .accept 1532 >>Accept Call of Air (lvl 30) from Xanis Flameweaver
-
-step
-  .optional >>Handed in outside this zone, to Prate Cloudseer
-  .turnin 1532 >>Turn in Call of Air to Prate Cloudseer (not in this zone)
 
 step
   .goto Desolace,36.2,79.2
@@ -310,12 +66,157 @@ step
   .turnin 1380 >>Turn in Khan Hratha to Uthek the Wise
 
 step
+  .xp 31
+
+step
   .goto Desolace,39.5,78.1
   .accept 5821 >>Accept Bodyguard for Hire (lvl 30) from Cork Gizelton
 
 step
   .goto Desolace,60.9,61.9
   .turnin 5821 >>Turn in Bodyguard for Hire to Smeed Scrabblescrew
+  .accept 5561 >>Accept Kodo Roundup (lvl 30) from Smeed Scrabblescrew
+
+step
+  .complete 5561 >>Finish Kodo Roundup
+
+step
+  .goto Desolace,60.9,61.9
+  .turnin 5561 >>Turn in Kodo Roundup to Smeed Scrabblescrew
+
+step
+  .goto Desolace,56.2,59.6
+  .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
+
+step
+  .complete 1365 >>Finish Khan Dez'hepah
+
+step
+  .goto Desolace,56.2,59.6
+  .turnin 1365 >>Turn in Khan Dez'hepah to Felgur Twocuts
+  .accept 1366 >>Accept Centaur Bounty (lvl 30) from Felgur Twocuts
+
+step
+  .complete 1366 >>Finish Centaur Bounty
+
+step
+  .goto Desolace,56.2,59.6
+  .turnin 1366 >>Turn in Centaur Bounty to Felgur Twocuts
+
+step
+  .goto Desolace,52.6,54.4
+  .accept 1436 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
+  .accept 1433 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
+
+step
+  .goto Desolace,52.2,53.4
+  .turnin 1433 >>Turn in Alliance Relations to Maurin Bonesplitter
+
+step
+  .optional >>Handed in outside this zone, to Keldran
+  .turnin 1436 >>Turn in Alliance Relations to Keldran (not in this zone)
+
+step
+  .xp 32
+
+step
+  .goto Desolace,55.4,55.8
+  .accept 5386 >>Accept Catch of the Day (lvl 32) from Nataka Longhorn
+
+step
+  .complete 5386 >>Finish Catch of the Day
+
+step
+  .goto Desolace,55.4,55.8
+  .turnin 5386 >>Turn in Catch of the Day to Nataka Longhorn
+
+step
+  .goto Desolace,75.0,68.2
+  .accept 1369 >>Accept Broken Tears (lvl 30) from Warug
+
+step
+  .complete 1369 >>Finish Broken Tears
+
+step
+  .goto Desolace,75.0,68.2
+  .turnin 1369 >>Turn in Broken Tears to Warug
+  .accept 1371 >>Accept Gizmo for Warug (lvl 30) from Warug
+
+step
+  .complete 1371 >>Finish Gizmo for Warug
+
+step
+  .goto Desolace,75.0,68.2
+  .turnin 1371 >>Turn in Gizmo for Warug to Warug
+  .accept 1375 >>Accept Khan Shaka (lvl 30) from Warug
+
+step
+  .complete 1375 >>Finish Khan Shaka
+
+step
+  .goto Desolace,75.0,68.2
+  .turnin 1375 >>Turn in Khan Shaka to Warug
+  .accept 1381 >>Accept Khan Hratha (lvl 30) from Warug
+
+step
+  .complete 1381 >>Finish Khan Hratha
+
+step
+  .goto Desolace,75.0,68.2
+  .turnin 1381 >>Turn in Khan Hratha to Warug
+
+step
+  .class Shaman
+  .goto Desolace,88.5,48.2
+  .accept 1532 >>Accept Call of Air (lvl 30) from Xanis Flameweaver
+
+step
+  .optional >>Handed in outside this zone, to Prate Cloudseer
+  .class Shaman
+  .turnin 1532 >>Turn in Call of Air to Prate Cloudseer (not in this zone)
+
+step
+  .xp 33
+
+step
+  .class Mage
+  .goto Desolace,88.6,46.7
+  .accept 1947 >>Accept Journey to the Marsh (lvl 30) from Ursyn Ghull
+
+step
+  .optional >>Handed in outside this zone, to Tabetha
+  .class Mage
+  .turnin 1947 >>Turn in Journey to the Marsh to Tabetha (not in this zone)
+
+step
+  .goto Desolace,62.3,39.0
+  .accept 5501 >>Accept Bone Collector (lvl 33) from Bibbly F'utzbuckle
+
+step
+  .complete 5501 >>Finish Bone Collector
+
+step
+  .goto Desolace,62.3,39.0
+  .turnin 5501 >>Turn in Bone Collector to Bibbly F'utzbuckle
+
+step
+  .goto Desolace,38.9,27.2
+  .accept 5741 >>Accept Sceptre of Light (lvl 30) from Azore Aldamort
+
+step
+  .complete 5741 >>Finish Sceptre of Light
+
+step
+  .goto Desolace,38.9,27.2
+  .turnin 5741 >>Turn in Sceptre of Light to Azore Aldamort
+  .accept 6027 >>Accept Book of the Ancients (lvl 30) from Azore Aldamort
+
+step
+  .complete 6027 >>Finish Book of the Ancients
+
+step
+  .goto Desolace,38.9,27.2
+  .turnin 6027 >>Turn in Book of the Ancients to Azore Aldamort
 
 step
   .goto Desolace,25.8,68.2
@@ -327,12 +228,6 @@ step
 step
   .goto Desolace,25.8,68.2
   .turnin 5381 >>Turn in Hand of Iruxos to Taiga Wisemane
-
-step
-  .xp 34
-
-step
-  .goto Desolace,25.8,68.2
   .accept 5581 >>Accept Portals of the Legion (lvl 32) from Taiga Wisemane
 
 step
@@ -341,6 +236,9 @@ step
 step
   .goto Desolace,25.8,68.2
   .turnin 5581 >>Turn in Portals of the Legion to Taiga Wisemane
+
+step
+  .xp 34
 
 step
   .goto Desolace,25.0,72.3
@@ -389,30 +287,16 @@ step
   .turnin 6134 >>Turn in Ghost-o-plasm Round Up to Hornizz Brimbuzzle
 
 step
-  .goto Desolace,66.5,7.9
-  .accept 261 >>Accept Down the Scarlet Path (lvl 34) from Brother Anton
-
-step
-  .complete 261 >>Finish Down the Scarlet Path
-
-step
-  .goto Desolace,66.5,7.9
-  .turnin 261 >>Turn in Down the Scarlet Path to Brother Anton
-  .accept 1052 >>Accept Down the Scarlet Path (lvl 34) from Brother Anton
-
-step
-  .optional >>Handed in outside this zone, to Raleigh the Devout
-  .turnin 1052 >>Turn in Down the Scarlet Path to Raleigh the Devout (not in this zone)
-
-step
   .xp 35 >>You should be 35 by now. If you are not, the rest of this zone will not be offered to you yet -- finish the optional quests above, or kill your way up, before carrying on.
 
 step
+  .class Mage
   .goto Desolace,88.6,46.7
   .accept 1953 >>Accept Return to the Marsh (lvl 35) from Ursyn Ghull
 
 step
   .optional >>Handed in outside this zone, to Tabetha
+  .class Mage
   .turnin 1953 >>Turn in Return to the Marsh to Tabetha (not in this zone)
 
 ]], "generated")

@@ -117,6 +117,7 @@ class Guide:
     next: str | None = None
     min_level: int = 1
     max_level: int = 60
+    faction: str = "Both"
     steps: list[Step] = field(default_factory=list)
     problems: list[tuple[str, int, str]] = field(default_factory=list)   # (severity, line, message)
 
@@ -148,7 +149,13 @@ def parse_guide(file: str, text: str, first_line: int) -> Guide:
             if key in ("guide", "name"):
                 g.name = value
             elif key == "next":
-                g.next = value
+                # "#next Horde: <guide>" chains per faction for a neutral race; the qualified form
+                # is not the unconditional successor, so it must not overwrite it.
+                mf = re.match(r"^(Horde|Alliance)\s*:\s*(.+)$", value, re.I)
+                if not mf:
+                    g.next = value
+            elif key == "faction":
+                g.faction = value.capitalize()
             elif key in ("levels", "level"):
                 m2 = re.match(r"(\d+)\s*-\s*(\d+)", value)
                 if m2:
@@ -249,6 +256,39 @@ def npc_positions(data, quest: dict, key: str) -> list[tuple[str, float, float, 
     return out
 
 
+def check_faction(g: Guide, data, action, quest: dict, key: str, verb: str) -> None:
+    """A route must never send a player to an NPC of the other faction.
+
+    In a contested zone the faction split is expressed by who stands there, not by a flag on the
+    quest: most Ashenvale quests carry no race restriction at all, and the difference between the
+    Alliance and Horde routes is entirely which camp gives them out. A generated "Alliance"
+    Ashenvale route once contained 22 quests taken from Horde NPCs -- Je'neu Sancrea at Zoram'gar,
+    the Warsong Lumber Camp chain, Senani Thunderheart at Splintertree -- and passed every check
+    there was, because none of them looked at the NPC.
+
+    An NPC with no recorded faction is accepted: most of the three and a half thousand of them are
+    ordinary neutral givers, and failing closed would empty the routes.
+    """
+    if g.faction not in ("Alliance", "Horde"):
+        return
+    wrong = "H" if g.faction == "Alliance" else "A"
+    s = quest.get(key) or {}
+    ids = s.get("npcs") or []
+    if not ids:
+        return
+    # A quest offered in every capital lists one NPC per city, so a wrong-faction name in the list
+    # is normal. It is only an error when NONE of them will talk to this faction.
+    usable = [e for e in (data["npcs"].get(i) or {} for i in ids) if e.get("f") != wrong]
+    if usable:
+        return
+    first = data["npcs"].get(ids[0]) or {}
+    other = "Horde" if wrong == "H" else "Alliance"
+    g.error(action.line, "%s %d (%s): every NPC who %ss it is %s-only (%s) in a %s guide"
+            % ("accept" if verb == "take" else "turnin", action.quest, quest.get("t", "?"),
+               "give" if verb == "take" else "take", other,
+               first.get("n", "#%d" % ids[0]), g.faction))
+
+
 def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[int], later_turned: set[int],
                 tolerance: float) -> None:
     quests = data["quests"]
@@ -333,12 +373,14 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
                     g.warn(a.line, f"accept {a.quest} ({title}): never turned in (this guide or the #next chain)")
                 if st.goto:
                     check_goto(g, a, st, npc_positions(data, q, "start"), tolerance, "giver")
+                    check_faction(g, data, a, q, "start", "take")
             elif a.type == "turnin":
                 if a.quest not in accepted:
                     g.error(a.line, f"turnin {a.quest} ({title}): not accepted earlier (this guide or a preceding one)")
                 turned.add(a.quest)
                 if st.goto:
                     check_goto(g, a, st, npc_positions(data, q, "end"), tolerance, "ender")
+                    check_faction(g, data, a, q, "end", "hand")
             elif a.type == "complete":
                 if a.quest not in accepted:
                     g.error(a.line, f"complete {a.quest} ({title}): not accepted earlier")
