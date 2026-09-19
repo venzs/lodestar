@@ -17,10 +17,25 @@ VERSION="${1:-$(grep -m1 '^## Version:' Lodestar/Lodestar.toc | sed 's/## Versio
 # Read the contact out of the addon rather than repeating it here: /lode share prints the same
 # string in game, and two copies of an invite link is two chances for one of them to rot.
 CONTACT="$(grep -m1 '^Lodestar.CONTACT' Lodestar/Core/Init.lua | sed 's/.*= *"//; s/"$//')"
-if echo "$CONTACT" | grep -q "not set yet"; then
-  echo "WARNING: Lodestar.CONTACT is still the placeholder." >&2
-  echo "         Testers will have nowhere to send their harvest. Edit Lodestar/Core/Init.lua." >&2
-fi
+# The contact has to be something a stranger can ACT on. A Discord server id is not: you cannot
+# join a server by its id, and discord.com/channels/<id>/... only resolves for people who are
+# already members, so a tester who reads it has nowhere to go. Same for a bare channel name or a
+# username with no server. An invite link, an email address or a URL are all actionable; anything
+# else is a dead end that would not be discovered until somebody tried to use it.
+case "$CONTACT" in
+  *"not set yet"*)
+    echo "REFUSING TO PACKAGE: Lodestar.CONTACT is still the placeholder." >&2
+    echo "  Testers would have nowhere to send their harvest, which is the whole point of the" >&2
+    echo "  build. Set it in Lodestar/Core/Init.lua." >&2
+    exit 1 ;;
+  *discord.gg/*|*discord.com/invite/*|*@*|*http://*|*https://*) ;;
+  *)
+    echo "REFUSING TO PACKAGE: Lodestar.CONTACT is not something a tester can act on:" >&2
+    echo "    $CONTACT" >&2
+    echo "  It needs an invite link (discord.gg/...), an email address, or a URL. A Discord" >&2
+    echo "  SERVER ID will not do -- nobody can join a server from its id." >&2
+    exit 1 ;;
+esac
 OUT="dist/Lodestar-${VERSION}.zip"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
