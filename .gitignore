@@ -1,16 +1,25 @@
 # editors / OS
-# generated API surface (tools/check.sh recreates it from Blizzard's UI source)
-# packager output
-# pfQuest source database downloaded by tools/pfquest/fetch.sh (regenerated, MIT upstream)
-*.pyc
-*.swp
 .DS_Store
-.idea/
-.release/
-.vscode/
 Thumbs.db
+*.swp
+.idea/
+.vscode/
 __pycache__/
-data/beta/*.lua
+*.pyc
+
+# packager output
 dist/
-tools/pfquest/src/
+.release/
+
+# generated API surface (tools/check.sh recreates it from Blizzard's UI source)
 tools/wow-api/
+
+# pfQuest source database downloaded by tools/pfquest/fetch.sh (regenerated, MIT upstream)
+tools/pfquest/src/
+
+# Raw saved-variable exports are working files: the merged JSON in data/beta/ is what the
+# database is built from and that IS tracked. The one exception is data/beta/archive/, which
+# exists precisely to preserve a session's harvest -- on this client every /reload overwrites
+# the previous one, so an archived copy is sometimes the only copy left.
+data/beta/*.lua
+!data/beta/archive/
