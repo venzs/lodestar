@@ -3684,11 +3684,45 @@ try("a route with every quest finished hands over instead of starting again", fu
 	end
 	check(rec and rec.exhausted, "with the reason recorded: " .. tostring(rec and rec.exhausted))
 
-	-- Asking for it by name still works. A finished route that bounces straight back out reads as
-	-- "it will not let me select that any more", which is not what finished should mean.
+	-- Asking for it back must work, from either route in. A finished guide that bounces straight
+	-- out reads as "it will not let me select that any more", which is not what finished means.
 	stub.slash("/lode guide load Skyborne")
 	check(G.current and G.current.name == NAME,
-		"a finished route can still be loaded on request, got " .. tostring(G.current and G.current.name))
+		"the slash command loads a finished route, got " .. tostring(G.current and G.current.name))
+
+	-- The right-click menu, driven through the real menu builder rather than by calling the
+	-- function it is supposed to use. That distinction matters: the menu was a separate call site
+	-- with the bug the slash command did not have, and a test that calls LoadGuideRequested
+	-- directly passes whether or not the menu actually calls it.
+	G:UnloadGuide()
+	local realMenu = MenuUtil.CreateContextMenu
+	local radios = {}
+	MenuUtil.CreateContextMenu = function(_, gen)
+		local root = { CreateTitle = function() end, CreateDivider = function() end,
+			CreateButton = function() return {} end, CreateCheckbox = function() end,
+			CreateRadio = function(_, label, isSelected, pick) radios[#radios + 1] = { label = label, pick = pick } end }
+		gen(nil, root)
+	end
+	G:ShowGuideMenu()
+	MenuUtil.CreateContextMenu = realMenu
+	local entry
+	for _, r in ipairs(radios) do
+		if type(r.label) == "string" and r.label:find("Zephras", 1, true) then entry = r break end
+	end
+	check(entry, "the menu lists the finished route")
+	if entry then entry.pick() end
+	check(G.current and G.current.name == NAME,
+		"and picking it from the menu selects it, got " .. tostring(G.current and G.current.name))
+
+	-- Sync has nothing to sync to. Walking it to the last step completes the route, finishes it and
+	-- ejects the player, so pressing Sync looked like the guide throwing them out.
+	local atStep = G.stepIndex
+	local beforeSync = #stub.chat
+	G:SyncToQuestLog()
+	check(G.current and G.current.name == NAME, "sync does not eject you from a finished route")
+	check(G.stepIndex == atStep, "and leaves you where you were")
+	local syncText = table.concat(stub.chat, "\n", beforeSync + 1, #stub.chat)
+	check(syncText:find("Nothing to sync to", 1, true) ~= nil, "and says why: " .. syncText:sub(1, 100))
 
 	-- And the thing that must never happen again: a completed quest is never offered back.
 	check(G:IsActionComplete({ type = "accept", questID = ids[1] }, nil),

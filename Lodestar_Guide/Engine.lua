@@ -675,6 +675,32 @@ end
 
 --- Zygor-style "suggested starting point": the step after the last one whose quest actions are all
 --- complete according to the client's completion flags. Returns startIndex, skipped.
+--- Load a route because the PLAYER asked for it, from the menu or the slash command.
+---
+--- The distinction matters and its absence was a bug. LoadGuide hands an exhausted route over to
+--- smart mode, which is right when the addon chose the route itself -- at login, or by auto-pick --
+--- and wrong when a person just clicked its name in the menu. There it bounces straight back out,
+--- and what the player sees is a menu entry that refuses to select.
+---
+--- So a requested load of a finished route is pinned to where they left off. Pinning is what makes
+--- it stick: an unpinned load re-runs the exhausted check and hands over again.
+function Guide:LoadGuideRequested(name)
+	local guide = name and self.guideByName[name]
+	if not guide then
+		Lodestar:Say("No guide called %s.", tostring(name))
+		return false
+	end
+	local finished = (self.db.char.finished or {})[guide.name]
+	local exhausted, _, total = self:RouteExhausted(guide)
+	if finished or exhausted then
+		local at = self.db.char.progress[guide.name] or 1
+		Lodestar:Say("%s: you have already finished the %d quests it covers — loading it anyway at step %d. |cffffff7f/lode guide reset|r starts it over.",
+			guide.name, total or 0, at)
+		return self:LoadGuide(guide.name, at)
+	end
+	return self:LoadGuide(guide.name)
+end
+
 --- Has this character finished everything this route knows about?
 ---
 --- Worth stating carefully, because getting it wrong cost a whole evening. A generated route
@@ -836,6 +862,17 @@ end
 --- Re-sync the current guide to the character's quest log. Returns the new step index.
 function Guide:SyncToQuestLog(silent)
 	if not self.current then return nil end
+	-- Syncing an exhausted route walks to the last step, which completes, which finishes the route
+	-- and drops the player into smart mode -- so pressing Sync looked like the route ejecting them.
+	-- There is nothing to sync to when everything is done; say that instead.
+	local exhausted, _, total = self:RouteExhausted(self.current)
+	if exhausted then
+		if not silent then
+			Lodestar:Say("Nothing to sync to: you have finished all %d quests %s covers. The zone has more — |cffffff7f/lode share|r sends what you recorded, which is what adds them.",
+				total or 0, self.current.name)
+		end
+		return self.stepIndex
+	end
 	local start, _, open = self:SuggestStartIndex(self.current)
 	if not silent then
 		if start == self.stepIndex then
@@ -1128,17 +1165,7 @@ guideVerb("load", "load a route by name (a prefix will do)", function(arg)
 		if not match and g.name:lower():find(arg:lower(), 1, true) then match = g end
 	end
 	if not match then Lodestar:Say("No guide matches '%s'.", arg) return end
-	-- Asking for a route by name is explicit, so it is honoured even when this character has already
-	-- finished it -- otherwise a finished route bounces straight back out to smart mode and reads as
-	-- "it will not let me select that any more". Pinning the step is what makes it stick: an
-	-- unpinned load re-checks whether the route is exhausted and hands over again.
-	if (Guide.db.char.finished or {})[match.name] then
-		Lodestar:Say("%s is already finished for this character — loading it anyway at step %d. |cffffff7f/lode guide reset|r starts it over.",
-			match.name, Guide.db.char.progress[match.name] or 1)
-		Guide:LoadGuide(match.name, Guide.db.char.progress[match.name] or 1)
-	else
-		Guide:LoadGuide(match.name)
-	end
+	Guide:LoadGuideRequested(match.name)
 end)
 
 guideVerb("next", "move on one step", function() Guide:NextStep() end)

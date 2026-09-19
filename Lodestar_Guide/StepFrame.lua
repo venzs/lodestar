@@ -1223,7 +1223,9 @@ function Guide:ShowGuideMenu()
 			if outleveled then label = DIM .. label .. " · outleveled|r" end
 			root:CreateRadio(label,
 				function() return self.current and self.current.name == g.name end,
-				function() self:LoadGuide(g.name) end)
+				-- Requested, not automatic: picking a route from the menu must select it even when
+				-- this character has already finished everything it covers.
+				function() self:LoadGuideRequested(g.name) end)
 		end
 		root:CreateRadio("Smart mode (no guide) — nearest turn-ins, objectives and pick-ups", function() return self.current == nil end, function() self:UnloadGuide() end)
 		root:CreateDivider()

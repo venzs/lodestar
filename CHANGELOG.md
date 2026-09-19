@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **A route you pick yourself is loaded, even when you have finished it.** Handing an exhausted
+  route over to smart mode is right when the addon chose it — at login, or by auto-pick — and wrong
+  when a person clicked its name in the menu: there it bounced straight back out, and what you saw
+  was a menu entry that refused to select and dropped you on a different zone's route instead. The
+  menu and `/lode guide load` now go through one path that honours the request and pins the step.
+- Guide: **Sync says there is nothing to sync to, instead of ejecting you.** On a route whose quests
+  are all done, syncing walked to the last step, which completed, which finished the route and
+  dropped the player into smart mode — so pressing Sync looked like the guide throwing them out.
+- The smoke test drives the right-click menu through the real menu builder rather than calling the
+  function the menu is supposed to use. The menu was a separate call site carrying a bug the slash
+  command did not have, and a test that calls the function directly passes either way.
+
 - **The loop was mine, and the client was never lying.** Read out of Abhi's saved variables at last:
   16 of the Zephras Isle route's 17 quests were in `GetAllCompletedQuestIDs`, and the per-quest flag
   agreed on every one of them. He really had finished everything the route knew about. A generated
