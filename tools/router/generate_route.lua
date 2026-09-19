@@ -147,7 +147,11 @@ for qid in pairs(V.quests or {}) do ids[qid] = true end
 
 for qid in pairs(ids) do
 	local fq, aq, vq = (F.quests or {})[qid], (A.quests or {})[qid], (V.quests or {})[qid]
+	-- Trimmed: a handful of titles in the source databases carry a trailing space ("Other Fish to
+	-- Fry "), which ends up as trailing whitespace inside the guide's long string and trips luacheck.
+	-- Better fixed where the text is read than papered over in the linter config.
 	local title = (fq and fq.t) or (vq and vq.t)
+	if type(title) == "string" then title = title:match("^%s*(.-)%s*$") end
 	local lvl = (fq and fq.lvl) or (aq and aq.lvl) or (vq and vq.lvl)
 	local giver = firstNPC(fq and fq.start) or firstNPC(aq and aq.start) or firstNPC(vq and vq.start)
 	-- The ender, and whether one is actually known. Defaulting to the giver is right for the common
@@ -181,7 +185,26 @@ for qid in pairs(ids) do
 		local at = (fq and fq.turninAt) or (aq and aq.turninAt)
 		if at and at.m == mapID then ex, ey = at[2], at[3] end
 	end
-	local prev = (aq and aq.pre) or (vq and vq.pre) or nil
+	-- Both sources' prerequisites, not whichever one answers first. They disagree: for Underbelly
+	-- Scales, ATT names quest 119 and pfQuest names 118, and taking ATT's answer alone let the route
+	-- accept it while The Price of Shoes was still in the log. Neither list is wrong, they are
+	-- partial, so the union is the real constraint.
+	local prev
+	do
+		-- Written out rather than looped over { aq.pre, vq.pre }: when ATT has no prerequisites for
+		-- a quest that list is { nil, {...} }, and ipairs stops dead at the first nil -- so pfQuest's
+		-- answer was never read for exactly the quests where it was the only answer. Warsong Saw
+		-- Blades got accepted twenty steps before Warsong Supplies because of it.
+		local seen, union = {}, {}
+		local function take(src)
+			for _, p in ipairs(src or {}) do
+				if not seen[p] then seen[p] = true union[#union + 1] = p end
+			end
+		end
+		take(aq and aq.pre)
+		take(vq and vq.pre)
+		prev = #union > 0 and union or nil
+	end
 	-- objectives: text and count from the harvest, positions from either side
 	local objectives = fq and fq.o or nil
 	local spots = (fq and fq.spots) or (aq and aq.spots) or nil
@@ -232,12 +255,32 @@ end
 
 --- Prerequisites that matter here: ones we are also going to do. A chain that starts off this map
 --- is not a constraint we can satisfy, so it is not one we should enforce.
+---
+--- pfQuest's `pre` is a list of ALTERNATIVES -- any one of them opens the quest -- so a quest is
+--- blocked only while none of the ones we are also doing has been turned in. Requiring all of them
+--- would deadlock a route wherever two branches lead to the same quest and only one is walked.
 local function blockers(q, all)
 	local out = {}
 	for _, p in ipairs(q.prev or {}) do
 		if all[p] then out[#out + 1] = p end
 	end
 	return out
+end
+
+--- True while none of the prerequisites we are also scheduling has been turned in.
+---
+--- pfQuest's `pre` is a list of alternatives: any one of them opens the quest. Requiring all of
+--- them was tried and is worse -- it deadlocks wherever two branches converge, and the deadlock
+--- fallback then schedules something genuinely out of order, which is the failure this was meant to
+--- prevent. The remaining cosmetic case (unblocked by one alternative while another is handed in
+--- later) is handled as a preference in the sort below, not as a constraint.
+local function stillBlocked(q, all, done)
+	local list = blockers(q, all)
+	if #list == 0 then return false end
+	for _, p in ipairs(list) do
+		if done[p] then return false end
+	end
+	return true
 end
 
 local pending = {}
@@ -292,16 +335,12 @@ while count > 0 and guard < 500 do
 	-- Everything whose prerequisites are already turned in.
 	local ready = {}
 	for qid, q in pairs(pending) do
-		local blocked = false
 		-- Against `quests`, the whole set, not against `pending`. A quest leaves `pending` the moment
 		-- it is ACCEPTED, so asking "is my prerequisite still pending?" answers no as soon as it has
 		-- been picked up -- and the route then schedules the dependent quest before the prerequisite
 		-- has been handed in. That is how Redridge ended up accepting Underbelly Scales while The
 		-- Price of Shoes was still in the log. `done` is the only thing that means turned in.
-		for _, p in ipairs(blockers(q, quests)) do
-			if not done[p] then blocked = true break end
-		end
-		if not blocked then ready[#ready + 1] = q end
+		if not stillBlocked(q, quests, done) then ready[#ready + 1] = q end
 	end
 	-- Of those, the ones a character this far into the zone could actually accept. If that leaves
 	-- nothing, the estimate is behind the content rather than the content being wrong, so the lowest
@@ -315,7 +354,23 @@ while count > 0 and guard < 500 do
 			inLevel[#inLevel + 1] = q
 		end
 	end
-	if #inLevel > 0 then ready = inLevel end
+	if #inLevel > 0 then
+		ready = inLevel
+	else
+		-- Nothing left that this character could accept yet. That is not a reason to schedule it
+		-- anyway and pretend: it is the moment a guide says "you should be 25 by now, and if you are
+		-- not, go and make up the difference". Raise the checkpoint to what the remaining content
+		-- actually requires and say why, which is what the hand-written routes do at the same point.
+		local needed
+		for _, q in ipairs(ready) do
+			local m = q.min or q.lvl or 1
+			if not needed or m < needed then needed = m end
+		end
+		if needed and needed > announcedLevel then
+			announcedLevel = needed
+			order[#order + 1] = { kind = "xp", level = needed, grind = true }
+		end
+	end
 	if #ready == 0 then
 		-- A cycle, or a chain whose head we cannot see: take the lowest level and carry on rather
 		-- than dropping quests silently.
@@ -330,8 +385,19 @@ while count > 0 and guard < 500 do
 	-- level of overshoot costing a percent and a half of the map is about the right trade in a zone
 	-- this size: it reorders neighbours without sending anyone across the map.
 	local OVERSHOOT_COST = 1.5
+	-- A quest something else pending is waiting on goes first, all else being close. Alternatives
+	-- mean a chain can legally be entered part way, but a route that hands in The Lost Tools twenty
+	-- steps after the quest it unlocks reads as broken even when it runs correctly. A discount
+	-- rather than a rule: it reorders neighbours without dragging the route across the zone.
+	local PREREQ_BONUS = 4
+	local neededBy = {}
+	for _, q in pairs(pending) do
+		for _, p in ipairs(q.prev or {}) do neededBy[p] = (neededBy[p] or 0) + 1 end
+	end
 	local function score(q)
-		return dist(cx, cy, q.gx, q.gy) + math.max(0, (q.lvl or 1) - level) * OVERSHOOT_COST
+		return dist(cx, cy, q.gx, q.gy)
+			+ math.max(0, (q.lvl or 1) - level) * OVERSHOOT_COST
+			- (neededBy[q.id] and PREREQ_BONUS or 0)
 	end
 	table.sort(ready, function(a, b)
 		local sa, sb = score(a), score(b)
@@ -491,7 +557,7 @@ end
 
 for _, stepRec in ipairs(order) do
 	if stepRec.kind == "xp" then
-		stops[#stops + 1] = { xp = stepRec.level, actions = {} }
+		stops[#stops + 1] = { xp = stepRec.level, grind = stepRec.grind, actions = {} }
 	elseif stepRec.kind == "hub" then
 		for _, q in ipairs(stepRec.quests) do
 			addStop(stepRec.x, stepRec.y, stepRec.npc, { kind = "accept", q = q })
@@ -531,7 +597,14 @@ for i, stop in ipairs(stops) do
 	local who = npcName(stop.npc)
 	if i > 1 then w("") end
 	w("step")
-	if stop.xp then w("  .xp %d", stop.xp) end
+	if stop.xp then
+		if stop.grind then
+			w("  .xp %d >>You should be %d by now. If you are not, the rest of this zone will not be offered to you yet -- finish the optional quests above, or kill your way up, before carrying on.",
+				stop.xp, stop.xp)
+		else
+			w("  .xp %d", stop.xp)
+		end
+	end
 	-- A checkpoint stop carries no actions at all, so "every action is off-map" is vacuously true
 	-- for it. Require at least one.
 	local offMapOnly = #stop.actions > 0

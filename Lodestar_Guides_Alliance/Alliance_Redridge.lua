@@ -18,81 +18,16 @@ Guide:RegisterGuide([[
 #note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.
 
 step
-  .goto Redridge Mountains,30.0,44.5
-  .accept 143 >>Accept Messenger to Westfall (lvl 14) from Magistrate Solomon
-  .accept 120 >>Accept Messenger to Stormwind (lvl 14) from Magistrate Solomon
-  .accept 145 >>Accept Messenger to Darkshire (lvl 18) from Magistrate Solomon
+  .goto Redridge Mountains,31.0,47.3
+  .accept 118 >>Accept The Price of Shoes (lvl 14) from Verner Osgood
 
 step
-  .optional >>Handed in outside this zone, to Gryan Stoutmantle
-  .turnin 143 >>Turn in Messenger to Westfall to Gryan Stoutmantle (not in this zone)
-
-step
-  .optional >>Handed in outside this zone, to General Marcus Jonathan
-  .turnin 120 >>Turn in Messenger to Stormwind to General Marcus Jonathan (not in this zone)
-
-step
-  .optional >>Handed in outside this zone, to Lord Ello Ebonlocke
-  .turnin 145 >>Turn in Messenger to Darkshire to Lord Ello Ebonlocke (not in this zone)
-
-step
-  .goto Redridge Mountains,29.7,44.3
-  .accept 91 >>Accept Solomon's Law (lvl 17) from Bailiff Conacher
-
-step
-  .complete 91 >>Finish Solomon's Law
-
-step
-  .goto Redridge Mountains,29.7,44.3
-  .turnin 91 >>Turn in Solomon's Law to Bailiff Conacher
-
-step
-  .goto Redridge Mountains,26.6,44.7
-  .accept 1699 >>Accept The Rethban Gauntlet (lvl 20) from Yorus Barleybrew
-
-step
-  .complete 1699 >>Finish The Rethban Gauntlet
-
-step
-  .goto Redridge Mountains,26.6,44.7
-  .turnin 1699 >>Turn in The Rethban Gauntlet to Yorus Barleybrew
-  .accept 1702 >>Accept The Shieldsmith (lvl 20) from Yorus Barleybrew
-
-step
-  .optional >>Handed in outside this zone, to Furen Longbeard
-  .turnin 1702 >>Turn in The Shieldsmith to Furen Longbeard (not in this zone)
-
-step
-  .xp 21
-
-step
-  .goto Redridge Mountains,26.5,45.3
-  .accept 132 >>Accept The Defias Brotherhood (lvl 14) from Wiley the Black
-
-step
-  .optional >>Handed in outside this zone, to Gryan Stoutmantle
-  .turnin 132 >>Turn in The Defias Brotherhood to Gryan Stoutmantle (not in this zone)
-
-step
-  .goto Redridge Mountains,27.7,47.4
-  .accept 127 >>Accept Selling Fish (lvl 16) from Dockmaster Baren
-  .accept 150 >>Accept Murloc Poachers (lvl 20) from Dockmaster Baren
-
-step
-  .complete 127 >>Finish Selling Fish
-
-step
-  .complete 150 >>Finish Murloc Poachers
-
-step
-  .goto Redridge Mountains,27.7,47.4
-  .turnin 127 >>Turn in Selling Fish to Dockmaster Baren
-  .turnin 150 >>Turn in Murloc Poachers to Dockmaster Baren
+  .optional >>Handed in outside this zone, to Smith Argus
+  .turnin 118 >>Turn in The Price of Shoes to Smith Argus (not in this zone)
 
 step
   .goto Redridge Mountains,31.0,47.3
   .accept 122 >>Accept Underbelly Scales (lvl 14) from Verner Osgood
-  .accept 118 >>Accept The Price of Shoes (lvl 14) from Verner Osgood
   .accept 124 >>Accept A Baying of Gnolls (lvl 15) from Verner Osgood
 
 step
@@ -104,28 +39,7 @@ step
 step
   .goto Redridge Mountains,31.0,47.3
   .turnin 122 >>Turn in Underbelly Scales to Verner Osgood
-
-step
-  .optional >>Handed in outside this zone, to Smith Argus
-  .turnin 118 >>Turn in The Price of Shoes to Smith Argus (not in this zone)
-
-step
-  .goto Redridge Mountains,31.0,47.3
   .turnin 124 >>Turn in A Baying of Gnolls to Verner Osgood
-
-step
-  .xp 22
-
-step
-  .goto Redridge Mountains,31.0,47.3
-  .accept 126 >>Accept Howling in the Hills (lvl 15) from Verner Osgood
-
-step
-  .complete 126 >>Finish Howling in the Hills
-
-step
-  .goto Redridge Mountains,31.0,47.3
-  .turnin 126 >>Turn in Howling in the Hills to Verner Osgood
 
 step
   .goto Redridge Mountains,32.1,48.6
@@ -144,20 +58,6 @@ step
   .turnin 347 >>Turn in Rethban Ore to Brother Paxton (not in this zone)
 
 step
-  .goto Redridge Mountains,32.1,48.6
-  .accept 89 >>Accept The Everstill Bridge (lvl 15) from Foreman Oslow
-
-step
-  .complete 89 >>Finish The Everstill Bridge
-
-step
-  .goto Redridge Mountains,32.1,48.6
-  .turnin 89 >>Turn in The Everstill Bridge to Foreman Oslow
-
-step
-  .xp 23
-
-step
   .goto Redridge Mountains,33.5,49.0
   .accept 20 >>Accept Blackrock Menace (lvl 18) from Marshal Marris
 
@@ -167,6 +67,12 @@ step
 step
   .goto Redridge Mountains,33.5,49.0
   .turnin 20 >>Turn in Blackrock Menace to Marshal Marris
+
+step
+  .xp 21
+
+step
+  .goto Redridge Mountains,33.5,49.0
   .accept 115 >>Accept Shadow Magic (lvl 18) from Marshal Marris
   .accept 19 >>Accept Tharil'zun (lvl 18) from Marshal Marris
 
@@ -180,6 +86,17 @@ step
   .goto Redridge Mountains,33.5,49.0
   .turnin 115 >>Turn in Shadow Magic to Marshal Marris
   .turnin 19 >>Turn in Tharil'zun to Marshal Marris
+
+step
+  .goto Redridge Mountains,32.1,48.6
+  .accept 89 >>Accept The Everstill Bridge (lvl 15) from Foreman Oslow
+
+step
+  .complete 89 >>Finish The Everstill Bridge
+
+step
+  .goto Redridge Mountains,32.1,48.6
+  .turnin 89 >>Turn in The Everstill Bridge to Foreman Oslow
 
 step
   .goto Redridge Mountains,28.1,52.0
@@ -201,7 +118,31 @@ step
   .turnin 2358 >>Turn in Horns of Nez'ra to Arantir
 
 step
-  .xp 24
+  .xp 22
+
+step
+  .goto Redridge Mountains,26.6,44.7
+  .accept 1699 >>Accept The Rethban Gauntlet (lvl 20) from Yorus Barleybrew
+
+step
+  .complete 1699 >>Finish The Rethban Gauntlet
+
+step
+  .goto Redridge Mountains,26.6,44.7
+  .turnin 1699 >>Turn in The Rethban Gauntlet to Yorus Barleybrew
+  .accept 1702 >>Accept The Shieldsmith (lvl 20) from Yorus Barleybrew
+
+step
+  .optional >>Handed in outside this zone, to Furen Longbeard
+  .turnin 1702 >>Turn in The Shieldsmith to Furen Longbeard (not in this zone)
+
+step
+  .goto Redridge Mountains,26.5,45.3
+  .accept 132 >>Accept The Defias Brotherhood (lvl 14) from Wiley the Black
+
+step
+  .optional >>Handed in outside this zone, to Gryan Stoutmantle
+  .turnin 132 >>Turn in The Defias Brotherhood to Gryan Stoutmantle (not in this zone)
 
 step
   .goto Redridge Mountains,26.3,46.6
@@ -215,15 +156,66 @@ step
   .turnin 386 >>Turn in What Comes Around... to Guard Berton
 
 step
-  .goto Redridge Mountains,21.9,46.3
-  .accept 34 >>Accept An Unwelcome Guest (lvl 18) from Martie Jainrose
+  .goto Redridge Mountains,27.7,47.4
+  .accept 127 >>Accept Selling Fish (lvl 16) from Dockmaster Baren
+  .accept 150 >>Accept Murloc Poachers (lvl 20) from Dockmaster Baren
 
 step
-  .complete 34 >>Finish An Unwelcome Guest
+  .complete 127 >>Finish Selling Fish
 
 step
-  .goto Redridge Mountains,21.9,46.3
-  .turnin 34 >>Turn in An Unwelcome Guest to Martie Jainrose
+  .complete 150 >>Finish Murloc Poachers
+
+step
+  .goto Redridge Mountains,27.7,47.4
+  .turnin 127 >>Turn in Selling Fish to Dockmaster Baren
+  .turnin 150 >>Turn in Murloc Poachers to Dockmaster Baren
+
+step
+  .xp 23
+
+step
+  .goto Redridge Mountains,31.0,47.3
+  .accept 126 >>Accept Howling in the Hills (lvl 15) from Verner Osgood
+
+step
+  .complete 126 >>Finish Howling in the Hills
+
+step
+  .goto Redridge Mountains,31.0,47.3
+  .turnin 126 >>Turn in Howling in the Hills to Verner Osgood
+
+step
+  .goto Redridge Mountains,30.0,44.5
+  .accept 120 >>Accept Messenger to Stormwind (lvl 14) from Magistrate Solomon
+  .accept 143 >>Accept Messenger to Westfall (lvl 14) from Magistrate Solomon
+  .accept 145 >>Accept Messenger to Darkshire (lvl 18) from Magistrate Solomon
+
+step
+  .optional >>Handed in outside this zone, to General Marcus Jonathan
+  .turnin 120 >>Turn in Messenger to Stormwind to General Marcus Jonathan (not in this zone)
+
+step
+  .optional >>Handed in outside this zone, to Gryan Stoutmantle
+  .turnin 143 >>Turn in Messenger to Westfall to Gryan Stoutmantle (not in this zone)
+
+step
+  .optional >>Handed in outside this zone, to Lord Ello Ebonlocke
+  .turnin 145 >>Turn in Messenger to Darkshire to Lord Ello Ebonlocke (not in this zone)
+
+step
+  .xp 24
+
+step
+  .goto Redridge Mountains,29.7,44.3
+  .accept 91 >>Accept Solomon's Law (lvl 17) from Bailiff Conacher
+
+step
+  .complete 91 >>Finish Solomon's Law
+
+step
+  .goto Redridge Mountains,29.7,44.3
+  .turnin 91 >>Turn in Solomon's Law to Bailiff Conacher
 
 step
   .goto Redridge Mountains,22.7,43.8
@@ -235,6 +227,17 @@ step
 step
   .goto Redridge Mountains,22.7,43.8
   .turnin 92 >>Turn in Redridge Goulash to Chef Breanna
+
+step
+  .goto Redridge Mountains,21.9,46.3
+  .accept 34 >>Accept An Unwelcome Guest (lvl 18) from Martie Jainrose
+
+step
+  .complete 34 >>Finish An Unwelcome Guest
+
+step
+  .goto Redridge Mountains,21.9,46.3
+  .turnin 34 >>Turn in An Unwelcome Guest to Martie Jainrose
 
 step
   .goto Redridge Mountains,31.5,57.9

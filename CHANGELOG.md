@@ -20,6 +20,10 @@
   `#next Alliance: <guide>` sit alongside the plain `#next`, because the Skyborne pick a side at
   creation and level 12 sends the two halves of the race to different continents. Zephras Isle had no
   successor at all, so a Skyborne reached 12 and fell into smart mode with no route.
+- **Four routes that were referenced but did not exist.** Every `#next` in the packs now leads
+  somewhere: Redridge Mountains, Wetlands and Ashenvale for Alliance (20-25), Desolace for Horde
+  (30-35). Alliance levelling stopped dead at 20 and Horde at 30, which is not a levelling suite.
+  All four are generated, and all twenty-one routes now lint with zero errors.
 - **The route generator can read the vanilla database at last.** It only ever unioned the harvest and
   ATT, never pfQuest's 4,400 quests, and its position lookup understood only the harvest's coordinate
   shape — so every vanilla zone generated an empty route regardless of the map id it was given. With
