@@ -126,11 +126,35 @@ end
 
 local function guideTarget()
 	local step = Guide:CurrentStep()
-	if not (step and step.go) then return nil end
-	local mapID = Guide:ResolveMap(step.go.map)
-	if not mapID then return nil end
-	return { kind = "guide", mapID = mapID, x = step.go.x / 100, y = step.go.y / 100,
-		title = Guide:StepText(step), subtitle = "Guide step " .. step.index, radius = step.go.radius }
+	if not step then return nil end
+	if step.go then
+		local mapID = Guide:ResolveMap(step.go.map)
+		if not mapID then return nil end
+		return { kind = "guide", mapID = mapID, x = step.go.x / 100, y = step.go.y / 100,
+			title = Guide:StepText(step), subtitle = "Guide step " .. step.index, radius = step.go.radius }
+	end
+
+	-- No position written on the step. A generated route leaves these behind wherever nobody has
+	-- recorded where an objective actually happens, and the generator will not invent coordinates --
+	-- pointing an arrow at a guess is worse than saying nothing. But the harvest frequently knows
+	-- anyway: the client's own next-objective waypoint answers for any quest in the log, so a step
+	-- reading "Ursera Scavenger slain x8" can still be pointed at even though the route has no
+	-- coordinates for it. Switching the arrow off here was leaving the player with a kill count and
+	-- no direction at all.
+	if not Guide.HarvestQuestPosition then return nil end
+	for _, a in ipairs(step.actions or {}) do
+		if a.questID then
+			local ok, mapID, x, y, how = pcall(Guide.HarvestQuestPosition, Guide, a.questID, a.type == "turnin")
+			if ok and mapID and x and y then
+				return { kind = "guide", mapID = mapID, x = x, y = y, title = Guide:StepText(step),
+					-- Say where the position came from: "approximate" is honest about a client
+					-- waypoint, which moves as the quest progresses and is not a surveyed spot.
+					subtitle = ("Guide step %d · %s"):format(step.index,
+						how == "waypoint" and "approximate" or "from harvested data") }
+			end
+		end
+	end
+	return nil
 end
 
 local function waypointTarget()

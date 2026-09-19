@@ -3330,6 +3330,53 @@ try("guide load before the completed list arrives", function()
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = wasProgress
 end)
 
+-- A guide step with no .goto must still point somewhere if the addon knows where to go.
+--
+-- Three of the thirty-six Zephras steps carry a quest but no position, because nobody has recorded
+-- where that objective happens -- the route generator will not invent coordinates. Landing on one
+-- used to mean the arrow simply switched off: "Ursera Scavenger slain x8" and no direction at all.
+-- But the harvest DOES know, from the client's own next-objective waypoint, the moment the quest is
+-- in the log. The arrow just never asked.
+try("arrow falls back to the quest position on a step with no goto", function()
+	local wasLog, wasMode = stub.questLog, G.db.profile.arrow.mode
+	local wasCurrent, wasIndex = G.current, G.stepIndex
+	G.db.profile.arrow.mode = "GUIDE"
+
+	local text = [[
+#guide Nogoto test
+#faction Both
+
+step
+  .goto 18,30.0,60.0
+  .accept 8901 >>Accept the thing
+
+step
+  .complete 8901 >>Kill eight of them
+]]
+	G:RegisterGuide(text, "test")
+	stub.questLog = { [8901] = { title = "The Thing", complete = false,
+		objectives = { { text = "slain: 0/8", finished = false } },
+		wp = { map = 18, x = 0.44, y = 0.52 } } }
+	G:LoadGuide("Nogoto test", 2)
+	local step = G:CurrentStep()
+	check(step and not step.go, "the test step really has no .goto")
+
+	-- The waypoint sweep is what teaches the harvest where this objective is.
+	G:HarvestWaypoints()
+	check(G:HarvestQuestPosition(8901, false) ~= nil, "the harvest knows where 8901 is")
+
+	G:RetargetArrow()
+	local t = G:GetArrowTarget()
+	check(t and t.kind == "guide", "the arrow still has a guide target on a step with no goto: " .. tostring(t and t.kind))
+	check(t and t.mapID == 18 and math.abs(t.x - 0.44) < 0.005,
+		("and it points at the quest objective, got %s %s,%s")
+			:format(tostring(t and t.mapID), tostring(t and t.x), tostring(t and t.y)))
+
+	stub.questLog = wasLog
+	G.db.profile.arrow.mode = wasMode
+	G.current, G.stepIndex = wasCurrent, wasIndex
+end)
+
 -- Saved progress pointing at a step that cannot be acted on.
 --
 -- Taken from a real session: guide progress saved as step 29 of the Zephras route, which is
