@@ -295,16 +295,63 @@ end
 -- The file ------------------------------------------------------------------------------------------
 
 --- `/lode share`: where the harvest lives on disk and what is in it.
+--- Everything a contributor needs, in a box they can select and copy.
+---
+--- The old version printed the path into chat with "<ACCOUNT>" left as a placeholder, because the
+--- client genuinely will not tell an addon its account folder name. That is a puzzle to solve before
+--- you can help, and a puzzle in the way of an unpaid favour is a favour that does not happen. So:
+--- search by filename instead, which needs no path at all and works on any machine, and put the
+--- whole thing in a copy box rather than four chat lines that scroll away.
 function Guide:HarvestShareInfo()
 	local sum = self:HarvestSummary()
 	local _, build = GetBuildInfo()
-	Lodestar:Say("Your harvest is one file inside the World of Warcraft folder:")
-	Lodestar:Say("  |cffffffffWTF\\Account\\<ACCOUNT>\\SavedVariables\\Lodestar_Guide.lua|r")
-	Lodestar:Say("  |cff999999<ACCOUNT> is your account's folder — the client does not tell addons its name. It is the one folder under WTF\\Account that is not 'SavedVariables', usually your login in capitals.|r")
-	Lodestar:Say("In it: |cffffffff%d|r quests, |cffffffff%d|r NPCs (%d with an exact position), |cffffffff%d|r objects, |cffffffff%d|r flight nodes, |cffffffff%d|r level XP values, from |cffffffff%d|r contributor%s. Client build %s.",
-		sum.quests, sum.npcs, sum.positions, sum.objects, sum.taxi, sum.levels, sum.contributors, sum.contributors == 1 and "" or "s", tostring(build))
-	Lodestar:Say("|cffff9933Type /reload first|r — SavedVariables are only written to disk on /reload or logout, so a copy taken before that is stale.")
-	Lodestar:Say("Then send that one file. |cffffff7f/lode harvest|r shows the same counts; |cffffff7f/lode harvest restore|r undoes an accidental wipe.")
+	local lines = {
+		"Lodestar — sending your harvested world data",
+		"",
+		("This session's file holds %d quests, %d NPCs (%d with an exact position), %d objects,")
+			:format(sum.quests, sum.npcs, sum.positions, sum.objects),
+		("%d flight points and %d level XP values. Client build %s.")
+			:format(sum.taxi, sum.levels, tostring(build)),
+		"",
+		"1. Type /reload  (the file is only written on /reload or logout — a copy taken",
+		"   before that is stale and will be empty)",
+		"2. Find the file. The simplest way is to search your World of Warcraft folder",
+		"   for its name rather than hunting for the path:",
+		"",
+		"        Lodestar_Guide.lua",
+		"",
+		"   It lives in WTF\\Account\\<YOUR ACCOUNT>\\SavedVariables\\ . The client does not",
+		"   tell addons the account folder's name, which is why searching is easier.",
+		"",
+		"3. Send that one file to:",
+		"",
+		"        " .. Lodestar.CONTACT,
+		"",
+		"What is in it: NPC and object positions, quest ids, titles, objective text,",
+		"flight points and XP per level.",
+		"What is not: your character name, gold, gear, bags, guild, friends, chat, or",
+		"anything you typed. /lode harvest off stops the recording entirely and every",
+		"other part of Lodestar keeps working.",
+	}
+	Lodestar:ShowCopyBox(table.concat(lines, "\n"), "Sending your harvest")
+	Lodestar:Say("Harvest: |cffffffff%d|r quests, |cffffffff%d|r NPCs (%d placed), |cffffffff%d|r flight points. Instructions are in the window — |cffff9933/reload first|r.",
+		sum.quests, sum.npcs, sum.positions, sum.taxi)
+end
+
+-- A nudge, once per session, when this character has recorded enough to be worth sending.
+--
+-- Nobody types /lode share unprompted, and the file is overwritten by the next /reload, so a
+-- session's work is lost unless the player is told while they are still looking at the screen. Once
+-- only, and never for a session that recorded nothing.
+local NUDGE_AT = 25          -- newly placed NPCs or objects this session
+local nudged = false
+
+function Guide:MaybeNudgeShare(placedThisSession)
+	if nudged or self.db.profile.harvest.nudge == false then return end
+	if (placedThisSession or 0) < NUDGE_AT then return end
+	nudged = true
+	Lodestar:Msg("You have recorded |cffffffff%d|r new positions this session — these are places no public database has. |cffffff7f/lode share|r explains how to send them (it takes about a minute).",
+		placedThisSession)
 end
 
 function Guide:EnableShare()
@@ -330,6 +377,13 @@ end
 
 if type(Guide.options) == "table" then
 	Guide.options.harvestHeader = { type = "header", order = 50, name = "Harvested world data" }
+	Guide.options.harvestNudge = {
+		type = "toggle", order = 52, width = "full",
+		name = "Remind me to send my recordings",
+		desc = "Once per session, when this character has recorded a useful number of new positions, say so and point at /lode share. Never more than once, and never for a session that recorded nothing.",
+		get = function() return Guide.db.profile.harvest.nudge ~= false end,
+		set = function(_, v) Guide.db.profile.harvest.nudge = v and true or false end,
+	}
 	Guide.options.harvestDesc = {
 		type = "description", order = 51, fontSize = "medium",
 		name = function()

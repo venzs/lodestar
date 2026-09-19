@@ -31,6 +31,10 @@ Guide.defaults = {
 		},
 		harvest = {
 			share = true,          -- offer newly harvested facts to guild/party over the addon channel (Share.lua)
+			-- Say once per session when this character has recorded enough to be worth sending on.
+			-- Separate from `share` on purpose: that one is about the live addon-message channel,
+			-- this one is about the file, and a player may well want one without the other.
+			nudge = true,
 		},
 		travel = {
 			hints = true,          -- "Hearth to Brill, then 240 yd" on the arrow when it beats running

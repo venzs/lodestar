@@ -1921,10 +1921,33 @@ try("harvest share", function()
 	local before = #stub.chat
 	stub.slash("/lode share")
 	local text = table.concat(stub.chat, "\n", before + 1, #stub.chat)
-	check(text:find("WTF\\Account\\<ACCOUNT>\\SavedVariables\\Lodestar_Guide.lua", 1, true) ~= nil, "share prints the file path: " .. text)
-	check(text:find("does not tell addons", 1, true) ~= nil, "share says the account folder name is not knowable from an addon")
 	check(text:find(sum.quests .. "|r quests", 1, true) ~= nil and text:find(sum.npcs .. "|r NPCs", 1, true) ~= nil, "share prints the counts: " .. text)
 	check(text:find("/reload", 1, true) ~= nil, "share reminds you to /reload first")
+
+	-- The instructions themselves go in a copy box, not into chat: four lines of path and caveat
+	-- scroll away while the player is reading the first one, and a path you cannot select is a path
+	-- you have to retype.
+	-- The stub's frames remember what SetText wrote, so the box's contents are readable exactly as
+	-- the player would see them.
+	local box = _G.LodestarCopyFrame
+	check(box and box.shown and box.edit and box.edit.text, "share opens a copy box")
+	local b = (box and box.edit and box.edit.text) or ""
+	check(b:find("Lodestar_Guide.lua", 1, true) ~= nil, "the box names the file to send")
+	check(b:find("search your World of Warcraft folder", 1, true) ~= nil,
+		"and says to search for it, since the client will not tell an addon the account folder")
+	check(b:find("/reload", 1, true) ~= nil, "and to /reload before copying it")
+	check(b:find(Lodestar.CONTACT, 1, true) ~= nil, "and where to send it")
+	check(b:find("not: your character name", 1, true) ~= nil, "and what is NOT in the file")
+
+	-- The nudge fires once, only past the threshold, and never twice.
+	local beforeNudge = #stub.chat
+	G:MaybeNudgeShare(3)
+	check(#stub.chat == beforeNudge, "no nudge for a session that recorded almost nothing")
+	G:MaybeNudgeShare(40)
+	check(#stub.chat > beforeNudge, "a session worth sending is nudged once")
+	local afterFirst = #stub.chat
+	G:MaybeNudgeShare(80)
+	check(#stub.chat == afterFirst, "and never nudged again in the same session")
 	local lines = {}
 	local tt = { AddDoubleLine = function(_, l, r) lines[l] = r end, AddLine = function() end }
 	for _, fn in ipairs(Lodestar.tooltipProviders) do fn(tt) end

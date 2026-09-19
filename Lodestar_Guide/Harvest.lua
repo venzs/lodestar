@@ -346,6 +346,12 @@ local function noteUnit(unit, exact)
 		-- Zone names cost two C calls; only ask when a position is actually going to be written. Every
 		-- nameplate in a pull comes through here.
 		if exact then
+			-- Count only the first time this one is placed: walking past the same NPC twenty times
+			-- is one contribution, and a nudge that fires on a busy pull is a nudge people mute.
+			if not e.exact then
+				Guide.placedThisSession = (Guide.placedThisSession or 0) + 1
+				if Guide.MaybeNudgeShare then Guide:MaybeNudgeShare(Guide.placedThisSession) end
+			end
 			e.map, e.x, e.y, e.exact = mapID, x, y, true
 			e.via = nil                                   -- seen first-hand: no longer second-hand
 			local zone, sub = zoneText()
