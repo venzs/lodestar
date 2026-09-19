@@ -966,6 +966,12 @@ function Guide:EngineOnEvent(event, ...)
 	elseif event == "ITEM_DATA_LOAD_RESULT" then
 		self:RefreshStepFrame()
 	end
+	if event == "GOSSIP_SHOW" or event == "QUEST_GREETING" then
+		-- Asked once per dialogue: the only moment the client will say what this NPC has for this
+		-- particular character.
+		local ok, err = pcall(self.CheckStepOnOffer, self, event)
+		if not ok then Lodestar:Debug("on-offer check: %s", tostring(err)) end
+	end
 	-- Any quest event can move a quest into or out of the completed set, and the cached copy is
 	-- read by every completion check in the engine. Five seconds of staleness is invisible in a
 	-- quiet moment and very visible in the second after a turn-in.
@@ -1122,75 +1128,115 @@ end
 
 -- Slash ----------------------------------------------------------------------------------------------
 
+-- Every /lode guide sub-command, in one table.
+--
+-- This used to be a chain of elseifs with a hand-written usage line at the bottom, and the usage
+-- line went stale the moment a command was added: `why` and `completed` both existed and neither was
+-- listed. Somebody told to run `/lode guide completed` saw a usage message that did not mention it
+-- and reasonably concluded the command was not real. The list below is the dispatch table AND the
+-- help text, so the two cannot disagree.
+local GUIDE_VERBS = {}
+local GUIDE_ORDER = {}
+
+local function guideVerb(name, help, fn, ...)
+	GUIDE_ORDER[#GUIDE_ORDER + 1] = name
+	GUIDE_VERBS[name] = { help = help, fn = fn }
+	for _, alias in ipairs({ ... }) do GUIDE_VERBS[alias] = { fn = fn, alias = name } end
+end
+
+guideVerb("toggle", "show or hide the route window", function()
+	Guide.db.profile.steps.show = not Guide.db.profile.steps.show
+	Guide:UpdateStepFrame()
+end)
+
+guideVerb("list", "every installed route, and where this character is in it", function()
+	if #Guide.guides == 0 then Lodestar:Say("No guides installed.") return end
+	local pf = Guide:PlayerFilters()
+	for _, g in ipairs(Guide.guides) do
+		local ok = guideApplies(g, pf, true)
+		local progress = Guide.db.char.progress[g.name]
+		Lodestar:Say("  %s%s|r — %d steps%s%s%s", ok and "|cffffffff" or "|cff888888", g.name, #g.steps,
+			g.minLevel and (" · levels " .. g.minLevel .. "-" .. g.maxLevel) or "",
+			progress and (" · at step " .. progress) or "",
+			g.pack and (" · " .. g.pack) or "")
+	end
+end)
+
+guideVerb("load", "load a route by name (a prefix will do)", function(arg)
+	if not arg or arg == "" then Lodestar:Say("Usage: /lode guide load <guide name>") return end
+	local match
+	for _, g in ipairs(Guide.guides) do
+		if g.name:lower() == arg:lower() then match = g break end
+		if not match and g.name:lower():find(arg:lower(), 1, true) then match = g end
+	end
+	if match then Guide:LoadGuide(match.name) else Lodestar:Say("No guide matches '%s'.", arg) end
+end)
+
+guideVerb("next", "move on one step", function() Guide:NextStep() end)
+guideVerb("prev", "go back one step", function() Guide:PrevStep() end, "back")
+
+guideVerb("step", "jump to a step number", function(arg)
+	local n = tonumber(arg)
+	if n then Guide:SetStep(n) Guide:EvaluateStep() else Lodestar:Say("Usage: /lode guide step <number>") end
+end)
+
+guideVerb("reset", "start the current route again from step 1", function()
+	if Guide.current then
+		local name = Guide.current.name
+		Guide.db.char.progress[name] = 1
+		if Guide.db.char.finished then Guide.db.char.finished[name] = nil end
+		Guide:LoadGuide(name, 1)
+	end
+end)
+
+guideVerb("auto", "pick the best route for this character", function()
+	local g = Guide:PickGuide()
+	if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character; using smart mode.") Guide:UnloadGuide() end
+end)
+
+guideVerb("why", "what the guide decided, and what it decided it from", function() Guide:PrintWhy() end)
+guideVerb("completed", "what each of the client's two answers says about this route's quests",
+	function() Guide:PrintCompleted() end)
+
+guideVerb("sync", "jump to where your quest log says you are", function()
+	if Guide.current then Guide:SyncToQuestLog() else Lodestar:Say("No guide loaded — smart mode is already built from your quest log.") end
+end)
+
+guideVerb("smart", "leave the route; use nearest turn-ins and objectives", function()
+	Guide:UnloadGuide()
+	Lodestar:Say("Smart mode: nearest turn-ins, objectives and quest givers.")
+end, "unload")
+
+guideVerb("nextup", "the next few steps", function() Guide:PrintNextUp() end, "up")
+
+guideVerb("completionist", "show optional steps, or skip them (on|off)", function(arg)
+	local on
+	if arg == "on" then on = true elseif arg == "off" then on = false else on = not Guide.db.profile.steps.completionist end
+	Guide:SetCompletionist(on)
+end, "optional")
+
+guideVerb("train", "where the class trainer is, if you have spells to learn", function()
+	local t = Guide:TrainerSuggestion(true)
+	if t then
+		Lodestar:Say("New level %d spells: %s is %d yd away.", t.level, t.name or ("NPC " .. tostring(t.npcID)), math.floor(t.dist))
+	else
+		Lodestar:Say("No class trainer suggestion right now (last trained at level %s).", tostring(Guide.db.char.lastTrainedLevel or "never"))
+	end
+end)
+
+guideVerb("diag", "dump quest, arrow and harvest state for a bug report", function() Guide:Diagnose() end)
+
 local function handleGuideSlash(rest)
 	local verb, arg = strsplit(" ", strtrim(rest or ""), 2)
 	verb = (verb or ""):lower()
-	if verb == "" or verb == "toggle" then
-		Guide.db.profile.steps.show = not Guide.db.profile.steps.show
-		Guide:UpdateStepFrame()
-	elseif verb == "list" then
-		if #Guide.guides == 0 then Lodestar:Say("No guides installed.") return end
-		local pf = Guide:PlayerFilters()
-		for _, g in ipairs(Guide.guides) do
-			local ok = guideApplies(g, pf, true)
-			local progress = Guide.db.char.progress[g.name]
-			Lodestar:Say("  %s%s|r — %d steps%s%s%s", ok and "|cffffffff" or "|cff888888", g.name, #g.steps,
-				g.minLevel and (" · levels " .. g.minLevel .. "-" .. g.maxLevel) or "",
-				progress and (" · at step " .. progress) or "",
-				g.pack and (" · " .. g.pack) or "")
-		end
-	elseif verb == "load" then
-		if not arg or arg == "" then Lodestar:Say("Usage: /lode guide load <guide name>") return end
-		-- allow a case-insensitive prefix match
-		local match
-		for _, g in ipairs(Guide.guides) do
-			if g.name:lower() == arg:lower() then match = g break end
-			if not match and g.name:lower():find(arg:lower(), 1, true) then match = g end
-		end
-		if match then Guide:LoadGuide(match.name) else Lodestar:Say("No guide matches '%s'.", arg) end
-	elseif verb == "next" then
-		Guide:NextStep()
-	elseif verb == "prev" or verb == "back" then
-		Guide:PrevStep()
-	elseif verb == "step" then
-		local n = tonumber(arg)
-		if n then Guide:SetStep(n) Guide:EvaluateStep() else Lodestar:Say("Usage: /lode guide step <number>") end
-	elseif verb == "reset" then
-		if Guide.current then
-			local name = Guide.current.name
-			Guide.db.char.progress[name] = 1
-			if Guide.db.char.finished then Guide.db.char.finished[name] = nil end
-			Guide:LoadGuide(name, 1)
-		end
-	elseif verb == "auto" then
-		local g = Guide:PickGuide()
-		if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character; using smart mode.") Guide:UnloadGuide() end
-	elseif verb == "why" then
-		Guide:PrintWhy()
-	elseif verb == "completed" then
-		Guide:PrintCompleted()
-	elseif verb == "sync" then
-		if Guide.current then Guide:SyncToQuestLog() else Lodestar:Say("No guide loaded — smart mode is already built from your quest log.") end
-	elseif verb == "smart" or verb == "unload" then
-		Guide:UnloadGuide()
-		Lodestar:Say("Smart mode: nearest turn-ins, objectives and quest givers.")
-	elseif verb == "nextup" or verb == "up" then
-		Guide:PrintNextUp()
-	elseif verb == "completionist" or verb == "optional" then
-		local on
-		if arg == "on" then on = true elseif arg == "off" then on = false else on = not Guide.db.profile.steps.completionist end
-		Guide:SetCompletionist(on)
-	elseif verb == "train" then
-		local t = Guide:TrainerSuggestion(true)
-		if t then
-			Lodestar:Say("New level %d spells: %s is %d yd away.", t.level, t.name or ("NPC " .. tostring(t.npcID)), math.floor(t.dist))
-		else
-			Lodestar:Say("No class trainer suggestion right now (last trained at level %s).", tostring(Guide.db.char.lastTrainedLevel or "never"))
-		end
-	elseif verb == "diag" then
-		Guide:Diagnose()
-	else
-		Lodestar:Say("Usage: /lode guide [list | load <name> | next | prev | step <n> | reset | sync | auto | smart | nextup | completionist | train | diag]")
+	if verb == "" then verb = "toggle" end
+	local entry = GUIDE_VERBS[verb]
+	if entry then return entry.fn(arg) end
+	-- Name what was typed. "Usage: ..." on its own reads as "nothing happened" when the thing you
+	-- typed was a real command in a build you do not have loaded yet.
+	Lodestar:Say("|cffff9933/lode guide %s|r is not a command in this build. Available:", verb)
+	for _, name in ipairs(GUIDE_ORDER) do
+		Lodestar:Say("  |cffffff7f%s|r — %s", name, GUIDE_VERBS[name].help)
 	end
 end
 
@@ -1200,6 +1246,90 @@ function Guide:SetCompletionist(on)
 	Lodestar:Msg("Guide: %s.", on and "completionist — optional quests and steps are shown" or "speed run — optional steps are skipped")
 	self:EvaluateStep()
 	self:RefreshStepFrame()
+end
+
+--- Everything this NPC is offering, read from the source that belongs to THIS event.
+---
+--- There are three ways to ask and they are not interchangeable. Blending them looks tidy and is
+--- wrong: GetNumAvailableQuests answers from QuestFrame, which keeps whatever it was last showing,
+--- so asking it during a gossip window can return the previous NPC's quests. Acting on that would
+--- skip a step the player genuinely needed, which is far worse than the problem being solved. So
+--- each event reads only its own source, and an event with no source returns nil.
+---
+--- QUEST_DETAIL is deliberately not one of them. It says the player opened ONE quest's page, which
+--- says nothing about the rest of that NPC's list -- it is not evidence that anything is missing.
+local function questsOnOffer(event)
+	local out, any = {}, false
+	local function take(list)
+		if type(list) ~= "table" then return end
+		for _, info in ipairs(list) do
+			if info.questID then out[info.questID] = true any = true end
+		end
+	end
+	if event == "GOSSIP_SHOW" then
+		for _, getter in ipairs({ C_GossipInfo.GetAvailableQuests, C_GossipInfo.GetActiveQuests }) do
+			if getter then
+				local ok, list = pcall(getter)
+				if ok then take(list) end
+			end
+		end
+	elseif event == "QUEST_GREETING" then
+		-- QuestFrame's greeting. The quest id is the FIFTH return of GetAvailableQuestInfo --
+		-- (isTrivial, frequency, isRepeatable, isLegendary, questID) -- and reading the first gets
+		-- `isTrivial`, a boolean, which finds no quests at all and silently proves nothing.
+		if GetNumAvailableQuests and GetAvailableQuestInfo then
+			for i = 1, (GetNumAvailableQuests() or 0) do
+				local ok, _, _, _, _, qid = pcall(GetAvailableQuestInfo, i)
+				if ok and type(qid) == "number" and qid > 0 then out[qid] = true any = true end
+			end
+		end
+		if GetNumActiveQuests and GetActiveQuestID then
+			for i = 1, (GetNumActiveQuests() or 0) do
+				local ok, qid = pcall(GetActiveQuestID, i)
+				if ok and type(qid) == "number" and qid > 0 then out[qid] = true any = true end
+			end
+		end
+	end
+	return any and out or nil
+end
+
+--- Standing in front of the giver, and the quest this step wants is not on the menu.
+---
+--- Some steps can never be completed by some characters and the route has no way to know which:
+--- "A Student of the Arcane" and "A Student of Nature" are the same step of the same chain offered
+--- to different specialisations, and a druid who took Nature will be asked for Arcane forever. The
+--- guide has no data that says so -- the harvest records a quest's existence, not who may have it.
+---
+--- But the NPC knows. When the player opens a quest giver and the step's quest is not among what
+--- that NPC is offering or holding, this character cannot take it from here, and no amount of
+--- waiting will change that. That is a fact, not a timer or a guess, and it costs nothing to check
+--- at the moment the dialogue opens.
+---
+--- Deliberately narrow: only an `accept`, only while the dialogue is actually open, and only when
+--- the NPC offered SOMETHING (an empty list means the client has not filled it in yet, not that the
+--- NPC is empty-handed). The step is marked done rather than deleted, so `<` goes back to it.
+function Guide:CheckStepOnOffer(event)
+	local step = self:CurrentStep()
+	if not (step and step.actions) then return end
+	local offered = questsOnOffer(event)
+	if not offered then return end
+	local missing
+	for _, a in ipairs(step.actions) do
+		if a.type == "accept" and a.questID then
+			if offered[a.questID] then return end          -- it is right there; nothing to do
+			if C_QuestLog.IsOnQuest(a.questID) then return end
+			if self:IsActionComplete(a, nil) then return end
+			missing = missing or a
+		elseif a.type ~= "accept" then
+			return                                          -- the step wants more than accepting
+		end
+	end
+	if not missing then return end
+	local title = questName(missing.questID) or ("quest " .. missing.questID)
+	Lodestar:Msg("|cffff9933%s is not on offer here|r — this character cannot take it (a class or path branch, usually). Skipping that step; press |cffffff7f<|r to go back to it.", title)
+	self.stepFlags[self.stepIndex] = self.stepFlags[self.stepIndex] or {}
+	self.stepFlags[self.stepIndex].manual = true
+	self:EvaluateStep()
 end
 
 --- `/lode guide completed`: what each of the client's two answers says about this route's quests.

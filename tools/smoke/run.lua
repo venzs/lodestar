@@ -3409,6 +3409,97 @@ try("the last step reached by a clamp is not a finished guide", function()
 	G.db.char.progress[NAME] = wasProgress
 end)
 
+-- A step asking for a quest this character can never be given.
+--
+-- "A Student of the Arcane" and "A Student of Nature" are the same step of the same chain offered
+-- to different specialisations. A druid takes Nature, and the route then asks for Arcane forever:
+-- the step can never complete, so the guide parks on it and every later step is unreachable. The
+-- harvest records that a quest exists, not who is allowed to have it, so no amount of data fixes
+-- this. The NPC knows though -- when you open them and the quest is not on the menu, that is a
+-- fact, not a guess.
+try("a step is skipped when the NPC plainly does not have that quest", function()
+    local NAME = "Skyborne 1-12: Zephras Isle"
+    local wasFlagged, wasLog = stub.flagged, stub.questLog
+    local realRace = UnitRace
+    UnitRace = function() return "Windshaper Skyborne", "Skyborne", 11 end
+    stub.flagged, stub.questLog = {}, {}
+    G.db.char.progress[NAME] = nil
+    G:LoadGuide(NAME)
+
+    -- Park on a step whose only job is accepting one quest.
+    local guide = G.guideByName[NAME]
+    local acceptAt, wantID
+    for i, st in ipairs(guide.steps) do
+        local only = #st.actions > 0
+        for _, a in ipairs(st.actions) do if a.type ~= "accept" then only = false end end
+        if only and st.actions[1].questID then acceptAt, wantID = i, st.actions[1].questID break end
+    end
+    check(acceptAt, "the route has an accept-only step to test with")
+    G:SetStep(acceptAt)
+    check(G.stepIndex == acceptAt, "parked on it")
+
+    -- Talking to an NPC who IS offering it changes nothing.
+    stub.gossipQuests = { wantID }
+    stub.questDetailID = wantID
+    stub.fire("GOSSIP_SHOW")
+    check(G.stepIndex == acceptAt, "an NPC who has the quest leaves the step alone")
+
+    -- Talking to one who is offering other things, but not this, moves on.
+    local before = #stub.chat
+    stub.gossipQuests = { 999001, 999002 }
+    stub.questDetailID = 999001
+    stub.fire("GOSSIP_SHOW")
+    check(G.stepIndex ~= acceptAt,
+        ("moved off the unobtainable step %d, now at %s"):format(acceptAt, tostring(G.stepIndex)))
+    local text = table.concat(stub.chat, "\n", before + 1, #stub.chat)
+    check(text:find("not on offer here", 1, true) ~= nil, "and says why: " .. text:sub(1, 120))
+
+    -- An empty list means the client has not filled it in, not that the NPC is empty-handed.
+    G.db.char.progress[NAME] = nil
+    G:LoadGuide(NAME)
+    G:SetStep(acceptAt)
+    stub.gossipQuests, stub.gossipActiveQuests = {}, {}
+    stub.fire("GOSSIP_SHOW")
+    check(G.stepIndex == acceptAt, "an empty offer list is not evidence and the step is kept")
+
+    -- And a quest list read from QuestFrame must not leak into a gossip window: that frame keeps
+    -- whatever it last showed, so the previous NPC's quests would otherwise look like this one's.
+    stub.availableQuests = { 999003 }
+    stub.gossipQuests, stub.gossipActiveQuests = {}, {}
+    G:SetStep(acceptAt)
+    stub.fire("GOSSIP_SHOW")
+    check(G.stepIndex == acceptAt, "QuestFrame's stale list is not consulted during a gossip window")
+
+    stub.gossipQuests, stub.gossipActiveQuests, stub.availableQuests, stub.questDetailID = nil, nil, nil, nil
+    stub.flagged, stub.questLog = wasFlagged, wasLog
+    UnitRace = realRace
+    G.db.char.progress[NAME] = nil
+end)
+
+-- A command that does not exist must say so, by name.
+--
+-- Abhi was told to run /lode guide completed against a build that predated it by five minutes. The
+-- handler had a usage line, but it was hand-written and listed neither `why` nor `completed`, so
+-- what came back was a list that did not mention the thing he had just typed -- which reads exactly
+-- like nothing happened. The help is generated from the dispatch table now, so a command cannot
+-- exist without being listed or be listed without existing.
+try("an unknown guide sub-command names itself and lists the real ones", function()
+    local before = #stub.chat
+    stub.slash("/lode guide definitelynotacommand")
+    local text = table.concat(stub.chat, "\n", before + 1, #stub.chat)
+    check(text:find("definitelynotacommand", 1, true) ~= nil,
+        "the reply repeats what was typed, so it is clearly a response to it")
+    check(text:find("not a command in this build", 1, true) ~= nil, "and says why")
+
+    -- Every verb the dispatcher accepts appears in the help, and everything in the help works.
+    for _, verb in ipairs({ "why", "completed", "list", "sync", "diag", "nextup", "train" }) do
+        check(text:find("|cffffff7f" .. verb .. "|r", 1, true) ~= nil, verb .. " is listed in the help")
+    end
+    local beforeRun = #stub.chat
+    stub.slash("/lode guide completed")
+    check(#stub.chat > beforeRun, "and /lode guide completed actually runs")
+end)
+
 -- Which of the client's two answers about "have I done this?" is believed.
 --
 -- On the beta they disagree: IsQuestFlaggedCompleted answers true for every quest in Zephras Isle

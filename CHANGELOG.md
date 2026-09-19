@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **Guide: a step asking for a quest this character can never be given is skipped.** "A Student of
+  the Arcane" and "A Student of Nature" are the same step of the same chain offered to different
+  specialisations: a druid takes Nature, and the route then asks for Arcane forever. The step can
+  never complete, so the guide parks on it and every later step is unreachable. No data fixes this —
+  the harvest records that a quest exists, not who is allowed to have it — but the NPC knows. When
+  you open a quest giver and the step's quest is not on their list, that is a fact, and the step is
+  marked done with a line saying why. `<` goes back to it.
+  Each event reads only its own quest source, which matters more than it sounds: `GetNumAvailableQuests`
+  answers from QuestFrame, which keeps whatever it last showed, so consulting it during a gossip
+  window can return the *previous* NPC's quests — and skipping a step on that would be far worse
+  than the problem being solved. `QUEST_DETAIL` is not a trigger at all, because opening one quest's
+  page says nothing about the rest of the list. An empty list is treated as "the client has not
+  answered yet", not as "this NPC has nothing".
+- **`/lode guide`'s help is generated from its own dispatch table.** The usage line was hand-written
+  and listed neither `why` nor `completed`, so someone told to run `/lode guide completed` got back a
+  list that did not mention it — which reads exactly like nothing happened. An unknown sub-command
+  now names what was typed and lists what does exist, and a command cannot be added without
+  appearing in the help.
+
 - **Route quality is measured, and regressions in it fail loudly.** Everything the guide lint did
   proved a route was *valid* — right order, right positions, right levels, the right faction's NPCs
   — and none of it said whether the route was any good to walk. It now reports how far each route

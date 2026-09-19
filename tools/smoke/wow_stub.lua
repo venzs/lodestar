@@ -115,9 +115,14 @@ GetNumLootItems = function() return 2 end
 LootSlot = function(i) stub.looted = (stub.looted or 0) + 1 end
 -- quests
 GetNumActiveQuests = function() return 1 end
-GetNumAvailableQuests = function() return 1 end
+-- stub.availableQuests, when set, is the list QuestFrame's greeting offers: { questID, ... }.
+GetNumAvailableQuests = function() return stub.availableQuests and #stub.availableQuests or 1 end
 GetActiveTitle = function() return "Kobold Camp Cleanup", true end
-GetAvailableQuestInfo = function() return false, 0, false, false, 7, false, false end
+-- (isTrivial, frequency, isRepeatable, isLegendary, questID, ...) -- the id is the FIFTH value.
+GetAvailableQuestInfo = function(i)
+	local id = stub.availableQuests and stub.availableQuests[i] or 7
+	return false, 0, false, false, id, false, false
+end
 IsActiveQuestTrivial = function() return false end
 SelectActiveQuest = function() stub.selectedActive = true end
 SelectAvailableQuest = function() stub.selectedAvailable = true end
@@ -125,7 +130,7 @@ AcceptQuest = function() stub.accepted = (stub.accepted or 0) + 1 end
 AcknowledgeAutoAcceptQuest = function() stub.acknowledged = true end
 QuestGetAutoAccept = function() return false end
 QuestFlagsPVP = function() return false end
-GetQuestID = function() return 7 end
+GetQuestID = function() return stub.questDetailID or 7 end
 IsQuestCompletable = function() return true end
 CompleteQuest = function() stub.completed = true end
 GetNumQuestChoices = function() return stub.choices or 0 end
@@ -188,8 +193,23 @@ C_ChatInfo = {
 C_GameRules = { GetActiveGameMode = function() return 0 end, IsGameRuleActive = function() return false end, GetCurrentGameModeRecordID = function() return 14 end, IsHardcoreActive = function() return false end }
 C_QuestLog = { IsQuestTrivial = function() return false end, GetNumQuestLogEntries = function() return 0 end }
 C_GossipInfo = {
-	GetActiveQuests = function() return { { questID = 5, title = "Done", isComplete = true } } end,
-	GetAvailableQuests = function() return { { questID = 6, title = "New", isTrivial = false } } end,
+	-- stub.gossipActive quests, like stub.gossipQuests, so a test can model an NPC with nothing.
+	GetActiveQuests = function()
+		if stub.gossipActiveQuests then
+			local out = {}
+			for i, id in ipairs(stub.gossipActiveQuests) do out[i] = { questID = id, title = "A" .. id, isComplete = true } end
+			return out
+		end
+		return { { questID = 5, title = "Done", isComplete = true } }
+	end,
+	GetAvailableQuests = function()
+		if stub.gossipQuests then
+			local out = {}
+			for i, id in ipairs(stub.gossipQuests) do out[i] = { questID = id, title = "Q" .. id, isTrivial = false } end
+			return out
+		end
+		return { { questID = 6, title = "New", isTrivial = false } }
+	end,
 	SelectActiveQuest = function(id) stub.gossipActive = id end,
 	SelectAvailableQuest = function(id) stub.gossipAvailable = id end,
 	GetOptions = function() return {} end,
