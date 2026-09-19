@@ -22,6 +22,7 @@ step
   .accept 56 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
 
 step
+  .goto Duskwood,78.7,70.8
   .complete 56 >>Finish The Night Watch
 
 step
@@ -30,6 +31,7 @@ step
   .accept 57 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
 
 step
+  .goto Duskwood,21.4,43.3
   .complete 57 >>Finish The Night Watch
 
 step
@@ -51,6 +53,7 @@ step
   .accept 1043 >>Accept The Scythe of Elune (lvl 25) from Jonathan Carevin
 
 step
+  .goto Duskwood,73.5,79.1
   .complete 1043 >>Finish The Scythe of Elune
 
 step
@@ -62,6 +65,7 @@ step
   .accept 173 >>Accept Worgen in the Woods (lvl 23) from Calor
 
 step
+  .goto Duskwood,65.9,40.8
   .complete 173 >>Finish Worgen in the Woods
 
 step
@@ -70,6 +74,7 @@ step
   .accept 221 >>Accept Worgen in the Woods (lvl 23) from Calor
 
 step
+  .goto Duskwood,66.3,44.8
   .complete 221 >>Finish Worgen in the Woods
 
 step
@@ -78,6 +83,7 @@ step
   .accept 222 >>Accept Worgen in the Woods (lvl 23) from Calor
 
 step
+  .goto Duskwood,71.7,72.8
   .complete 222 >>Finish Worgen in the Woods
 
 step
@@ -90,6 +96,7 @@ step
   .accept 66 >>Accept The Legend of Stalvan (lvl 22) from Madame Eva
 
 step
+  .goto Duskwood,21.9,34.3
   .complete 101 >>Finish The Totem of Infliction
 
 step
@@ -111,6 +118,7 @@ step
   .accept 80 >>Accept The Legend of Stalvan (lvl 22) from Commander Althea Ebonlocke
 
 step
+  .goto Duskwood,23.7,34.1
   .complete 58 >>Finish The Night Watch
 
 step
@@ -139,6 +147,10 @@ step
   .accept 98 >>Accept The Legend of Stalvan (lvl 22) from Commander Althea Ebonlocke
 
 step
+  .goto Duskwood,77.3,36.2
+  .complete 98 >>Finish The Legend of Stalvan
+
+step
   .goto Duskwood,75.8,45.3
   .turnin 98 >>Turn in The Legend of Stalvan to Madame Eva
 
@@ -160,11 +172,16 @@ step
   .accept 177 >>Accept Look To The Stars (lvl 20) from Blind Mary
 
 step
+  .goto Duskwood,81.2,71.5
+  .complete 177 >>Finish Look To The Stars
+
+step
   .goto Duskwood,79.8,48.0
   .turnin 177 >>Turn in Look To The Stars to Viktori Prism'Antras
   .accept 181 >>Accept Look To The Stars (lvl 20) from Viktori Prism'Antras
 
 step
+  .goto Duskwood,36.8,83.8
   .complete 181 >>Finish Look To The Stars
 
 step
@@ -211,6 +228,7 @@ step
   .accept 90 >>Accept Seasoned Wolf Kabobs (lvl 18) from Chef Grual
 
 step
+  .goto Duskwood,69.5,30.8
   .complete 90 >>Finish Seasoned Wolf Kabobs
 
 step
@@ -255,6 +273,7 @@ step
   .accept 156 >>Accept Gather Rot Blossoms (lvl 20) from Tavernkeep Smitts
 
 step
+  .goto Duskwood,21.4,43.3
   .complete 156 >>Finish Gather Rot Blossoms
 
 step
@@ -268,6 +287,7 @@ step
   .accept 133 >>Accept Ghoulish Effigy (lvl 20) from Abercrombie
 
 step
+  .goto Duskwood,22.0,33.0
   .complete 133 >>Finish Ghoulish Effigy
 
 step
@@ -282,6 +302,7 @@ step
   .accept 134 >>Accept Ogre Thieves (lvl 20) from Abercrombie
 
 step
+  .goto Duskwood,33.4,76.4
   .complete 134 >>Finish Ogre Thieves
 
 step
@@ -324,6 +345,7 @@ step
   .accept 228 >>Accept Mor'Ladim (lvl 28) from Commander Althea Ebonlocke
 
 step
+  .goto Duskwood,16.7,37.4
   .complete 228 >>Finish Mor'Ladim
 
 step
@@ -340,6 +362,7 @@ step
   .accept 1244 >>Accept The Missing Diplomat (lvl 28) from Watcher Backus
 
 step
+  .goto Duskwood,23.9,72.1
   .complete 1244 >>Finish The Missing Diplomat
 
 step
@@ -369,6 +392,7 @@ step
   .accept 95 >>Accept Sven's Revenge (lvl 20) from Sven Yorgen
 
 step
+  .goto Duskwood,16.9,33.4
   .complete 55 >>Finish Morbent Fel
 
 step
@@ -405,6 +429,7 @@ step
   .accept 323 >>Accept Proving Your Worth (lvl 20) from Sven Yorgen
 
 step
+  .goto Duskwood,16.9,33.2
   .complete 323 >>Finish Proving Your Worth
 
 step
@@ -421,6 +446,7 @@ step
   .accept 226 >>Accept Wolves at Our Heels (lvl 19) from Lars
 
 step
+  .goto Duskwood,15.6,26.1
   .complete 226 >>Finish Wolves at Our Heels
 
 step

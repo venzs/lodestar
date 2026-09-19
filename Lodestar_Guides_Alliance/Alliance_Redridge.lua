@@ -31,9 +31,11 @@ step
   .accept 124 >>Accept A Baying of Gnolls (lvl 15) from Verner Osgood
 
 step
+  .goto Redridge Mountains,37.8,72.8
   .complete 122 >>Finish Underbelly Scales
 
 step
+  .goto Redridge Mountains,23.7,35.2
   .complete 124 >>Finish A Baying of Gnolls
 
 step
@@ -47,7 +49,12 @@ step
   .accept 347 >>Accept Rethban Ore (lvl 20) from Foreman Oslow
 
 step
+  .goto Redridge Mountains,41.5,54.7
   .complete 125 >>Finish The Lost Tools
+
+step
+  .goto Redridge Mountains,20.4,21.0
+  .complete 347 >>Finish Rethban Ore
 
 step
   .goto Redridge Mountains,32.1,48.6
@@ -62,6 +69,7 @@ step
   .accept 20 >>Accept Blackrock Menace (lvl 18) from Marshal Marris
 
 step
+  .goto Redridge Mountains,65.4,54.8
   .complete 20 >>Finish Blackrock Menace
 
 step
@@ -77,9 +85,11 @@ step
   .accept 19 >>Accept Tharil'zun (lvl 18) from Marshal Marris
 
 step
+  .goto Redridge Mountains,68.3,56.3
   .complete 115 >>Finish Shadow Magic
 
 step
+  .goto Redridge Mountains,69.6,59.7
   .complete 19 >>Finish Tharil'zun
 
 step
@@ -92,6 +102,7 @@ step
   .accept 89 >>Accept The Everstill Bridge (lvl 15) from Foreman Oslow
 
 step
+  .goto Redridge Mountains,24.8,31.7
   .complete 89 >>Finish The Everstill Bridge
 
 step
@@ -105,6 +116,7 @@ step
 
 step
   .class Rogue
+  .goto Redridge Mountains,52.0,44.7
   .complete 2282 >>Finish Alther's Mill
 
 step
@@ -119,6 +131,7 @@ step
 
 step
   .class Rogue
+  .goto Redridge Mountains,65.4,54.8
   .complete 2358 >>Finish Horns of Nez'ra
 
 step
@@ -136,6 +149,7 @@ step
 
 step
   .class Warrior
+  .goto Redridge Mountains,19.1,24.7
   .complete 1699 >>Finish The Rethban Gauntlet
 
 step
@@ -178,6 +192,7 @@ step
   .accept 150 >>Accept Murloc Poachers (lvl 20) from Dockmaster Baren
 
 step
+  .goto Redridge Mountains,49.8,65.8
   .complete 127 >>Finish Selling Fish
 
 step
@@ -196,6 +211,7 @@ step
   .accept 126 >>Accept Howling in the Hills (lvl 15) from Verner Osgood
 
 step
+  .goto Redridge Mountains,27.7,21.4
   .complete 126 >>Finish Howling in the Hills
 
 step
@@ -228,6 +244,7 @@ step
   .accept 91 >>Accept Solomon's Law (lvl 17) from Bailiff Conacher
 
 step
+  .goto Redridge Mountains,78.6,52.9
   .complete 91 >>Finish Solomon's Law
 
 step
@@ -239,6 +256,7 @@ step
   .accept 92 >>Accept Redridge Goulash (lvl 15) from Chef Breanna
 
 step
+  .goto Redridge Mountains,49.7,33.8
   .complete 92 >>Finish Redridge Goulash
 
 step
@@ -250,6 +268,7 @@ step
   .accept 34 >>Accept An Unwelcome Guest (lvl 18) from Martie Jainrose
 
 step
+  .goto Redridge Mountains,16.0,49.3
   .complete 34 >>Finish An Unwelcome Guest
 
 step
@@ -261,6 +280,7 @@ step
   .accept 128 >>Accept Blackrock Bounty (lvl 20) from Guard Howe
 
 step
+  .goto Redridge Mountains,29.6,11.2
   .complete 128 >>Finish Blackrock Bounty
 
 step

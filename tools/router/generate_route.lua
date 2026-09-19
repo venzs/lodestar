@@ -198,6 +198,60 @@ local function maskAllows(mask, faction)
 	return false
 end
 
+--- Where a quest's objectives are, according to the vanilla database.
+---
+--- pfQuest stores objectives as REFERENCES rather than coordinates -- `obj = { npcs, objs, items,
+--- areas }` -- with the positions hanging off the NPC, object and area records instead. The harvest
+--- and ATT both store `spots` already resolved, so the generator read only those two and every
+--- vanilla zone emitted "go and do this" steps with nothing for the arrow to point at: 124 of them
+--- across six routes, which was every no-`.goto` warning the guide lint reported. Prerequisites are
+--- already taken as the union of ATT and pfQuest for exactly this reason -- the sources are partial
+--- in different places -- and objective positions are no different.
+---
+--- A quest item is two hops out: the item names the NPCs that drop it and those NPCs carry the
+--- positions. Worth following, because "collect 8 Mangy Claws" is the shape most kill objectives
+--- take in the original game.
+local function vanillaObjSpots(vq, map)
+	if not (vq and vq.obj) then return nil end
+	local found = {}
+	local function take(list)
+		for _, c in ipairs(list or {}) do
+			-- Vanilla coordinates are {areaID, x, y}; the harvest's carry the map in `m`. Both shapes
+			-- turn up here because the two databases were imported by different tools.
+			if c.m == map or (c.m == nil and c[1] == map) then
+				found[#found + 1] = { 0, c[2], c[3], m = map }
+			end
+		end
+	end
+	for _, id in ipairs(vq.obj.npcs or {}) do take(V.npcs and V.npcs[id] and V.npcs[id].c) end
+	for _, id in ipairs(vq.obj.objs or {}) do take(V.objs and V.objs[id] and V.objs[id].c) end
+	for _, id in ipairs(vq.obj.areas or {}) do take(V.areas and V.areas[id] and V.areas[id].c) end
+	for _, id in ipairs(vq.obj.items or {}) do
+		local it = V.items and V.items[id]
+		for _, drop in ipairs(it and it.npcs or {}) do take(V.npcs and V.npcs[drop[1]] and V.npcs[drop[1]].c) end
+		for _, drop in ipairs(it and it.objs or {}) do take(V.objs and V.objs[drop[1]] and V.objs[drop[1]].c) end
+	end
+	if #found == 0 then return nil end
+
+	-- One position has to stand for the whole objective. An arbitrary spawn is a poor choice: a mob
+	-- with sixty spawn points spread across the zone would send the arrow to whichever sorted first.
+	-- Take the spawn with the most neighbours within a short radius -- the middle of the densest
+	-- camp -- and take a REAL spawn rather than the average of several, because the average of two
+	-- camps on opposite banks of a river is the river.
+	local best, bestScore = found[1], -1
+	for _, a in ipairs(found) do
+		local score = 0
+		for _, b in ipairs(found) do
+			local dx, dy = a[2] - b[2], a[3] - b[3]
+			if dx * dx + dy * dy <= 64 then score = score + 1 end
+		end
+		if score > bestScore then best, bestScore = a, score end
+	end
+	-- Keyed by objective index, like the harvest's own spots. One entry: pfQuest's references are
+	-- per quest, not per objective, so claiming to know which objective this is would be a lie.
+	return { [1] = { best } }
+end
+
 -- Every quest any source knows about. V.quests is the vanilla database and carries the 4,400-odd
 -- quests of the original game; leaving it out of this union is why a contested or high-level zone
 -- generated an empty route no matter which map id it was given.
@@ -272,7 +326,31 @@ for qid in pairs(ids) do
 	end
 	-- objectives: text and count from the harvest, positions from either side
 	local objectives = fq and fq.o or nil
-	local spots = (fq and fq.spots) or (aq and aq.spots) or nil
+	-- Where that objective actually is: harvest, then ATT, then the vanilla database resolved on the
+	-- spot. The order is deliberate -- a position somebody walked to on this build beats a vanilla
+	-- spawn table that predates whatever Forever changed about the zone, so pfQuest is the answer of
+	-- last resort rather than the first.
+	--
+	-- A source counts only if it yields a position IN THIS ZONE. Chaining these with `or` on the
+	-- mere presence of a `spots` table looks equivalent and is not: a quest the harvest saw in a
+	-- neighbouring zone has a spots table full of coordinates that are all elsewhere, which
+	-- short-circuits the chain and returns nothing, with a perfectly good vanilla position sitting
+	-- unread. That was 31 steps still missing their arrow after the vanilla fallback went in.
+	--
+	-- Resolved once here rather than reached back into at flatten time: one place decides what a
+	-- quest's objective position is, alongside the giver's and the ender's.
+	local function spotIn(tbl)
+		-- Any objective's position, not objective 1's. The indices are per objective and a quest
+		-- whose first objective is off-map may well have a later one standing in this zone.
+		for _, list in pairs(tbl or {}) do
+			for _, spot in ipairs(list) do
+				if spot.m == mapID then return spot[2], spot[3] end
+			end
+		end
+	end
+	local ox, oy = spotIn(fq and fq.spots)
+	if not ox then ox, oy = spotIn(aq and aq.spots) end
+	if not ox then ox, oy = spotIn(vanillaObjSpots(vq, mapID)) end
 	-- A contested zone's quest list is two routes interleaved. Without this an Alliance guide for
 	-- Ashenvale sends the player to Splintertree Post, which is a Horde camp that will kill them.
 	-- Both tests, because they catch different things: the bitmask covers a quest restricted to
@@ -305,7 +383,7 @@ for qid in pairs(ids) do
 			-- no arrow -- which in speed-run mode the engine skips entirely.
 			enderOffMap = ex == nil and (enderNPC or enderObj) ~= nil,
 			enderUnknown = ex == nil and (enderNPC or enderObj) == nil,
-			prev = prev, o = objectives, spots = spots,
+			prev = prev, o = objectives, ox = ox, oy = oy,
 			-- The quest's own hard gate. `lvl` is the level it is BALANCED for and a route may
 			-- reasonably offer that a little early; `min` is the level below which the client simply
 			-- refuses to hand it over. Scheduling below `min` produces a step nobody can action.
@@ -488,7 +566,13 @@ while count > 0 and guard < 500 do
 		pending[q.id] = nil
 		count = count - 1
 	end
-	-- Do them, then hand them back.
+	-- Do them, then hand them back, in the order they were handed over.
+	--
+	-- Walking the objectives nearest-first from the giver was tried and reverted: it changed one
+	-- route of six and made its backtracking slightly worse (0.58 -> 0.60), because a greedy walk
+	-- ends wherever it ends and the return leg pays for it. The out-and-back in these routes is not
+	-- a scheduling mistake to be optimised away -- it is accept here, go out, come back, which is
+	-- what questing is. A hub's quests are few enough that their order barely moves the total.
 	for _, q in ipairs(here) do
 		order[#order + 1] = { kind = "do", quest = q }
 	end
@@ -641,10 +725,7 @@ for _, stepRec in ipairs(order) do
 	elseif stepRec.kind == "do" then
 		local q = stepRec.quest
 		local line = objectiveLine(q)
-		local sx, sy
-		local list = q.spots and (q.spots[1] or select(2, next(q.spots)))
-		local spot = list and list[1]
-		if spot and spot.m == mapID then sx, sy = spot[2], spot[3] end
+		local sx, sy = q.ox, q.oy
 		-- A "do" step with neither a position nor an objective to name says nothing the turn-in does
 		-- not already say, and a route full of "Finish <quest>" reads as padding. Drop it -- unless
 		-- dropping it would put the accept and the turn-in back to back at the same NPC, where the

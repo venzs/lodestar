@@ -23,6 +23,7 @@ step
   .accept 1054 >>Accept Culling the Threat (lvl 18) from Raene Wolfrunner
 
 step
+  .goto Ashenvale,37.7,34.7
   .complete 1054 >>Finish Culling the Threat
 
 step
@@ -38,12 +39,17 @@ step
   .accept 1023 >>Accept Raene's Cleansing (lvl 18) from Teronis' Corpse
 
 step
+  .goto Ashenvale,21.1,43.1
+  .complete 1023 >>Finish Raene's Cleansing
+
+step
   .goto Ashenvale,36.6,49.6
   .turnin 1023 >>Turn in Raene's Cleansing to Raene Wolfrunner
   .accept 1024 >>Accept Raene's Cleansing (lvl 18) from Raene Wolfrunner
   .accept 1025 >>Accept An Aggressive Defense (lvl 18) from Raene Wolfrunner
 
 step
+  .goto Ashenvale,54.1,63.0
   .complete 1025 >>Finish An Aggressive Defense
 
 step
@@ -57,6 +63,7 @@ step
   .accept 1026 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
 
 step
+  .goto Ashenvale,60.1,38.8
   .complete 1026 >>Finish Raene's Cleansing
 
 step
@@ -80,12 +87,17 @@ step
   .accept 1045 >>Accept Raene's Cleansing (lvl 18) from Krolg
 
 step
+  .goto Ashenvale,54.7,79.6
   .complete 1045 >>Finish Raene's Cleansing
 
 step
   .goto Ashenvale,50.8,75.1
   .turnin 1045 >>Turn in Raene's Cleansing to Krolg
   .accept 1046 >>Accept Raene's Cleansing (lvl 18) from Krolg
+
+step
+  .goto Ashenvale,54.7,79.6
+  .complete 1046 >>Finish Raene's Cleansing
 
 step
   .goto Ashenvale,36.6,49.6
@@ -131,6 +143,7 @@ step
   .accept 1010 >>Accept Bathran's Hair (lvl 20) from Orendil Broadleaf
 
 step
+  .goto Ashenvale,31.9,22.9
   .complete 1010 >>Finish Bathran's Hair
 
 step
@@ -144,6 +157,7 @@ step
   .accept 1033 >>Accept Elune's Tear (lvl 20) from Pelturas Whitemoon
 
 step
+  .goto Ashenvale,46.1,46.3
   .complete 1033 >>Finish Elune's Tear
 
 step
@@ -152,6 +166,7 @@ step
   .accept 1034 >>Accept The Ruins of Stardust (lvl 20) from Pelturas Whitemoon
 
 step
+  .goto Ashenvale,33.5,67.6
   .complete 1034 >>Finish The Ruins of Stardust
 
 step
@@ -160,6 +175,7 @@ step
   .accept 1035 >>Accept Fallen Sky Lake (lvl 20) from Pelturas Whitemoon
 
 step
+  .goto Ashenvale,66.7,82.2
   .complete 1035 >>Finish Fallen Sky Lake
 
 step
@@ -190,6 +206,7 @@ step
   .accept 1016 >>Accept Elemental Bracers (lvl 20) from Sentinel Velene Starstrike
 
 step
+  .goto Ashenvale,49.4,69.8
   .complete 1016 >>Finish Elemental Bracers
 
 step
@@ -244,6 +261,7 @@ step
   .accept 1007 >>Accept The Ancient Statuette (lvl 19) from Talen
 
 step
+  .goto Ashenvale,14.2,20.6
   .complete 1007 >>Finish The Ancient Statuette
 
 step
@@ -258,6 +276,7 @@ step
   .accept 1009 >>Accept Ruuzel (lvl 20) from Talen
 
 step
+  .goto Ashenvale,7.4,13.4
   .complete 1009 >>Finish Ruuzel
 
 step
@@ -274,6 +293,7 @@ step
   .accept 1011 >>Accept Forsaken Diseases (lvl 24) from Kayneth Stillwind
 
 step
+  .goto Ashenvale,75.3,71.9
   .complete 1011 >>Finish Forsaken Diseases
 
 step
@@ -282,6 +302,7 @@ step
   .accept 1012 >>Accept Insane Druids (lvl 24) from Kayneth Stillwind
 
 step
+  .goto Ashenvale,77.2,74.0
   .complete 1012 >>Finish Insane Druids
 
 step
@@ -296,6 +317,7 @@ step
   .accept 1022 >>Accept The Howling Vale (lvl 25) from Sentinel Melyria Frostshadow
 
 step
+  .goto Ashenvale,50.5,39.1
   .complete 1022 >>Finish The Howling Vale
 
 step

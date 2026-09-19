@@ -22,6 +22,7 @@ step
   .accept 484 >>Accept Young Crocolisk Skins (lvl 18) from James Halloran
 
 step
+  .goto Wetlands,61.8,56.8
   .complete 484 >>Finish Young Crocolisk Skins
 
 step
@@ -33,6 +34,7 @@ step
   .accept 279 >>Accept Claws from the Deep (lvl 20) from Karl Boran
 
 step
+  .goto Wetlands,15.4,40.0
   .complete 279 >>Finish Claws from the Deep
 
 step
@@ -49,6 +51,7 @@ step
   .accept 276 >>Accept Tramping Paws (lvl 20) from Rethiel the Greenwarden
 
 step
+  .goto Wetlands,61.6,66.8
   .complete 276 >>Finish Tramping Paws
 
 step
@@ -57,6 +60,7 @@ step
   .accept 277 >>Accept Fire Taboo (lvl 20) from Rethiel the Greenwarden
 
 step
+  .goto Wetlands,35.4,31.5
   .complete 277 >>Finish Fire Taboo
 
 step
@@ -65,6 +69,7 @@ step
   .accept 275 >>Accept Blisters on The Land (lvl 20) from Rethiel the Greenwarden
 
 step
+  .goto Wetlands,40.6,33.2
   .complete 275 >>Finish Blisters on The Land
 
 step
@@ -87,6 +92,7 @@ step
   .accept 471 >>Accept Apprentice's Duties (lvl 18) from James Halloran
 
 step
+  .goto Wetlands,20.8,24.0
   .complete 471 >>Finish Apprentice's Duties
 
 step
@@ -119,6 +125,7 @@ step
   .accept 526 >>Accept Lightforge Ingots (lvl 20) from Glorin Steelbrow
 
 step
+  .goto Wetlands,27.0,16.9
   .complete 526 >>Finish Lightforge Ingots
 
 step
@@ -146,12 +153,17 @@ step
   .accept 289 >>Accept The Cursed Crew (lvl 22) from First Mate Fitzsimmons
 
 step
+  .goto Wetlands,14.1,29.0
   .complete 289 >>Finish The Cursed Crew
 
 step
   .goto Wetlands,10.9,59.6
   .turnin 289 >>Turn in The Cursed Crew to First Mate Fitzsimmons
   .accept 290 >>Accept Lifting the Curse (lvl 22) from First Mate Fitzsimmons
+
+step
+  .goto Wetlands,15.4,23.6
+  .complete 290 >>Finish Lifting the Curse
 
 step
   .goto Wetlands,14.4,24.0
@@ -162,6 +174,7 @@ step
   .accept 294 >>Accept Ormer's Revenge (lvl 22) from Ormer Ironbraid
 
 step
+  .goto Wetlands,25.2,49.8
   .complete 294 >>Finish Ormer's Revenge
 
 step
@@ -170,6 +183,7 @@ step
   .accept 295 >>Accept Ormer's Revenge (lvl 22) from Ormer Ironbraid
 
 step
+  .goto Wetlands,35.2,49.5
   .complete 295 >>Finish Ormer's Revenge
 
 step
@@ -178,6 +192,7 @@ step
   .accept 296 >>Accept Ormer's Revenge (lvl 22) from Ormer Ironbraid
 
 step
+  .goto Wetlands,33.2,51.5
   .complete 296 >>Finish Ormer's Revenge
 
 step
@@ -189,6 +204,7 @@ step
   .accept 470 >>Accept Digging Through the Ooze (lvl 19) from Sida
 
 step
+  .goto Wetlands,44.3,24.7
   .complete 470 >>Finish Digging Through the Ooze
 
 step
@@ -208,6 +224,7 @@ step
   .accept 464 >>Accept War Banners (lvl 23) from Captain Stoutfist
 
 step
+  .goto Wetlands,49.0,48.4
   .complete 464 >>Finish War Banners
 
 step
@@ -251,6 +268,7 @@ step
   .accept 943 >>Accept The Absent Minded Prospector (lvl 15) from Archaeologist Flagongut
 
 step
+  .goto Wetlands,30.5,48.7
   .complete 943 >>Finish The Absent Minded Prospector
 
 step
@@ -275,6 +293,7 @@ step
   .accept 303 >>Accept The Dark Iron War (lvl 25) from Longbraid the Grim
 
 step
+  .goto Wetlands,59.5,23.7
   .complete 303 >>Finish The Dark Iron War
 
 step
@@ -294,6 +313,7 @@ step
   .accept 299 >>Accept Uncovering the Past (lvl 25) from Prospector Whelgar
 
 step
+  .goto Wetlands,34.2,47.7
   .complete 299 >>Finish Uncovering the Past
 
 step

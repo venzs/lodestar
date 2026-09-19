@@ -35,6 +35,7 @@ step
   .accept 1370 >>Accept Stealing Supplies (lvl 30) from Uthek the Wise
 
 step
+  .goto Desolace,70.9,75.4
   .complete 1370 >>Finish Stealing Supplies
 
 step
@@ -51,6 +52,7 @@ step
   .accept 1374 >>Accept Khan Jehn (lvl 30) from Uthek the Wise
 
 step
+  .goto Desolace,65.9,80.4
   .complete 1374 >>Finish Khan Jehn
 
 step
@@ -59,6 +61,7 @@ step
   .accept 1380 >>Accept Khan Hratha (lvl 30) from Uthek the Wise
 
 step
+  .goto Desolace,30.8,55.7
   .complete 1380 >>Finish Khan Hratha
 
 step
@@ -89,6 +92,7 @@ step
   .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
 
 step
+  .goto Desolace,73.4,41.6
   .complete 1365 >>Finish Khan Dez'hepah
 
 step
@@ -97,6 +101,7 @@ step
   .accept 1366 >>Accept Centaur Bounty (lvl 30) from Felgur Twocuts
 
 step
+  .goto Desolace,70.1,45.7
   .complete 1366 >>Finish Centaur Bounty
 
 step
@@ -135,6 +140,7 @@ step
   .accept 1369 >>Accept Broken Tears (lvl 30) from Warug
 
 step
+  .goto Desolace,39.7,93.3
   .complete 1369 >>Finish Broken Tears
 
 step
@@ -151,6 +157,7 @@ step
   .accept 1375 >>Accept Khan Shaka (lvl 30) from Warug
 
 step
+  .goto Desolace,40.5,95.5
   .complete 1375 >>Finish Khan Shaka
 
 step
@@ -159,6 +166,7 @@ step
   .accept 1381 >>Accept Khan Hratha (lvl 30) from Warug
 
 step
+  .goto Desolace,30.8,55.7
   .complete 1381 >>Finish Khan Hratha
 
 step
@@ -193,6 +201,7 @@ step
   .accept 5501 >>Accept Bone Collector (lvl 33) from Bibbly F'utzbuckle
 
 step
+  .goto Desolace,51.1,60.0
   .complete 5501 >>Finish Bone Collector
 
 step
@@ -204,6 +213,7 @@ step
   .accept 5741 >>Accept Sceptre of Light (lvl 30) from Azore Aldamort
 
 step
+  .goto Desolace,55.2,30.2
   .complete 5741 >>Finish Sceptre of Light
 
 step
@@ -253,6 +263,7 @@ step
   .accept 6143 >>Accept Other Fish to Fry (lvl 32) from Drulzegar Skraghook
 
 step
+  .goto Desolace,35.4,22.0
   .complete 6143 >>Finish Other Fish to Fry
 
 step
@@ -264,6 +275,7 @@ step
   .accept 6142 >>Accept Clam Bait (lvl 31) from Mai'Lahii
 
 step
+  .goto Desolace,34.1,30.7
   .complete 6142 >>Finish Clam Bait
 
 step

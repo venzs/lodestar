@@ -21,6 +21,7 @@ step
   .accept 536 >>Accept Down the Coast (lvl 25) from Lieutenant Farren Orinelle
 
 step
+  .goto Hillsbrad Foothills,42.7,69.2
   .complete 536 >>Finish Down the Coast
 
 step
@@ -29,6 +30,7 @@ step
   .accept 559 >>Accept Farren's Proof (lvl 25) from Lieutenant Farren Orinelle
 
 step
+  .goto Hillsbrad Foothills,42.7,69.2
   .complete 559 >>Finish Farren's Proof
 
 step
@@ -43,6 +45,7 @@ step
   .accept 500 >>Accept Crushridge Bounty (lvl 30) from Marshal Redpath
 
 step
+  .goto Hillsbrad Foothills,48.6,2.1
   .complete 500 >>Finish Crushridge Bounty
 
 step
@@ -55,6 +58,7 @@ step
   .accept 562 >>Accept Stormwind Ho! (lvl 25) from Lieutenant Farren Orinelle
 
 step
+  .goto Hillsbrad Foothills,57.2,68.3
   .complete 562 >>Finish Stormwind Ho!
 
 step
@@ -93,6 +97,7 @@ step
   .accept 504 >>Accept Crushridge Warmongers (lvl 30) from Marshal Redpath
 
 step
+  .goto Hillsbrad Foothills,43.2,0.5
   .complete 504 >>Finish Crushridge Warmongers
 
 step
@@ -107,9 +112,11 @@ step
   .accept 537 >>Accept Dark Council (lvl 30) from Magistrate Henry Maleb
 
 step
+  .goto Hillsbrad Foothills,60.0,9.6
   .complete 505 >>Finish Syndicate Assassins
 
 step
+  .goto Hillsbrad Foothills,59.7,7.4
   .complete 512 >>Finish Noble Deaths
 
 step
@@ -162,6 +169,7 @@ step
   .accept 565 >>Accept Bartolo's Yeti Fur Cloak (lvl 29) from Bartolo Ginsetti
 
 step
+  .goto Hillsbrad Foothills,44.8,30.0
   .complete 565 >>Finish Bartolo's Yeti Fur Cloak
 
 step
@@ -173,6 +181,7 @@ step
   .accept 564 >>Accept Costly Menace (lvl 30) from Darren Malvew
 
 step
+  .goto Hillsbrad Foothills,39.0,21.0
   .complete 564 >>Finish Costly Menace
 
 step
@@ -217,6 +226,11 @@ step
   .accept 7043 >>Accept You're a Mean One... (lvl 30) from Strange Snowman
 
 step
+  .goto Hillsbrad Foothills,44.6,7.7
+  .complete 6983 >>Finish You're a Mean One...
+  .complete 7043 >>Finish You're a Mean One...
+
+step
   .optional >>Handed in outside this zone, to Kaymard Copperpinch
   .turnin 6983 >>Turn in You're a Mean One... to Kaymard Copperpinch (not in this zone)
 
@@ -253,6 +267,7 @@ step
 
 step
   .class Rogue
+  .goto Hillsbrad Foothills,60.0,9.6
   .complete 6701 >>Finish Syndicate Emblems
 
 step
@@ -267,6 +282,7 @@ step
 
 step
   .class Warrior
+  .goto Hillsbrad Foothills,68.8,27.2
   .complete 1712 >>Finish Cyclonian
 
 step

@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+- **A step that says "go and do this" now says where.** 124 steps across the six generated routes
+  carried no `.goto` at all — every no-`.goto` warning the guide lint reported, and every one of them
+  in a generated route; the hand-written routes had none. The cause was a single line: objective
+  positions were read from the harvest and from ATT and never from the bundled pfQuest database,
+  which is the only source that knows anything about a vanilla zone nobody has walked on the beta
+  yet. Prerequisites have been taken as the union of ATT and pfQuest since Warsong Saw Blades, for
+  exactly this reason — the sources are partial in different places — and objective positions were
+  not. 87 of the 124 now have a position, entirely from data already in the repo.
+  pfQuest stores objectives as references rather than coordinates — `obj = { npcs, objs, items,
+  areas }`, with the positions hanging off the NPC, object and area records — so they have to be
+  resolved rather than looked up, and a quest item is two hops out, because the item names the NPCs
+  that drop it. One position has to stand for a mob with sixty spawn points: it is the spawn with the
+  most neighbours within eight map percent, the middle of the densest camp, and a real spawn rather
+  than the average of several, because the average of two camps on opposite banks of a river is the
+  river.
+  The remaining 37 are steps no database has placed — Zephras Isle's three, and content these zones
+  gained after pfQuest last saw them. Those are the harvest's job and nothing else's.
+- Each source is tried for a position in *this* zone rather than short-circuited on a table
+  existing. `(fq.spots or aq.spots or vanilla)` reads as equivalent and is not: a quest the harvest
+  saw in a neighbouring zone carries a spots table whose coordinates are all somewhere else, which
+  satisfies the `or` and yields nothing while a perfectly good vanilla position sits unread. That was
+  31 of the 87. Any objective's position now counts, not objective 1's, since a quest whose first
+  objective is off-map may have a later one standing in this zone.
+- **The generated routes are measurably worse-shaped than the hand-written ones, and this is what
+  made it visible.** Giving objectives a position added the leg from the giver out to the objective
+  to routes that had been measured as though it did not exist — Redridge was on record at 134%
+  travel, when no hand-written route is under 612% except Deathknell, which is one village. The new
+  figures are real ones: 833% to 2021%. They are also worse than the hand-written routes on
+  backtracking, 50–66% against 25–53%, because a generated route takes a quest, walks out and walks
+  back, one quest at a time, where a person batches four objectives into a single loop.
+  `docs/route-shape.json` is deliberately **not** re-recorded. The nine regressions it reports are
+  that gap stated honestly, and the way to close it is to batch objectives across hubs, not to accept
+  the number.
+- Walking a hub's objectives nearest-first was tried and reverted: it changed one route of six and
+  made its backtracking slightly worse (0.58 → 0.60). A greedy walk ends wherever it ends and the
+  return leg pays for it, and a hub's two or three quests cannot be reordered into a better shape in
+  any case. The out-and-back is between the giver and the objective, not inside the hub.
+
 - **`/lode export` — a contributor's session as one block of text to paste.** The file route asked
   someone to `/reload`, then find `Lodestar_Guide.lua` inside `WTF\Account\<THEIR ACCOUNT>\SavedVariables\`,
   a folder the client will not name for an addon, and attach it. Every step loses people and the
