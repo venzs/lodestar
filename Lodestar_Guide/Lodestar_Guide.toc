@@ -9,6 +9,8 @@
 ## SavedVariables: LodestarScans,LodestarHarvest,LodestarScanDB,LodestarShareDB
 ## X-Category: Quests & Leveling
 ## X-License: MIT
+## X-Website: https://github.com/venzs/lodestar
+## X-Discord: https://discord.gg/dpAVzhyMC
 ## X-Lodestar-Module: Guide
 
 Guide.lua

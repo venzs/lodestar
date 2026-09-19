@@ -2,6 +2,13 @@
 
 A suite of addons for **World of Warcraft: Forever**. One core, seven modules and guide packs — install what you want.
 
+[github.com/venzs/lodestar](https://github.com/venzs/lodestar) · [Discord](https://discord.gg/dpAVzhyMC)
+
+**Playing on the beta?** Type `/lode export` after a session, copy the box, and paste it in the
+Discord. That is where the routes come from: Forever's new zones are in no public database, so every
+position the arrow knows about was recorded by somebody playing with this installed. It takes about
+ten seconds and sends positions only — no character name, gold, gear, guild, friends or chat.
+
 | Addon | What it does |
 |---|---|
 | **Lodestar** (required) | Settings panel, module toggles, minimap button, guild/party comms, `/lode` |

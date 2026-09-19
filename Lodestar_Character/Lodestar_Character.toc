@@ -7,6 +7,8 @@
 ## Dependencies: Lodestar
 ## X-Category: Character Advancement
 ## X-License: MIT
+## X-Website: https://github.com/venzs/lodestar
+## X-Discord: https://discord.gg/dpAVzhyMC
 ## X-Lodestar-Module: Character
 
 Character.lua
