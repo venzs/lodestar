@@ -18,21 +18,32 @@ Guide:RegisterGuide([[
 #note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.
 
 step
+  .optional >>Needs Alliance Relations, which starts in Orgrimmar
   .goto Desolace,52.6,54.4
   .accept 1434 >>Accept Befouled by Satyr (lvl 25) from Takata Steelblade
+
+step
+  .optional >>Needs Alliance Relations, which starts in Orgrimmar
+  .goto Desolace,52.6,54.4
   .accept 1433 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
 
 step
+  .optional >>Needs Alliance Relations, which starts in Orgrimmar
   .goto Desolace,75.3,19.3
   .complete 1434 >>Finish Befouled by Satyr
 
 step
+  .optional >>Needs Alliance Relations, which starts in Orgrimmar
   .goto Desolace,52.2,53.4
   .turnin 1433 >>Turn in Alliance Relations to Maurin Bonesplitter
 
 step
+  .optional >>Needs Alliance Relations, which starts in Orgrimmar
   .goto Desolace,52.6,54.4
   .turnin 1434 >>Turn in Befouled by Satyr to Takata Steelblade
+
+step
+  .goto Desolace,52.6,54.4
   .accept 1436 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
 
 step
@@ -40,18 +51,24 @@ step
   .turnin 1436 >>Turn in Alliance Relations to Keldran (not in this zone)
 
 step
+  .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
   .goto Desolace,56.2,59.6
   .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
 
 step
+  .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
   .goto Desolace,73.4,41.6
   .complete 1365 >>Finish Khan Dez'hepah
 
 step
+  .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
   .goto Desolace,56.2,59.6
   .turnin 1365 >>Turn in Khan Dez'hepah to Felgur Twocuts
-  .accept 1368 >>Accept Gelkis Alliance (lvl 30) from Felgur Twocuts
-  .accept 1367 >>Accept Magram Alliance (lvl 30) from Felgur Twocuts
+
+step
+  .goto Desolace,56.3,59.7
+  .accept 1368 >>Accept Gelkis Alliance (lvl 30) from Gurda Wildmane
+  .accept 1367 >>Accept Magram Alliance (lvl 30) from Gurda Wildmane
 
 step
   .goto Desolace,36.2,79.2

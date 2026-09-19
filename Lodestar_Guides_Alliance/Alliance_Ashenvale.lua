@@ -18,16 +18,22 @@ Guide:RegisterGuide([[
 #note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.
 
 step
+  .optional >>Needs The Tower of Althalaxx, which starts in Darkshore
   .goto Ashenvale,26.2,38.7
   .accept 970 >>Accept The Tower of Althalaxx (lvl 13) from Delgren the Purifier
 
 step
+  .optional >>Needs The Tower of Althalaxx, which starts in Darkshore
   .goto Ashenvale,31.1,30.3
   .complete 970 >>Finish The Tower of Althalaxx
 
 step
+  .optional >>Needs The Tower of Althalaxx, which starts in Darkshore
   .goto Ashenvale,26.2,38.7
   .turnin 970 >>Turn in The Tower of Althalaxx to Delgren the Purifier
+
+step
+  .goto Ashenvale,26.2,38.7
   .accept 973 >>Accept The Tower of Althalaxx (lvl 13) from Delgren the Purifier
 
 step
@@ -115,7 +121,14 @@ step
 step
   .goto Ashenvale,53.5,46.2
   .turnin 1024 >>Turn in Raene's Cleansing to Shael'dryn
+
+step
+  .optional >>Needs Raene's Cleansing, which this route does not cover
+  .goto Ashenvale,53.5,46.2
   .accept 1029 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
+
+step
+  .goto Ashenvale,53.5,46.2
   .accept 1026 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
 
 step
@@ -123,6 +136,7 @@ step
   .complete 1026 >>Finish Raene's Cleansing
 
 step
+  .optional >>Needs Raene's Cleansing, which this route does not cover
   .goto Ashenvale,36.6,49.6
   .turnin 1029 >>Turn in Raene's Cleansing to Raene Wolfrunner
 
@@ -180,8 +194,12 @@ step
   .turnin 1134 >>Turn in Pridewings of Stonetalon to Shindrell Swiftfire
 
 step
+  .optional >>Needs Update for Sentinel Thenysil, which starts in Stonetalon Mountains
   .goto Ashenvale,34.9,49.8
   .accept 1081 >>Accept Reception from Tyrande (lvl 17) from Sentinel Thenysil
+
+step
+  .goto Ashenvale,34.9,49.8
   .accept 1070 >>Accept On Guard in Stonetalon (lvl 17) from Sentinel Thenysil
 
 step

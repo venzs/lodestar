@@ -31,16 +31,26 @@ step
   .turnin 165 >>Turn in The Hermit to Abercrombie
 
 step
+  .optional >>Needs Sven's Camp, which this route does not cover
   .goto Duskwood,7.8,34.1
   .accept 262 >>Accept The Shadowy Figure (lvl 20) from Sven Yorgen
+
+step
+  .optional >>Needs Armed and Ready, which starts in Stormwind City
+  .goto Duskwood,7.8,34.1
   .accept 55 >>Accept Morbent Fel (lvl 20) from Sven Yorgen
+
+step
+  .goto Duskwood,7.8,34.1
   .accept 95 >>Accept Sven's Revenge (lvl 20) from Sven Yorgen
 
 step
+  .optional >>Needs Armed and Ready, which starts in Stormwind City
   .goto Duskwood,16.9,33.4
   .complete 55 >>Finish Morbent Fel
 
 step
+  .optional >>Needs Armed and Ready, which starts in Stormwind City
   .goto Duskwood,7.8,34.1
   .turnin 55 >>Turn in Morbent Fel to Sven Yorgen
 
@@ -49,8 +59,12 @@ step
   .turnin 95 >>Turn in Sven's Revenge
 
 step
+  .optional >>Needs Sven's Camp, which this route does not cover
   .goto Duskwood,75.8,45.3
   .turnin 262 >>Turn in The Shadowy Figure to Madame Eva
+
+step
+  .goto Duskwood,75.8,45.3
   .accept 101 >>Accept The Totem of Infliction (lvl 18) from Madame Eva
   .accept 265 >>Accept The Shadowy Search Continues (lvl 20) from Madame Eva
   .accept 66 >>Accept The Legend of Stalvan (lvl 22) from Madame Eva
@@ -72,7 +86,15 @@ step
   .goto Duskwood,72.5,46.9
   .accept 266 >>Accept Inquire at the Inn (lvl 20) from Clerk Daltry
   .accept 67 >>Accept The Legend of Stalvan (lvl 22) from Clerk Daltry
+
+step
+  .optional >>Needs The Legend of Stalvan, which this route does not cover
+  .goto Duskwood,72.5,46.9
   .accept 69 >>Accept The Legend of Stalvan (lvl 22) from Clerk Daltry
+
+step
+  .optional >>Needs The Caravan Road, which starts in Stranglethorn Vale
+  .goto Duskwood,72.5,46.9
   .accept 1042 >>Accept The Carevin Family (lvl 25) from Clerk Daltry
 
 step
@@ -88,6 +110,7 @@ step
   .turnin 266 >>Turn in Inquire at the Inn to Tavernkeep Smitts
 
 step
+  .optional >>Needs The Caravan Road, which starts in Stranglethorn Vale
   .goto Duskwood,75.3,49.0
   .turnin 1042 >>Turn in The Carevin Family to Jonathan Carevin
 
@@ -97,6 +120,10 @@ step
 step
   .goto Duskwood,73.8,44.5
   .accept 453 >>Accept Finding the Shadowy Figure (lvl 20) from Tavernkeep Smitts
+
+step
+  .optional >>Needs The Legend of Stalvan, which starts in Elwynn Forest
+  .goto Duskwood,73.8,44.5
   .accept 79 >>Accept The Legend of Stalvan (lvl 22) from Tavernkeep Smitts
 
 step
@@ -104,6 +131,7 @@ step
   .turnin 453 >>Turn in Finding the Shadowy Figure to Jitters
 
 step
+  .optional >>Needs The Legend of Stalvan, which starts in Elwynn Forest
   .goto Duskwood,73.5,46.8
   .turnin 79 >>Turn in The Legend of Stalvan to Commander Althea Ebonlocke
 
@@ -211,7 +239,14 @@ step
 step
   .goto Duskwood,71.9,46.4
   .turnin 160 >>Turn in Note to the Mayor to Lord Ello Ebonlocke
+
+step
+  .optional >>Needs Messenger to Darkshire, which starts in Redridge Mountains
+  .goto Duskwood,71.9,46.4
   .accept 146 >>Accept Messenger to Darkshire (lvl 18) from Lord Ello Ebonlocke
+
+step
+  .goto Duskwood,71.9,46.4
   .accept 251 >>Accept Translate Abercrombie's Note (lvl 20) from Lord Ello Ebonlocke
 
 step
@@ -273,12 +308,17 @@ step
   .turnin 97 >>Turn in The Legend of Stalvan to Commander Althea Ebonlocke
 
 step
+  .optional >>Needs The Weathered Grave, which this route does not cover
   .goto Duskwood,72.6,47.6
   .accept 227 >>Accept Morgan Ladimore (lvl 28) from Sirra Von'Indi
 
 step
+  .optional >>Needs The Weathered Grave, which this route does not cover
   .goto Duskwood,73.5,46.8
   .turnin 227 >>Turn in Morgan Ladimore to Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,73.5,46.8
   .accept 58 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
   .accept 98 >>Accept The Legend of Stalvan (lvl 22) from Commander Althea Ebonlocke
   .accept 228 >>Accept Mor'Ladim (lvl 28) from Commander Althea Ebonlocke
@@ -313,14 +353,17 @@ step
   .turnin 229 >>Turn in The Daughter Who Lived to Watcher Ladimore
 
 step
+  .optional >>Needs The Missing Diplomat, which starts in Stormwind City
   .goto Duskwood,74.8,44.2
   .accept 1244 >>Accept The Missing Diplomat (lvl 28) from Watcher Backus
 
 step
+  .optional >>Needs The Missing Diplomat, which starts in Stormwind City
   .goto Duskwood,23.9,72.1
   .complete 1244 >>Finish The Missing Diplomat
 
 step
+  .optional >>Needs The Missing Diplomat, which starts in Stormwind City
   .goto Duskwood,74.8,44.2
   .turnin 1244 >>Turn in The Missing Diplomat to Watcher Backus
 

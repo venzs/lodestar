@@ -46,6 +46,10 @@ step
 step
   .goto Redridge Mountains,32.1,48.6
   .accept 125 >>Accept The Lost Tools (lvl 15) from Foreman Oslow
+
+step
+  .optional >>Needs Ink Supplies, which starts in Elwynn Forest
+  .goto Redridge Mountains,32.1,48.6
   .accept 347 >>Accept Rethban Ore (lvl 20) from Foreman Oslow
 
 step
@@ -53,6 +57,7 @@ step
   .complete 125 >>Finish The Lost Tools
 
 step
+  .optional >>Needs Ink Supplies, which starts in Elwynn Forest
   .goto Redridge Mountains,20.4,21.0
   .complete 347 >>Finish Rethban Ore
 
@@ -110,16 +115,19 @@ step
   .turnin 89 >>Turn in The Everstill Bridge to Foreman Oslow
 
 step
+  .optional >>Needs Redridge Rendezvous, which starts in Stormwind City
   .class Rogue
   .goto Redridge Mountains,28.1,52.0
   .accept 2282 >>Accept Alther's Mill (lvl 16) from Lucius
 
 step
+  .optional >>Needs Redridge Rendezvous, which starts in Stormwind City
   .class Rogue
   .goto Redridge Mountains,52.0,44.7
   .complete 2282 >>Finish Alther's Mill
 
 step
+  .optional >>Needs Redridge Rendezvous, which starts in Stormwind City
   .class Rogue
   .goto Redridge Mountains,28.1,52.0
   .turnin 2282 >>Turn in Alther's Mill to Lucius
@@ -143,16 +151,19 @@ step
   .xp 22
 
 step
+  .optional >>Needs Yorus Barleybrew, which starts in Stormwind City
   .class Warrior
   .goto Redridge Mountains,26.6,44.7
   .accept 1699 >>Accept The Rethban Gauntlet (lvl 20) from Yorus Barleybrew
 
 step
+  .optional >>Needs Yorus Barleybrew, which starts in Stormwind City
   .class Warrior
   .goto Redridge Mountains,19.1,24.7
   .complete 1699 >>Finish The Rethban Gauntlet
 
 step
+  .optional >>Needs Yorus Barleybrew, which starts in Stormwind City
   .class Warrior
   .goto Redridge Mountains,26.6,44.7
   .turnin 1699 >>Turn in The Rethban Gauntlet to Yorus Barleybrew
@@ -168,6 +179,7 @@ step
   .turnin 1702 >>Turn in The Shieldsmith to Furen Longbeard (not in this zone)
 
 step
+  .optional >>Needs The Defias Brotherhood, which starts in Westfall
   .goto Redridge Mountains,26.5,45.3
   .accept 132 >>Accept The Defias Brotherhood (lvl 14) from Wiley the Black
 
@@ -221,7 +233,15 @@ step
 step
   .goto Redridge Mountains,30.0,44.5
   .accept 120 >>Accept Messenger to Stormwind (lvl 14) from Magistrate Solomon
+
+step
+  .optional >>Needs Messenger to Stormwind, which starts in Stormwind City
+  .goto Redridge Mountains,30.0,44.5
   .accept 143 >>Accept Messenger to Westfall (lvl 14) from Magistrate Solomon
+
+step
+  .optional >>Needs Messenger to Westfall, which starts in Westfall
+  .goto Redridge Mountains,30.0,44.5
   .accept 145 >>Accept Messenger to Darkshire (lvl 18) from Magistrate Solomon
 
 step

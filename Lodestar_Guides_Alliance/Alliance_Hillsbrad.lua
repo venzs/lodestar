@@ -107,8 +107,20 @@ step
 step
   .goto Hillsbrad Foothills,48.1,59.1
   .accept 505 >>Accept Syndicate Assassins (lvl 26) from Magistrate Henry Maleb
+
+step
+  .optional >>Needs Foreboding Plans, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
   .accept 512 >>Accept Noble Deaths (lvl 26) from Magistrate Henry Maleb
+
+step
+  .optional >>Needs Further Mysteries, which starts in Ironforge
+  .goto Hillsbrad Foothills,48.1,59.1
   .accept 537 >>Accept Dark Council (lvl 30) from Magistrate Henry Maleb
+
+step
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
   .accept 523 >>Accept Baron's Demise (lvl 30) from Magistrate Henry Maleb
 
 step
@@ -116,20 +128,35 @@ step
   .complete 505 >>Finish Syndicate Assassins
 
 step
+  .optional >>Needs Foreboding Plans, which this route does not cover
   .goto Hillsbrad Foothills,59.7,7.4
   .complete 512 >>Finish Noble Deaths
 
 step
+  .optional >>Needs Further Mysteries, which starts in Ironforge
   .complete 537 >>Finish Dark Council
 
 step
+  .optional >>Needs Assassin's Contract, which this route does not cover
   .complete 523 >>Finish Baron's Demise
 
 step
   .goto Hillsbrad Foothills,48.1,59.1
   .turnin 505 >>Turn in Syndicate Assassins to Magistrate Henry Maleb
+
+step
+  .optional >>Needs Further Mysteries, which starts in Ironforge
+  .goto Hillsbrad Foothills,48.1,59.1
   .turnin 537 >>Turn in Dark Council to Magistrate Henry Maleb
+
+step
+  .optional >>Needs Foreboding Plans, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
   .turnin 512 >>Turn in Noble Deaths to Magistrate Henry Maleb
+
+step
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
   .turnin 523 >>Turn in Baron's Demise to Magistrate Henry Maleb
 
 step
@@ -152,8 +179,13 @@ step
   .turnin 8373 >>Turn in The Power of Pine to Sergeant Hartman
 
 step
+  .optional >>Needs The Ensorcelled Parchment, which this route does not cover
   .goto Hillsbrad Foothills,50.6,57.1
   .accept 554 >>Accept Stormpike's Deciphering (lvl 28) from Loremaster Dibbs
+
+step
+  .optional >>Needs Encrypted Letter, which this route does not cover
+  .goto Hillsbrad Foothills,50.6,57.1
   .accept 514 >>Accept Letter to Stormpike (lvl 30) from Loremaster Dibbs
 
 step
@@ -221,13 +253,23 @@ step
   .turnin 8384 >>Turn in Claiming Arathi Basin to Alliance Brigadier General
 
 step
+  .optional >>Needs Stolen Winter Veil Treats, which starts in Orgrimmar
   .goto Hillsbrad Foothills,39.9,11.8
   .accept 6983 >>Accept You're a Mean One... (lvl 30) from Strange Snowman
+
+step
+  .optional >>Needs Stolen Winter Veil Treats, which this route does not cover
+  .goto Hillsbrad Foothills,39.9,11.8
   .accept 7043 >>Accept You're a Mean One... (lvl 30) from Strange Snowman
 
 step
+  .optional >>Needs Stolen Winter Veil Treats, which starts in Orgrimmar
   .goto Hillsbrad Foothills,44.6,7.7
   .complete 6983 >>Finish You're a Mean One...
+
+step
+  .optional >>Needs Stolen Winter Veil Treats, which this route does not cover
+  .goto Hillsbrad Foothills,44.6,7.7
   .complete 7043 >>Finish You're a Mean One...
 
 step
@@ -239,6 +281,7 @@ step
   .turnin 7043 >>Turn in You're a Mean One... to Wulmort Jinglepocket (not in this zone)
 
 step
+  .optional >>Needs Magical Analysis, which starts in Stranglethorn Vale
   .goto Hillsbrad Foothills,25.3,17.1
   .accept 603 >>Accept Ansirem's Key (lvl 32) from Archmage Ansirem Runeweaver
 
@@ -250,42 +293,51 @@ step
   .xp 34
 
 step
+  .optional >>Needs Down the Scarlet Path, which starts in Desolace
   .goto Hillsbrad Foothills,51.5,58.4
   .accept 1053 >>Accept In the Name of the Light (lvl 34) from Raleigh the Devout
 
 step
+  .optional >>Needs Down the Scarlet Path, which starts in Desolace
   .complete 1053 >>Finish In the Name of the Light
 
 step
+  .optional >>Needs Down the Scarlet Path, which starts in Desolace
   .goto Hillsbrad Foothills,51.5,58.4
   .turnin 1053 >>Turn in In the Name of the Light to Raleigh the Devout
 
 step
+  .optional >>Needs The Manor, Ravenholdt, which this route does not cover
   .class Rogue
   .goto Hillsbrad Foothills,80.6,16.8
   .accept 6701 >>Accept Syndicate Emblems (lvl 24) from Ravenholdt Guard
 
 step
+  .optional >>Needs The Manor, Ravenholdt, which this route does not cover
   .class Rogue
   .goto Hillsbrad Foothills,60.0,9.6
   .complete 6701 >>Finish Syndicate Emblems
 
 step
+  .optional >>Needs The Manor, Ravenholdt, which this route does not cover
   .class Rogue
   .goto Hillsbrad Foothills,80.6,16.8
   .turnin 6701 >>Turn in Syndicate Emblems to Ravenholdt Guard
 
 step
+  .optional >>Needs The Windwatcher, which starts in The Barrens
   .class Warrior
   .goto Hillsbrad Foothills,79.3,7.0
   .accept 1712 >>Accept Cyclonian (lvl 30) from Bath'rah the Windwatcher
 
 step
+  .optional >>Needs The Windwatcher, which starts in The Barrens
   .class Warrior
   .goto Hillsbrad Foothills,68.8,27.2
   .complete 1712 >>Finish Cyclonian
 
 step
+  .optional >>Needs The Windwatcher, which starts in The Barrens
   .class Warrior
   .goto Hillsbrad Foothills,79.3,7.0
   .turnin 1712 >>Turn in Cyclonian to Bath'rah the Windwatcher

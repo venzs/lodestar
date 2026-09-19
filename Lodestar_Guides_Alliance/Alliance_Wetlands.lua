@@ -113,10 +113,12 @@ step
   .turnin 306 >>Turn in In Search of The Excavation Team to Tarrel Rockweaver
 
 step
+  .optional >>Needs The Doomed Fleet, which starts in Stormwind City
   .goto Wetlands,10.6,60.6
   .accept 321 >>Accept Lightforge Iron (lvl 20) from Glorin Steelbrow
 
 step
+  .optional >>Needs The Doomed Fleet, which starts in Stormwind City
   .goto Wetlands,12.1,64.2
   .turnin 321 >>Turn in Lightforge Iron
 
@@ -215,12 +217,17 @@ step
   .xp 23
 
 step
+  .optional >>Needs The Algaz Gauntlet, which starts in Loch Modan
   .goto Wetlands,10.1,56.9
   .accept 473 >>Accept Report to Captain Stoutfist (lvl 23) from Valstag Ironjaw
 
 step
+  .optional >>Needs The Algaz Gauntlet, which starts in Loch Modan
   .goto Wetlands,9.9,57.5
   .turnin 473 >>Turn in Report to Captain Stoutfist to Captain Stoutfist
+
+step
+  .goto Wetlands,9.9,57.5
   .accept 464 >>Accept War Banners (lvl 23) from Captain Stoutfist
 
 step
@@ -237,6 +244,7 @@ step
   .turnin 465 >>Turn in Nek'rosh's Gambit
 
 step
+  .optional >>Needs A Dark Threat Looms, which starts in Loch Modan
   .goto Wetlands,50.0,18.2
   .accept 274 >>Accept A Dark Threat Looms (lvl 16) from Ashlan Stonesmirk
 
@@ -264,17 +272,24 @@ step
   .xp 24
 
 step
+  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
   .goto Wetlands,10.8,60.4
   .accept 943 >>Accept The Absent Minded Prospector (lvl 15) from Archaeologist Flagongut
 
 step
+  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
   .goto Wetlands,30.5,48.7
   .complete 943 >>Finish The Absent Minded Prospector
 
 step
+  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
   .goto Wetlands,10.8,60.4
   .turnin 943 >>Turn in The Absent Minded Prospector to Archaeologist Flagongut
-  .accept 293 >>Accept Cleansing the Eye (lvl 22) from Archaeologist Flagongut
+
+step
+  .optional >>Needs The Eye of Paleth, which this route does not cover
+  .goto Wetlands,10.6,60.6
+  .accept 293 >>Accept Cleansing the Eye (lvl 22) from Glorin Steelbrow
 
 step
   .optional >>Handed in outside this zone, to Archbishop Benedictus

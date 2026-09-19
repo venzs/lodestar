@@ -121,6 +121,10 @@ class Guide:
     faction: str = "Both"
     steps: list[Step] = field(default_factory=list)
     problems: list[tuple[str, int, str]] = field(default_factory=list)   # (severity, line, message)
+    # Steps this route deliberately defers because their chain starts outside it. Not a problem --
+    # the route says so on the step -- but worth a number, since it only shrinks when the harvest
+    # places the missing giver or a neighbouring route covers the chain.
+    deferred: int = 0
 
     def error(self, line: int, msg: str) -> None:
         self.problems.append(("error", line, msg))
@@ -408,6 +412,16 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
                             g.warn(a.line, f"accept {a.quest} ({title}): prerequisite {in_progress[0]} ({quests.get(in_progress[0], {}).get('t', '?')}) is only in progress here (turned in later)")
                         elif later:
                             g.error(a.line, f"accept {a.quest} ({title}): prerequisite {later[0]} ({quests.get(later[0], {}).get('t', '?')}) is turned in later in this guide")
+                        elif st.optional:
+                            # The route already knows. A generated route marks a quest optional and
+                            # names what it needs ("Needs Armed and Ready, which starts in Stormwind
+                            # City") when the chain starts somewhere it cannot reach -- another zone,
+                            # or no recorded giver at all. That is a gap declared, not a dead step
+                            # shipped: speed-run mode skips it and a completionist is told where to
+                            # go. Warning here would flag the fix for the bug rather than the bug,
+                            # exactly as it would for the optional turn-in breadcrumbs above.
+                            # Counted rather than silenced, because the number is worth watching.
+                            g.deferred += 1
                         else:
                             names = ", ".join(f"{p} {quests.get(p, {}).get('t', '?')}" for p in pre)
                             g.warn(a.line, f"accept {a.quest} ({title}): none of its prerequisites is turned in by this or a preceding guide ({names})")
@@ -531,6 +545,9 @@ def lint(paths: list[str], tolerance: float, record_shape: bool = False) -> tupl
                           f"({old:.2f} -> {new:.2f}) -- a generator change made this route worse")
         if regressed:
             print(f"route shape: {regressed} regression(s); rerun with --record-shape if intended")
+    deferred = sum(g.deferred for g in guides)
+    if deferred:
+        print(f"lint: {deferred} step(s) deferred to a chain starting outside their own route")
     print(f"lint: {len(guides)} guides, {errors} errors, {warnings} warnings")
     return errors, warnings
 

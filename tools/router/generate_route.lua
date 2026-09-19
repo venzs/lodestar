@@ -438,6 +438,51 @@ while pulled do
 	end
 end
 
+-- What is left over is a quest whose chain starts somewhere this route cannot go: the prerequisite is
+-- given in another zone, or no source records a giver for it at all. Twenty-one and eleven of them
+-- respectively, across the 1-30 packs. The route cannot satisfy either, and emitting the quest as an
+-- ordinary step hands the player something the client will simply refuse -- the guide then parks on
+-- it and every later step is unreachable, which is the mage-quest-handed-to-a-warrior failure reached
+-- from a third direction.
+--
+-- So it becomes an optional step that names what it needs. Speed-run mode skips it, a completionist
+-- is told where to go, and neither is left staring at a step that cannot be actioned. `prev` is a
+-- list of alternatives, so naming the first is naming *a* way in rather than the only one.
+for _, q in pairs(quests) do
+	if q.prev and #q.prev > 0 then
+		local satisfied = false
+		for _, p in ipairs(q.prev) do
+			if quests[p] then satisfied = true break end
+		end
+		if not satisfied then q.needs = q.prev[1] end
+	end
+end
+
+--- The title of a quest this route does not carry, for the note on such a step.
+local function needsTitle(id)
+	local q = (F.quests or {})[id] or (V.quests or {})[id] or (A.quests or {})[id]
+	local t = q and q.t
+	if type(t) == "string" then return (t:gsub("^%s*(.-)%s*$", "%1")) end
+	return "quest " .. tostring(id)
+end
+
+--- Where that quest starts, when the databases know. An unknown zone is not worth guessing at: the
+--- title alone still tells the player what to look for, and a wrong zone sends them across a
+--- continent.
+local function needsWhere(id)
+	local q = (F.quests or {})[id] or (A.quests or {})[id] or (V.quests or {})[id]
+	local npc = q and q.start and q.start.npcs and q.start.npcs[1]
+	if not npc then return "" end
+	for _, store in ipairs({ F.npcs, A.npcs, V.npcs }) do
+		local e = store and store[npc]
+		if e and e.c and e.c[1] then
+			local name = V.zones and V.zones[e.c[1].m or e.c[1][1]]
+			return name and (", which starts in " .. name) or ""
+		end
+	end
+	return ""
+end
+
 -- Order: precedence first, travel second -----------------------------------------------------------
 
 local function dist(ax, ay, bx, by)
@@ -752,12 +797,17 @@ local function addStop(x, y, npc, action)
 	if sameSpot and ((action.q and action.q.classes) or (last.classes and last.classes ~= (action.q and action.q.classes))) then
 		sameSpot = false
 	end
+	-- A quest whose chain this route cannot reach never shares a step either, and for the same
+	-- reason: `.optional` filters the whole step, so folding one in with three ordinary quests from
+	-- the same NPC would let speed-run mode skip all four.
+	if sameSpot and ((action.q and action.q.needs) or last.needs) then sameSpot = false end
 	if sameSpot then
 		last.npc = last.npc or npc
 		last.actions[#last.actions + 1] = action
 		return
 	end
-	stops[#stops + 1] = { x = x, y = y, npc = npc, classes = action.q and action.q.classes or nil, actions = { action } }
+	stops[#stops + 1] = { x = x, y = y, npc = npc, classes = action.q and action.q.classes or nil,
+		needs = action.q and action.q.needs or nil, actions = { action } }
 end
 
 for _, stepRec in ipairs(order) do
@@ -809,13 +859,23 @@ for i, stop in ipairs(stops) do
 	end
 	-- A checkpoint stop carries no actions at all, so "every action is off-map" is vacuously true
 	-- for it. Require at least one.
-	local offMapOnly = #stop.actions > 0
+	local optionalOnly, why = #stop.actions > 0, nil
 	for _, a in ipairs(stop.actions) do
-		if not a.offMap then offMapOnly = false break end
+		local reason = a.offMap and "offmap" or ((a.q and a.q.needs) and "needs") or nil
+		if not reason then optionalOnly = false break end
+		why = why or reason
 	end
-	if offMapOnly then
+	if optionalOnly and why == "offmap" then
 		local target = npcName(stop.actions[1].q.ender)
 		w("  .optional >>Handed in outside this zone%s", target and (", to " .. target) or "")
+	elseif optionalOnly then
+		-- Where it starts is the more useful half, so it replaces the generic clause rather than
+		-- stacking with it: "which starts in Stormwind City, which this route does not cover" said
+		-- the same thing twice and read like a bug.
+		local need = stop.actions[1].q.needs
+		local where = needsWhere(need)
+		w("  .optional >>Needs %s%s", needsTitle(need),
+			where ~= "" and where or ", which this route does not cover")
 	end
 	if stop.classes then w("  .class %s", stop.classes) end
 	if stop.x then w("  .goto %s,%.1f,%.1f", ZONE, stop.x, stop.y) end

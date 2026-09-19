@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **A quest whose chain starts outside the route is offered as a breadcrumb, not as a dead step.**
+  Thirty-seven steps across the packs accepted a quest whose prerequisite is given in another zone
+  (twenty-one of them) or has no giver recorded in any source (eleven). The client refuses to hand
+  those over, so the guide parks on the step and everything after it is unreachable — the same
+  failure as the mage quest handed to a warrior, arrived at from a third direction. They are now
+  `.optional` and say what they need: *Needs Armed and Ready, which starts in Stormwind City*.
+  Speed-run mode skips them and a completionist knows where to go.
+  The whole chain for such a quest is marked together — accept, objective and turn-in — because
+  marking only the accept leaves the other two parked on a quest that was never taken. And like a
+  class quest, one never shares a step with ordinary quests from the same NPC, since `.optional`
+  filters the whole step and would take the others with it.
+- The guide lint counts those instead of warning about them, the way it already exempts an optional
+  turn-in breadcrumb from needing a `.goto`. A declared gap is the fix rather than the defect, and
+  warning about it flags the wrong thing. `lint: N step(s) deferred to a chain starting outside their
+  own route` keeps the number in view, and it falls when the harvest places a missing giver or a
+  neighbouring route picks the chain up. Across the packs: 99 warnings down to 64, and the
+  prerequisite warnings from 37 to 2 — one in a hand-written guide, one genuine edge case, both left
+  visible on purpose.
+
 - **A level floor no longer severs a quest chain.** `--min-level` exists so a 20-25 route does not
   open on "Accept CLUCK! (lvl 1) from Chicken", and it was also cutting the opening quests of chains
   the route goes on to use: The Tower of Althalaxx and The Zoram Strand start at 13 and 14 in an
