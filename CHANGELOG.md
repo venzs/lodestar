@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **The loop was mine, and the client was never lying.** Read out of Abhi's saved variables at last:
+  16 of the Zephras Isle route's 17 quests were in `GetAllCompletedQuestIDs`, and the per-quest flag
+  agreed on every one of them. He really had finished everything the route knew about. A generated
+  route carries the quests the harvest has managed to *place* — 17, while the zone has many more —
+  so a level 6 character finishing all of them is completely normal, and a start suggestion landing
+  on the last step is the route being exhausted, not evidence of anything.
+  The previous release read that as impossible, concluded the completion data must be wrong, stopped
+  believing it for the route's quests, and sent the character back to step 1 to be offered quests
+  they had handed in hours earlier. That guard is gone entirely, along with the distrust mechanism it
+  drove. A route whose quests are all finished now says so — naming how many it covers and why that
+  is fewer than the zone has — then chains to its `#next` or hands over to smart mode.
+- Guide: **a finished route can still be loaded by name.** Otherwise it bounces straight back out to
+  smart mode, which reads as "it will not let me select that any more". `/lode guide reset` starts
+  it over.
+
 - **Guide: a step asking for a quest this character can never be given is skipped.** "A Student of
   the Arcane" and "A Student of Nature" are the same step of the same chain offered to different
   specialisations: a druid takes Nature, and the route then asks for Arcane forever. The step can

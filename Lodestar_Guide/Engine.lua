@@ -229,16 +229,6 @@ function Guide:LoadGuide(name, stepIndex)
 	end
 	local synced
 	if not stepIndex then
-		-- Distrust is reconsidered on every load, not latched for the session: a character that has
-		-- since levelled past the contradiction gets its completed flags believed again. Otherwise a
-		-- decision taken at level 6 would still be overriding the client at level 12.
-		if not self:ImpossibleStart(guide, #guide.steps) then
-			for _, s in ipairs(guide.steps) do
-				for _, a in ipairs(s.actions) do
-					if a.questID then self.distrusted[a.questID] = nil end
-				end
-			end
-		end
 		-- Sync to the character, not to the saved position: a character that is mid-way (or has played
 		-- without the guide) lands on the step after the last one its completed quests account for.
 		local start, _, open = self:SuggestStartIndex(guide)
@@ -252,39 +242,31 @@ function Guide:LoadGuide(name, stepIndex)
 		end
 		why.suggested, why.openBefore = start, open
 
-		-- A suggestion the route's own level range says cannot be true. This is the overshoot that
-		-- put a level 6 character on step 36 of 36: believed once, it is written back as progress and
-		-- the character is pinned to the end of the zone from then on. Fall back to reconciling
-		-- against the quest log, which reads what the character is actually carrying, and say so --
-		-- an addon quietly disagreeing with the client about what you have done should not be silent.
-		local impossible = self:ImpossibleStart(guide, start)
-		if impossible then
-			local proof = self.lastSuggestProof or {}
-			why.impossibleStart = impossible
-			why.proof = proof
-			why.disagreement = self:CompletedDisagreement(proof)
-			-- Stop believing the flag for these specific quests, then ask again from scratch. Without
-			-- the second pass the suggestion here is still the poisoned one.
-			for _, id in ipairs(proof) do self.distrusted[id] = true end
-			start, _, open = self:SuggestStartIndex(guide)
-			why.suggested = start
-			Lodestar:Msg("|cffff9933The client says this character has already finished every quest in %s|r — %s. Ignoring that and working from your quest log; |cffffff7f/lode guide why|r has the detail.", guide.name, impossible)
+		-- Everything this route knows about is done. That is not a fault and not a contradiction:
+		-- a generated route carries the quests the harvest has PLACED, which for a new zone is a
+		-- fraction of what is there. Say so plainly, including how thin the route is, and hand over
+		-- rather than parking on the last step or -- as an earlier version of this did -- deciding
+		-- the completion data must be wrong and offering it all again from the beginning.
+		local exhausted, _, total = self:RouteExhausted(guide)
+		if exhausted and not pinned then
+			why.exhausted = ("all %d quests this route knows are finished"):format(total or 0)
+			self.db.char.finished = self.db.char.finished or {}
+			self.db.char.finished[guide.name] = true
+			self:RecordDecision("load", why)
+			local nextName = self:NextGuideName(guide)
+			if nextName and self.guideByName[nextName] then
+				Lodestar:Msg("You have finished all %d quests %s covers — loading %s.", total, guide.name, nextName)
+				return self:LoadGuide(nextName, 1)
+			end
+			Lodestar:Msg("You have finished all |cffffffff%d|r quests %s covers. The zone has more than that — this route is built from positions players have recorded, and nobody has walked the rest yet. Switching to smart mode, which works from your quest log and the map. |cffffff7f/lode share|r sends what you recorded, which is what fills the gap.",
+				total, guide.name)
+			self:UnloadGuide()
+			return true
 		end
-		local distrust = impossible ~= nil
 		if not saved then
 			-- No saved progress: this character has never run this guide, so it may be half way
 			-- through the zone already. Resume from what it actually holds rather than from step 1.
 			local resumed, actionable = self:ReconcileToLog(guide)
-			-- Reconciliation reads the quest LOG, which is a separate source from the completed
-			-- flags, so it is worth doing even when the flags are not to be trusted -- a character
-			-- part way through the zone is still holding real quests and lands on the right step.
-			-- But when it finds nothing actionable it falls back to "one past the last thing that
-			-- looks finished", and that is the poisoned number again. Start at the beginning rather
-			-- than at the end of a route this character demonstrably has not run.
-			if distrust and not (actionable and #actionable > 0) then
-				why.distrustFallback = "nothing in the quest log to reconcile against either"
-				resumed = 1
-			end
 			stepIndex, synced = resumed or start or 1, { open = open, reconciled = actionable and #actionable or nil }
 		elseif start and start > saved then
 			-- Never step over work the character still has open: that is the player's real position.
@@ -584,14 +566,8 @@ local function turnedIn(questID)
 	if t ~= nil and (GetTime() - t) < TURNIN_GRACE then return true end
 	local set = completedList()
 	if set then return set[questID] == true end
-	return C_QuestLog.IsQuestFlaggedCompleted(questID) and not Guide.distrusted[questID]
+	return C_QuestLog.IsQuestFlaggedCompleted(questID) and true or false
 end
-
---- Quests whose completion flag this session has positive evidence against.
----
---- Only consulted on a client with no completed LIST to ask, which is the only situation where the
---- per-quest flag is still load-bearing. Populated by ImpossibleStart.
-Guide.distrusted = {}
 
 local function accepted(questID)
 	if C_QuestLog.IsOnQuest(questID) or turnedIn(questID) then return true end
@@ -699,47 +675,35 @@ end
 
 --- Zygor-style "suggested starting point": the step after the last one whose quest actions are all
 --- complete according to the client's completion flags. Returns startIndex, skipped.
---- A suggested start the route's own metadata says is impossible, or nil when it is credible.
+--- Has this character finished everything this route knows about?
 ---
---- A route declares the levels it covers. "#levels 1-12" is a claim that a character who works
---- through it comes out the other end at 12 -- that is what the route is FOR. So a character who is
---- level 6 cannot have finished it, whatever the client says about which quests are flagged
---- complete, and a suggestion that lands them on the last step is not a reading of their progress,
---- it is bad data.
+--- Worth stating carefully, because getting it wrong cost a whole evening. A generated route
+--- contains the quests the harvest has managed to PLACE, not every quest in the zone: Zephras Isle
+--- has 17 of them at the time of writing and the zone has many more. So a level 6 character
+--- finishing all 17 is completely normal, and "the start suggestion landed on the last step" means
+--- the route is exhausted -- not that the client is lying about what has been completed.
 ---
---- This matters because the failure is silent and self-reinforcing: the suggestion is written back
---- as progress, the window parks on the final turn-in, and nothing about it looks like an error.
---- Two levels of slack, because a player who kills nothing and only quests can finish a zone a
---- little under its nominal level, and because being wrong in this direction costs a real resume.
-local LEVEL_SLACK = 2
-
-function Guide:ImpossibleStart(guide, start)
-	if not (guide.maxLevel and start and start >= #guide.steps) then return nil end
-	local level = UnitLevel("player")
-	if type(level) ~= "number" or level >= guide.maxLevel - LEVEL_SLACK then return nil end
-	return ("the quest data says this character finished every quest in a %d-%d route, but it is level %d")
-		:format(guide.minLevel or 1, guide.maxLevel, level)
-end
-
---- What the client's two answers to "has this been finished?" say, when they disagree.
----
---- IsQuestFlaggedCompleted is what every completion check in the suite is built on.
---- GetAllCompletedQuestIDs is the same information as a list. They should never differ; if they do
---- on this build, that is worth knowing precisely rather than inferring from behaviour, so the
---- disagreement is recorded rather than silently resolved -- picking a winner before knowing which
---- one is right is how the last four rounds of this went.
-function Guide:CompletedDisagreement(questIDs)
-	if not C_QuestLog.GetAllCompletedQuestIDs then return nil end
-	local ok, list = pcall(C_QuestLog.GetAllCompletedQuestIDs)
-	if not (ok and type(list) == "table") then return nil end
-	local inList = {}
-	for _, id in ipairs(list) do inList[id] = true end
-	local only = {}
-	for _, id in ipairs(questIDs) do
-		if not inList[id] then only[#only + 1] = id end
+--- The previous version of this assumed the opposite. It read "finished every quest in a 1-12
+--- route" as impossible for a level 6 character, decided the completion data was wrong, and stopped
+--- believing it for that route's quests -- so the guide went back to step 1 and offered quests that
+--- had genuinely been handed in hours before. That was the loop Abhi kept reporting, and it was
+--- caused entirely by a guard built on a premise that was never checked against his saved
+--- variables. The check was: 16 of the route's 17 quests were in GetAllCompletedQuestIDs, and the
+--- per-quest flag agreed with the list on every one of them.
+function Guide:RouteExhausted(guide)
+	local quests, done = 0, 0
+	local seen = {}
+	for _, step in ipairs(guide.steps) do
+		for _, a in ipairs(step.actions or {}) do
+			if a.questID and not seen[a.questID] then
+				seen[a.questID] = true
+				quests = quests + 1
+				if self:IsActionComplete({ type = "turnin", questID = a.questID }, nil) then done = done + 1 end
+			end
+		end
 	end
-	if #only == 0 then return nil end
-	return { flaggedButNotListed = only, listSize = #list }
+	if quests == 0 then return false end
+	return done >= quests, done, quests
 end
 
 function Guide:SuggestStartIndex(guide)
@@ -747,7 +711,6 @@ function Guide:SuggestStartIndex(guide)
 	local pf = self:PlayerFilters()
 	local last = 0
 	local openBefore = {}   -- [idx] = true for applicable quest steps that are not complete
-	local proofIDs = {}     -- the quests whose completion moved the suggestion forward
 	for idx, step in ipairs(guide.steps) do
 		if self:StepApplies(step, pf) then
 			local questActions, done, proof = 0, 0, false
@@ -759,10 +722,7 @@ function Guide:SuggestStartIndex(guide)
 						-- A quest merely sitting in the log proves nothing about where the character is:
 						-- players grab every quest at a hub, often long before the guide's step for it.
 						-- Only a turn-in or a finished objective may move the suggested start forward.
-						if a.type ~= "accept" or turnedIn(a.questID) then
-							proof = true
-							proofIDs[#proofIDs + 1] = a.questID
-						end
+						if a.type ~= "accept" or turnedIn(a.questID) then proof = true end
 					end
 				end
 			end
@@ -775,7 +735,6 @@ function Guide:SuggestStartIndex(guide)
 	local start = math.min(last + 1, #guide.steps)
 	local open = 0
 	for idx in pairs(openBefore) do if idx < start then open = open + 1 end end
-	self.lastSuggestProof = proofIDs
 	return start, math.max(0, start - 1), open
 end
 
@@ -1032,7 +991,6 @@ function Guide:EngineOnEvent(event, ...)
 		-- a question the client can answer honestly (Smart.lua: CompletedQuestsReady).
 		if self.ResetCompletedReady then self:ResetCompletedReady() end
 		self:InvalidateCompleted()
-		wipe(self.distrusted)
 	end
 	if ENGINE_EVENTS[event] or event == "HEARTHSTONE_BOUND" or event == "TRAINER_CLOSED" or event == "MERCHANT_CLOSED" then
 		self:QueueEvaluate()
@@ -1169,7 +1127,18 @@ guideVerb("load", "load a route by name (a prefix will do)", function(arg)
 		if g.name:lower() == arg:lower() then match = g break end
 		if not match and g.name:lower():find(arg:lower(), 1, true) then match = g end
 	end
-	if match then Guide:LoadGuide(match.name) else Lodestar:Say("No guide matches '%s'.", arg) end
+	if not match then Lodestar:Say("No guide matches '%s'.", arg) return end
+	-- Asking for a route by name is explicit, so it is honoured even when this character has already
+	-- finished it -- otherwise a finished route bounces straight back out to smart mode and reads as
+	-- "it will not let me select that any more". Pinning the step is what makes it stick: an
+	-- unpinned load re-checks whether the route is exhausted and hands over again.
+	if (Guide.db.char.finished or {})[match.name] then
+		Lodestar:Say("%s is already finished for this character — loading it anyway at step %d. |cffffff7f/lode guide reset|r starts it over.",
+			match.name, Guide.db.char.progress[match.name] or 1)
+		Guide:LoadGuide(match.name, Guide.db.char.progress[match.name] or 1)
+	else
+		Guide:LoadGuide(match.name)
+	end
 end)
 
 guideVerb("next", "move on one step", function() Guide:NextStep() end)
@@ -1420,17 +1389,8 @@ function Guide:PrintWhy()
 			Lodestar:Say("    started at %s%s%s", tostring(d.chose),
 				d.clamped and (" |cffff5555(clamped from " .. tostring(d.wanted) .. " — the suggestion ran off the end)|r") or "",
 				d.pinned and " (pinned by the caller)" or "")
-			if d.impossibleStart then
-				Lodestar:Say("    |cffff5555ignored the quest data's suggestion|r: %s", d.impossibleStart)
-				if d.proof and #d.proof > 0 then
-					local ids = {}
-					for i, id in ipairs(d.proof) do if i > 12 then break end ids[i] = tostring(id) end
-					Lodestar:Say("      reported as turned in: %s%s", table.concat(ids, ", "), #d.proof > 12 and (" and " .. (#d.proof - 12) .. " more") or "")
-				end
-				if d.disagreement then
-					Lodestar:Say("      |cffff5555and the client contradicts itself|r: %d of those are flagged complete but missing from GetAllCompletedQuestIDs (%d entries)",
-						#d.disagreement.flaggedButNotListed, d.disagreement.listSize)
-				end
+			if d.exhausted then
+				Lodestar:Say("    |cff7fff7froute exhausted|r: %s", d.exhausted)
 			end
 			if not d.completedKnown then
 				Lodestar:Say("    |cffff9933the completed-quest list had not arrived yet — this was re-done once it did|r")

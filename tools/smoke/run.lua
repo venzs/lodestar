@@ -3632,61 +3632,73 @@ end)
 -- Zephras route turned in, the suggested start ran to the last step, and that got written back as
 -- progress. The route's own "#levels 1-12" is the contradiction -- finishing it is what makes a
 -- character level 12 -- so the suggestion is bad data, not a reading of progress.
-try("a start position the route's level range says is impossible is not believed", function()
-	-- Zephras Isle: the actual route this happened on, and one with no installed #next, so a route
-	-- that really is finished stays on its last step instead of chaining away mid-test.
+-- A route whose every quest is done is exhausted, not broken.
+--
+-- This is the bug that cost the most, and it was mine twice over. A generated route carries the
+-- quests the harvest has PLACED -- Zephras Isle had 17 of them while the zone has many more -- so a
+-- level 6 character finishing all 17 is completely normal. The first version of this code read
+-- "finished every quest in a 1-12 route" as impossible, concluded the client must be lying about
+-- what was completed, stopped believing it, and sent the player back to step 1 to be offered quests
+-- they had genuinely handed in hours earlier. That was the loop.
+--
+-- Checked against his saved variables in the end: 16 of the route's 17 quests were in
+-- GetAllCompletedQuestIDs, and the per-quest flag agreed on every one. Nothing was lying.
+try("a route with every quest finished hands over instead of starting again", function()
 	local NAME = "Skyborne 1-12: Zephras Isle"
 	local guide = G.guideByName[NAME]
 	local wasFlagged, wasLog, wasLevel = stub.flagged, stub.questLog, stub.level
-	local wasProgress = G.db.char.progress[NAME]
-	local realRace = UnitRace
-	UnitRace = function() return "Skyborne", "Skyborne", 11 end
+	local wasFaction = Lodestar.player.faction
+	local realRace, realAll = UnitRace, C_QuestLog.GetAllCompletedQuestIDs
+	UnitRace = function() return "Windshaper Skyborne", "Skyborne", 11 end
 
-	-- Every quest the route touches reported as turned in, on a character far below its top level.
-	-- This is exactly what the client was telling the addon.
-	local flagged = {}
+	-- Every quest the route knows, genuinely completed, on a low-level character. Exactly Abhi's
+	-- situation: the route is short, not the character advanced.
+	local ids, flagged = {}, {}
 	for _, step in ipairs(guide.steps) do
 		for _, a in ipairs(step.actions) do
-			if a.questID then flagged[a.questID] = true end
+			if a.questID and not flagged[a.questID] then flagged[a.questID] = true ids[#ids + 1] = a.questID end
 		end
 	end
-	stub.flagged, stub.questLog = flagged, {}
-	stub.level = 6
+	stub.flagged = flagged
+	C_QuestLog.GetAllCompletedQuestIDs = function() return ids end
+	stub.questLog, stub.level = {}, 6
 	G.db.char.progress[NAME] = nil
 	G.db.char.finished = {}
 	G.decisions = nil
+	G:RefreshCompleted()
+
+	-- No Silverpine for an Alliance Skyborne, so this falls through to smart mode rather than
+	-- chaining, which is the case worth pinning: it must not park and must not start over.
+	Lodestar.player.faction = "Horde"
+	local before = #stub.chat
 	G:LoadGuide(NAME)
-	check(G.stepIndex < #guide.steps,
-		("a level 6 character is not put on the last step of a %d-step 1-12 route, landed on %d")
-			:format(#guide.steps, G.stepIndex))
+	local text = table.concat(stub.chat, "\n", before + 1, #stub.chat)
+	check(G.current == nil or G.current.name ~= NAME,
+		"the exhausted route is handed over, not re-walked (now on " .. tostring(G.current and G.current.name) .. ")")
+	check(text:find("finished all", 1, true) ~= nil, "and says so plainly: " .. text:sub(1, 150))
+	check(G.db.char.finished[NAME] == true, "and records it as finished for this character")
+
 	local rec
-	for i = #G.decisions, 1, -1 do
+	for i = #(G.decisions or {}), 1, -1 do
 		if G.decisions[i].kind == "load" and G.decisions[i].guide == NAME then rec = G.decisions[i] break end
 	end
-	check(rec and rec.impossibleStart, "and the reason is recorded: " .. tostring(rec and rec.impossibleStart))
-	check(rec and rec.proof and #rec.proof > 0, "along with the quests that were reported turned in")
-	check(not G.db.char.finished[NAME], "and a route it never ran is not marked finished")
+	check(rec and rec.exhausted, "with the reason recorded: " .. tostring(rec and rec.exhausted))
 
-	-- The same data on a character who really is at the route's top level IS believed: the guard
-	-- must not break a genuine resume, which is what reconciling is for in the first place.
-	stub.level = 12
-	G.db.char.progress[NAME] = nil
-	G.decisions = nil
-	G:LoadGuide(NAME)
-	-- Either it resumes at the end of the route, or -- because it really is finished and the route
-	-- now declares a successor -- it has already chained onto that. Both are the right answer; what
-	-- must not happen is being dropped back to the start.
-	local chained = G.current and G.current.name ~= NAME
-	check(chained or G.stepIndex >= #guide.steps - 1,
-		("a character at the route's top level resumes at the end or moves on, on %s at %s")
-			:format(tostring(G.current and G.current.name), tostring(G.stepIndex)))
-	check(not G.distrusted[guide.steps[1].actions[1].questID],
-		"and levelling past the contradiction restores trust in the client's own answer")
+	-- Asking for it by name still works. A finished route that bounces straight back out reads as
+	-- "it will not let me select that any more", which is not what finished should mean.
+	stub.slash("/lode guide load Skyborne")
+	check(G.current and G.current.name == NAME,
+		"a finished route can still be loaded on request, got " .. tostring(G.current and G.current.name))
 
+	-- And the thing that must never happen again: a completed quest is never offered back.
+	check(G:IsActionComplete({ type = "accept", questID = ids[1] }, nil),
+		"a quest the client says is finished stays finished, whatever the route's level range claims")
+
+	C_QuestLog.GetAllCompletedQuestIDs = realAll
 	stub.flagged, stub.questLog, stub.level = wasFlagged, wasLog, wasLevel
-	UnitRace = realRace
-	G.db.char.progress[NAME] = wasProgress
-	G.db.char.finished[NAME] = nil
+	Lodestar.player.faction, UnitRace = wasFaction, realRace
+	G.db.char.progress[NAME], G.db.char.finished[NAME] = nil, nil
+	G:RefreshCompleted()
 end)
 
 -- Every movable window remembers where it was left, including the half of the anchor that is easy
