@@ -1,0 +1,163 @@
+{
+  "Alliance 12-20: Darkshore": {
+    "backtrack": 0.393,
+    "hops": 123,
+    "longest": 77.831,
+    "radius": 1.145,
+    "travel": 1197.192
+  },
+  "Alliance 12-20: Loch Modan": {
+    "backtrack": 0.339,
+    "hops": 77,
+    "longest": 92.764,
+    "radius": 3.341,
+    "travel": 1347.454
+  },
+  "Alliance 12-20: Westfall": {
+    "backtrack": 0.481,
+    "hops": 82,
+    "longest": 73.839,
+    "radius": 3.65,
+    "travel": 1458.549
+  },
+  "Alliance 20-25: Ashenvale": {
+    "backtrack": 0.515,
+    "hops": 44,
+    "longest": 63.644,
+    "radius": 4.31,
+    "travel": 505.379
+  },
+  "Alliance 20-25: Redridge Mountains": {
+    "backtrack": 0.314,
+    "hops": 35,
+    "longest": 45.406,
+    "radius": 1.0,
+    "travel": 134.944
+  },
+  "Alliance 20-25: Wetlands": {
+    "backtrack": 0.606,
+    "hops": 45,
+    "longest": 56.427,
+    "radius": 4.492,
+    "travel": 542.58
+  },
+  "Alliance 25-30: Duskwood": {
+    "backtrack": 0.546,
+    "hops": 70,
+    "longest": 65.543,
+    "radius": 1.0,
+    "travel": 829.971
+  },
+  "Alliance 30-35: Hillsbrad Foothills": {
+    "backtrack": 0.293,
+    "hops": 37,
+    "longest": 50.768,
+    "radius": 1.0,
+    "travel": 189.857
+  },
+  "Alliance/Dwarf,Gnome 1-12: Dun Morogh": {
+    "backtrack": 0.252,
+    "hops": 153,
+    "longest": 92.764,
+    "radius": 1.008,
+    "travel": 1271.869
+  },
+  "Alliance/Human 1-12: Elwynn Forest": {
+    "backtrack": 0.462,
+    "hops": 144,
+    "longest": 62.551,
+    "radius": 1.379,
+    "travel": 1345.778
+  },
+  "Alliance/Night Elf 1-12: Teldrassil": {
+    "backtrack": 0.427,
+    "hops": 148,
+    "longest": 76.711,
+    "radius": 1.21,
+    "travel": 1590.24
+  },
+  "Horde 12-20: Silverpine Forest": {
+    "backtrack": 0.533,
+    "hops": 69,
+    "longest": 62.767,
+    "radius": 2.276,
+    "travel": 796.241
+  },
+  "Horde 12-20: The Barrens": {
+    "backtrack": 0.51,
+    "hops": 134,
+    "longest": 43.64,
+    "radius": 1.223,
+    "travel": 1095.463
+  },
+  "Horde 20-25: Hillsbrad Foothills": {
+    "backtrack": 0.382,
+    "hops": 48,
+    "longest": 49.565,
+    "radius": 2.631,
+    "travel": 672.691
+  },
+  "Horde 20-25: Stonetalon Mountains": {
+    "backtrack": 0.515,
+    "hops": 54,
+    "longest": 55.406,
+    "radius": 3.29,
+    "travel": 721.625
+  },
+  "Horde 25-30: Ashenvale": {
+    "backtrack": 0.378,
+    "hops": 57,
+    "longest": 67.692,
+    "radius": 1.931,
+    "travel": 647.956
+  },
+  "Horde 25-30: Thousand Needles": {
+    "backtrack": 0.372,
+    "hops": 59,
+    "longest": 44.3,
+    "radius": 2.03,
+    "travel": 612.268
+  },
+  "Horde 30-35: Desolace": {
+    "backtrack": 0.395,
+    "hops": 41,
+    "longest": 43.505,
+    "radius": 5.42,
+    "travel": 389.587
+  },
+  "Horde/Orc,Troll 1-12: Durotar": {
+    "backtrack": 0.437,
+    "hops": 140,
+    "longest": 49.98,
+    "radius": 1.02,
+    "travel": 1002.642
+  },
+  "Horde/Tauren 1-12: Mulgore": {
+    "backtrack": 0.352,
+    "hops": 110,
+    "longest": 79.3,
+    "radius": 1.592,
+    "travel": 1314.467
+  },
+  "Horde/Undead 1-5: Deathknell": {
+    "backtrack": 0.448,
+    "hops": 33,
+    "longest": 8.841,
+    "radius": 1.0,
+    "travel": 85.587
+  },
+  "Horde/Undead 5-12: Tirisfal Glades": {
+    "backtrack": 0.486,
+    "hops": 86,
+    "longest": 32.712,
+    "radius": 1.0,
+    "travel": 680.918
+  },
+  "Skyborne 1-12: Zephras Isle": {
+    "backtrack": 0.626,
+    "hops": 38,
+    "longest": 7.703,
+    "radius": 1.0,
+    "travel": 111.86
+  }
+}

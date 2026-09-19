@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Route quality is measured, and regressions in it fail loudly.** Everything the guide lint did
+  proved a route was *valid* — right order, right positions, right levels, the right faction's NPCs
+  — and none of it said whether the route was any good to walk. It now reports how far each route
+  travels, how much of that is doubling back over ground already covered, and its longest single
+  hop. There is deliberately no pass/fail threshold: the hand-written routes, the ones a person
+  walked and was happy with, range from 28% to 64% backtracking, so any line drawn through that
+  would be taste dressed up as a rule. Instead `docs/route-shape.json` records what each route
+  scores today and the lint reports when one gets more than 10% worse — which is exactly what
+  happens when a change to the generator has an effect nobody intended. `--record-shape` accepts the
+  new numbers deliberately.
+- The "already been here" radius scales with the route rather than sitting at a fixed two map
+  percent, which is about one camp in Durotar and about a third of Zephras Isle. Small dense starting
+  zones were scoring 73% backtracking for ordinary hub-and-spoke questing.
+
 - **A route must never send you to the other faction's NPCs.** The generator filtered on the quest's
   race bitmask, which is almost always empty: in a contested zone the faction split is expressed by
   *who stands there*, not by a flag on the quest. The generated Alliance Ashenvale route took 22 of

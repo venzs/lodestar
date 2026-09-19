@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import glob
 import importlib.util
+import json
 import math
 import os
 import re
@@ -256,6 +257,47 @@ def npc_positions(data, quest: dict, key: str) -> list[tuple[str, float, float, 
     return out
 
 
+def route_shape(g: Guide) -> dict:
+    """How far this route walks, and how much of that is doubling back.
+
+    Everything else here proves a route is VALID -- right order, right positions, right levels, the
+    right faction's NPCs. None of it says whether the route is any good to play. A guide that sends
+    you to the far corner of Ashenvale, back to the entrance, and out to the same corner again
+    passes every check in this file.
+
+    Distance is in map percent, which is the unit the .goto coordinates are already in. It is not
+    yards and does not convert to them -- a percent of Durotar is a different distance from a
+    percent of Elwynn -- so the number is only meaningful compared against other routes for the
+    SAME zone, or against the same route before and after a change. That is exactly the comparison
+    that matters when the generator changes.
+
+    Backtracking is the honest signal and it is comparable across zones: of all the ground the route
+    covers, how much is spent returning to somewhere it has already been. A perfectly efficient
+    circuit is 0; walking out and back for every quest approaches 1.
+    """
+    points = [st.goto for st in g.steps if st.goto]
+    if len(points) < 2:
+        return {"travel": 0.0, "hops": 0, "backtrack": 0.0, "longest": 0.0}
+    hops = [math.hypot(b[1] - a[1], b[2] - a[2]) for a, b in zip(points, points[1:])]
+    travel = sum(hops)
+    # "Near enough to be the same place" has to scale with the route, or the measure just reports
+    # density. A fixed two percent is about one camp in Durotar and about a third of Zephras Isle,
+    # so a compact starting zone scored 73% backtracking for ordinary hub-and-spoke questing while a
+    # sprawling one scored well for genuinely walking back and forth. A quarter of the typical hop
+    # is the same idea expressed in the route's own units.
+    ordered = sorted(h for h in hops if h > 0)
+    median_hop = ordered[len(ordered) // 2] if ordered else 0.0
+    radius = max(1.0, median_hop * 0.25)
+    back = 0.0
+    visited: list[tuple[float, float]] = [(points[0][1], points[0][2])]
+    for (_, _, _), (_, x2, y2), d in zip(points, points[1:], hops):
+        if any(math.hypot(x2 - vx, y2 - vy) < radius for vx, vy in visited[:-1]):
+            back += d
+        visited.append((x2, y2))
+    return {"travel": travel, "hops": len(hops), "backtrack": back / travel if travel else 0.0,
+            "longest": max(hops), "radius": radius}
+
+
 def check_faction(g: Guide, data, action, quest: dict, key: str, verb: str) -> None:
     """A route must never send a player to an NPC of the other faction.
 
@@ -404,7 +446,7 @@ def check_goto(g: Guide, a: Action, st: Step, positions, tolerance: float, what:
         g.error(a.line, f".{a.type} {a.quest}: goto {x:.1f},{y:.1f} is {d:.1f} map units from {best[3]} at {best[1]},{best[2]} ({what})")
 
 
-def lint(paths: list[str], tolerance: float) -> tuple[int, int]:
+def lint(paths: list[str], tolerance: float, record_shape: bool = False) -> tuple[int, int]:
     data = load_vanilla()
     guides: list[Guide] = []
     for p in paths:
@@ -441,6 +483,7 @@ def lint(paths: list[str], tolerance: float) -> tuple[int, int]:
         later = set().union(*(quests_of(by_name[s], "turnin") for s in succ[g.name])) if succ[g.name] else set()
         check_guide(g, data, before_acc, before_turn, later, tolerance)
     errors = warnings = 0
+    shapes: dict[str, dict] = {}
     for g in guides:
         for sev, line, msg in sorted(g.problems, key=lambda p: p[1]):
             print(f"{g.file}:{line}: {sev}: {msg}")
@@ -449,7 +492,45 @@ def lint(paths: list[str], tolerance: float) -> tuple[int, int]:
             else:
                 warnings += 1
         n_quests = len(quests_of(g, "accept"))
-        print(f"{g.file}: {g.name!r}: {len(g.steps)} steps, {n_quests} quests accepted, {len(quests_of(g, 'turnin'))} turned in")
+        shape = route_shape(g)
+        print(f"{g.file}: {g.name!r}: {len(g.steps)} steps, {n_quests} quests accepted, "
+              f"{len(quests_of(g, 'turnin'))} turned in, "
+              f"travel {shape['travel']:.0f}%/{shape['hops']} hops, "
+              f"{shape['backtrack'] * 100:.0f}% backtracking, longest hop {shape['longest']:.0f}%")
+        shapes[g.name] = {k: round(v, 3) for k, v in shape.items()}
+    # Route quality is judged against this route's own past, not against a number somebody picked.
+    #
+    # There is no defensible absolute threshold: the hand-written guides -- the ones a person walked
+    # and was happy with -- range from 28% to 64% backtracking, so any line drawn through that is
+    # taste dressed up as a rule. What IS meaningful is a route getting worse than it was, which is
+    # exactly what happens when a change to the generator has an effect nobody intended. The
+    # baseline is committed; `--record-shape` updates it deliberately.
+    baseline_path = os.path.join(ROOT, "docs", "route-shape.json")
+    if record_shape:
+        os.makedirs(os.path.dirname(baseline_path), exist_ok=True)
+        with open(baseline_path, "w", encoding="utf-8") as fh:
+            json.dump(shapes, fh, indent=2, sort_keys=True)
+            fh.write("\n")
+        print(f"route shape: recorded {len(shapes)} routes to docs/route-shape.json")
+    elif os.path.exists(baseline_path):
+        with open(baseline_path, encoding="utf-8") as fh:
+            base = json.load(fh)
+        regressed = 0
+        for name, now in sorted(shapes.items()):
+            was = base.get(name)
+            if not was:
+                print(f"route shape: {name!r} is new (travel {now['travel']:.0f}%, "
+                      f"{now['backtrack'] * 100:.0f}% backtracking)")
+                continue
+            # 10%: below that is noise from a quest moving one step in the order.
+            for key, label in (("travel", "walks"), ("backtrack", "doubles back")):
+                old, new = was.get(key, 0), now.get(key, 0)
+                if old > 0 and new > old * 1.10:
+                    regressed += 1
+                    print(f"route shape: {name!r} now {label} {new / old:.2f}x what it did "
+                          f"({old:.2f} -> {new:.2f}) -- a generator change made this route worse")
+        if regressed:
+            print(f"route shape: {regressed} regression(s); rerun with --record-shape if intended")
     print(f"lint: {len(guides)} guides, {errors} errors, {warnings} warnings")
     return errors, warnings
 
@@ -458,12 +539,14 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="lint guide packs against the Vanilla database")
     ap.add_argument("files", nargs="*", help="guide .lua files (default: every Lodestar_Guides_*/**/*.lua)")
     ap.add_argument("--tolerance", type=float, default=4.0, help="max distance (map percent units) between a .goto and the giver/ender")
+    ap.add_argument("--record-shape", action="store_true",
+                    help="rewrite docs/route-shape.json from the current routes, accepting them as the new baseline")
     args = ap.parse_args(argv)
     # Forever's own quests live in the two generated overlays, not in the Vanilla database.
     EXTRA_QUEST_IDS.update(forever_quest_ids())
     EXTRA_QUEST_IDS.update(att_quest_ids())
     paths = args.files or sorted(glob.glob(os.path.join(ROOT, "Lodestar_Guides_*", "**", "*.lua"), recursive=True))
-    errors, _ = lint(paths, args.tolerance)
+    errors, _ = lint(paths, args.tolerance, args.record_shape)
     return 1 if errors else 0
 
 
