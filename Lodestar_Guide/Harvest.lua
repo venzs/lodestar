@@ -1028,7 +1028,8 @@ function Guide:HarvestAvailableItems(items, mapID)
 		for id, e in pairs(store) do
 			if e.map == mapID and e.gives and e.x and e.y then
 				for qid in pairs(e.gives) do
-					if not seen[qid] and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) then
+					if not seen[qid] and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid)
+						and not Guide:QuestUnavailable(qid) then
 						local q = db.quests[qid]
 						local lvl = q and q.lvl
 						local trivial = lvl and (level - lvl) >= 6

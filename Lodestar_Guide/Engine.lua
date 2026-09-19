@@ -91,6 +91,18 @@ local function hasItem(itemID)
 end
 
 local function stepApplies(step, pf)
+	-- A step whose only job is accepting a quest this character cannot be given is not a step for
+	-- this character, exactly like a class-gated one.
+	if step.actions and #step.actions > 0 then
+		local allSkipped = true
+		for _, a in ipairs(step.actions) do
+			if not (a.type == "accept" and a.questID and Guide:QuestUnavailable(a.questID)) then
+				allSkipped = false
+				break
+			end
+		end
+		if allSkipped then return false end
+	end
 	if step.classes and not (step.classes[pf.class] or step.classes[pf.className]) then return false end
 	if step.races and not (step.races[pf.race] or step.races[pf.raceFile]) then return false end
 	if step.optional and not Guide.db.profile.steps.completionist then return false end
@@ -675,6 +687,66 @@ end
 
 --- Zygor-style "suggested starting point": the step after the last one whose quest actions are all
 --- complete according to the client's completion flags. Returns startIndex, skipped.
+-- Quests this character cannot take, whatever the databases say ------------------------------------
+--
+-- Some quests exist, are not completed, are not in the log, and still can never be picked up by this
+-- particular character: "A Student of the Arcane" and "A Student of Nature" are one choice offered
+-- two ways, and a druid who took Nature is shown Arcane forever. Every eligibility test the addon
+-- has says it is available, because by every test it IS -- for somebody.
+--
+-- No database fixes this. pfQuest and ATT record a quest's class and race restrictions where they
+-- exist, and for a branch like this there are none: both quests are open to everyone, you simply
+-- cannot have both. So the answer has to come from the game or from the player.
+--
+-- Two ways in. The NPC is definitive: open them, and if the quest is not on their list it is not
+-- yours (CheckStepOnOffer). And the player is definitive: they know, and can say so without walking
+-- five hundred yards to prove it.
+--
+-- Kept per character, and mirrored into the vault, because on this client saved variables do not
+-- come back and a dismissal that lasts one session is not a dismissal.
+local VAULT_SKIPS = "skip"
+
+function Guide:UnavailableQuests()
+	self.db.char.unavailable = self.db.char.unavailable or {}
+	return self.db.char.unavailable
+end
+
+function Guide:QuestUnavailable(questID)
+	return questID ~= nil and self:UnavailableQuests()[questID] ~= nil
+end
+
+local function saveSkips(self)
+	if not Lodestar.VaultSet then return end
+	local ids = {}
+	for id in pairs(self:UnavailableQuests()) do ids[#ids + 1] = tostring(id) end
+	table.sort(ids)
+	Lodestar:VaultSet(VAULT_SKIPS, table.concat(ids, ","))
+end
+
+function Guide:MarkQuestUnavailable(questID, why)
+	if not questID then return end
+	self:UnavailableQuests()[questID] = why or "not available to this character"
+	saveSkips(self)
+end
+
+function Guide:ClearQuestUnavailable(questID)
+	if questID then self:UnavailableQuests()[questID] = nil else wipe(self:UnavailableQuests()) end
+	saveSkips(self)
+end
+
+--- Reload the dismissals from the vault when the saved variables came back empty, which on this
+--- client is every login.
+function Guide:RestoreSkips()
+	if not Lodestar.VaultGet then return end
+	local raw = Lodestar:VaultGet(VAULT_SKIPS)
+	if not raw or raw == "" then return end
+	local list = self:UnavailableQuests()
+	for id in raw:gmatch("[^,]+") do
+		local n = tonumber(id)
+		if n and not list[n] then list[n] = "dismissed earlier" end
+	end
+end
+
 --- Load a route because the PLAYER asked for it, from the menu or the slash command.
 ---
 --- The distinction matters and its absence was a bug. LoadGuide hands an exhausted route over to
@@ -1028,6 +1100,7 @@ function Guide:EngineOnEvent(event, ...)
 		-- a question the client can answer honestly (Smart.lua: CompletedQuestsReady).
 		if self.ResetCompletedReady then self:ResetCompletedReady() end
 		self:InvalidateCompleted()
+		self:RestoreSkips()
 	end
 	if ENGINE_EVENTS[event] or event == "HEARTHSTONE_BOUND" or event == "TRAINER_CLOSED" or event == "MERCHANT_CLOSED" then
 		self:QueueEvaluate()
@@ -1220,6 +1293,88 @@ guideVerb("train", "where the class trainer is, if you have spells to learn", fu
 	end
 end)
 
+guideVerb("skip", "stop suggesting a quest this character cannot take (by name or id)", function(arg)
+	arg = strtrim(tostring(arg or ""))
+	if arg == "" then
+		local list, n = Guide:UnavailableQuests(), 0
+		for id, why in pairs(list) do
+			n = n + 1
+			Lodestar:Say("  |cff999999%d|r %s — %s", id, questName(id) or "?", why)
+		end
+		if n == 0 then Lodestar:Say("Nothing is being skipped. |cffffff7f/lode guide skip <quest name or id>|r hides one that this character cannot take.") end
+		return
+	end
+	local id = tonumber(arg)
+	if not id then
+		-- By name, matched against what smart mode is currently offering: that is the list the
+		-- player is looking at when they decide something is not for them.
+		for _, it in ipairs(Guide:CollectSmartItems(true) or {}) do
+			if it.questID and it.title and it.title:lower():find(arg:lower(), 1, true) then id = it.questID break end
+		end
+	end
+	if not id then Lodestar:Say("No quest in the current list matches %q. Use the quest id if you have it.", arg) return end
+	Guide:MarkQuestUnavailable(id, "you said this character cannot take it")
+	Lodestar:Say("Skipping |cffffffff%s|r (%d). It will not be suggested again on this character. |cffffff7f/lode guide unskip %d|r undoes it.",
+		questName(id) or "quest", id, id)
+	Guide:EvaluateStep()
+	Guide:RefreshStepFrame()
+end)
+
+guideVerb("unskip", "suggest a skipped quest again (id, or all)", function(arg)
+	arg = strtrim(tostring(arg or ""))
+	if arg == "" or arg:lower() == "all" then
+		Guide:ClearQuestUnavailable()
+		Lodestar:Say("Nothing is being skipped any more.")
+	else
+		local id = tonumber(arg)
+		if not id then Lodestar:Say("Usage: /lode guide unskip <quest id|all> — |cffffff7f/lode guide skip|r lists them.") return end
+		Guide:ClearQuestUnavailable(id)
+		Lodestar:Say("%s will be suggested again.", questName(id) or ("Quest " .. id))
+	end
+	Guide:RefreshStepFrame()
+end)
+
+guideVerb("skip", "stop suggesting a quest this character cannot take (by name or id)", function(arg)
+	arg = strtrim(tostring(arg or ""))
+	if arg == "" then
+		local list, n = Guide:UnavailableQuests(), 0
+		for id, why in pairs(list) do
+			n = n + 1
+			Lodestar:Say("  |cff999999%d|r %s — %s", id, questName(id) or "?", why)
+		end
+		if n == 0 then Lodestar:Say("Nothing is being skipped. |cffffff7f/lode guide skip <quest name or id>|r hides one this character cannot take.") end
+		return
+	end
+	local id = tonumber(arg)
+	if not id then
+		-- Matched against what smart mode is offering right now, because that list on screen is
+		-- what the player is looking at when they decide something is not for them.
+		for _, it in ipairs(Guide:CollectSmartItems(true) or {}) do
+			if it.questID and it.title and it.title:lower():find(arg:lower(), 1, true) then id = it.questID break end
+		end
+	end
+	if not id then Lodestar:Say("No quest in the current list matches %q. Use the quest id if you have it.", arg) return end
+	Guide:MarkQuestUnavailable(id, "you said this character cannot take it")
+	Lodestar:Say("Skipping |cffffffff%s|r (%d) — it will not be suggested on this character again. |cffffff7f/lode guide unskip %d|r undoes it.",
+		questName(id) or "quest", id, id)
+	Guide:EvaluateStep()
+	Guide:RefreshStepFrame()
+end)
+
+guideVerb("unskip", "suggest a skipped quest again (id, or all)", function(arg)
+	arg = strtrim(tostring(arg or ""))
+	if arg == "" or arg:lower() == "all" then
+		Guide:ClearQuestUnavailable()
+		Lodestar:Say("Nothing is being skipped any more.")
+	else
+		local id = tonumber(arg)
+		if not id then Lodestar:Say("Usage: /lode guide unskip <quest id|all> — |cffffff7f/lode guide skip|r lists them.") return end
+		Guide:ClearQuestUnavailable(id)
+		Lodestar:Say("%s will be suggested again.", questName(id) or ("Quest " .. id))
+	end
+	Guide:RefreshStepFrame()
+end)
+
 guideVerb("diag", "dump quest, arrow and harvest state for a bug report", function() Guide:Diagnose() end)
 
 local function handleGuideSlash(rest)
@@ -1322,7 +1477,9 @@ function Guide:CheckStepOnOffer(event)
 	end
 	if not missing then return end
 	local title = questName(missing.questID) or ("quest " .. missing.questID)
-	Lodestar:Msg("|cffff9933%s is not on offer here|r — this character cannot take it (a class or path branch, usually). Skipping that step; press |cffffff7f<|r to go back to it.", title)
+	-- Recorded, not just skipped: smart mode builds its own list and would keep offering it.
+	self:MarkQuestUnavailable(missing.questID, "the giver did not offer it")
+	Lodestar:Msg("|cffff9933%s is not on offer here|r — this character cannot take it (a class or path branch, usually). It will stop being suggested; |cffffff7f/lode guide unskip|r undoes that.", title)
 	self.stepFlags[self.stepIndex] = self.stepFlags[self.stepIndex] or {}
 	self.stepFlags[self.stepIndex].manual = true
 	self:EvaluateStep()

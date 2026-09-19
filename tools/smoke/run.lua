@@ -3409,6 +3409,76 @@ try("the last step reached by a clamp is not a finished guide", function()
 	G.db.char.progress[NAME] = wasProgress
 end)
 
+-- Smart mode keeps offering a quest this character can never take.
+--
+-- The route fix was not enough: smart mode builds its own list from the harvest and the databases,
+-- and by every eligibility test "A Student of the Arcane" IS available -- not completed, not in the
+-- log, no class or race restriction recorded, because there is none. It is one choice offered two
+-- ways, and a druid who took Nature can never have it. So the answer has to be remembered rather
+-- than recomputed, and it has to be shared by every list that offers quests.
+try("a quest this character cannot take stops being suggested everywhere", function()
+	local ID = 92481    -- A Student of the Arcane; its sibling 92485 is the one a druid takes
+	G:ClearQuestUnavailable()
+
+	-- Seed the harvest with an NPC on the player's own map who gives it, so the collector that
+	-- actually offered it to Abhi is the one under test. Without this the check passes whether or
+	-- not that collector consults the dismissal, because nothing reaches it.
+	-- Level 6 against a level 2 quest, exactly as in the screenshot. It matters: the harvest
+	-- collector already drops a quest six or more levels below the player, so at level 12 this
+	-- would never have been offered and the test would prove nothing.
+	local wasLevel = stub.level
+	stub.level = 6
+	-- Smart mode withholds every "you can pick this up" source until the completed-quest list has
+	-- landed, so without this the collectors never run and the check passes for the wrong reason.
+	stub.completedNotLoaded = false
+	G:ResetCompletedReady()
+	stub.advance(15)
+	local db, map = G:HarvestDB(), stub.playerMap.map
+	local NPC = 999481
+	db.npcs[NPC] = { map = map, x = 42.0, y = 23.0, exact = true, name = "Rorian the Dayseeker",
+		gives = { [ID] = true } }
+	db.quests[ID] = db.quests[ID] or { t = "A Student of the Arcane", lvl = 2 }
+	stub.flagged[ID] = nil
+	stub.questLog[ID] = nil
+
+	local function offered()
+		for _, it in ipairs(G:CollectSmartItems(true) or {}) do
+			if it.questID == ID then return true end
+		end
+		return false
+	end
+
+	check(not G:QuestUnavailable(ID), "nothing is skipped to begin with")
+	check(offered(), "smart mode offers it while nothing says otherwise — the case Abhi screenshotted")
+	G:MarkQuestUnavailable(ID, "test")
+	check(G:QuestUnavailable(ID), "it is recorded against this character")
+	check(not offered(), "and smart mode stops listing it")
+
+	-- The player-facing half, which is the one that works from five hundred yards away: the NPC is
+	-- definitive but you have to walk to them, and by then you have already been annoyed twice.
+	G:ClearQuestUnavailable()
+	stub.slash("/lode guide skip " .. ID)
+	check(G:QuestUnavailable(ID), "/lode guide skip records it by id")
+	local before = #stub.chat
+	stub.slash("/lode guide skip")
+	local listed = table.concat(stub.chat, "\n", before + 1, #stub.chat)
+	check(listed:find(tostring(ID), 1, true) ~= nil, "and /lode guide skip with no argument lists what is skipped")
+	stub.slash("/lode guide unskip " .. ID)
+	check(not G:QuestUnavailable(ID), "/lode guide unskip puts it back")
+
+	-- It has to survive a login, and on this client that means the vault, not the saved variables.
+	G:MarkQuestUnavailable(ID, "test")
+	check((Lodestar:VaultGet("skip") or ""):find(tostring(ID), 1, true) ~= nil,
+		"the dismissal reaches the client config, which is the only thing that comes back here")
+	G.db.char.unavailable = nil
+	G:RestoreSkips()
+	check(G:QuestUnavailable(ID), "and is restored when the saved variables come back empty")
+
+	G:ClearQuestUnavailable()
+	db.npcs[NPC] = nil
+	stub.level = wasLevel
+end)
+
 -- A step asking for a quest this character can never be given.
 --
 -- "A Student of the Arcane" and "A Student of Nature" are the same step of the same chain offered

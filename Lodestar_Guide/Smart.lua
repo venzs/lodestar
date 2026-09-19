@@ -156,7 +156,8 @@ local function availableItems(items, mapID)
 	local ok, lines = pcall(C_QuestLine.GetAvailableQuestLines, mapID)
 	if not ok or type(lines) ~= "table" then return end
 	for _, ql in ipairs(lines) do
-		if ql.questID and not ql.isHidden and not C_QuestLog.IsOnQuest(ql.questID) and not C_QuestLog.IsQuestFlaggedCompleted(ql.questID) and ql.x and ql.y then
+		if ql.questID and not ql.isHidden and not C_QuestLog.IsOnQuest(ql.questID) and not C_QuestLog.IsQuestFlaggedCompleted(ql.questID)
+			and not Guide:QuestUnavailable(ql.questID) and ql.x and ql.y then
 			tinsert(items, { kind = "available", questID = ql.questID, mapID = mapID, x = ql.x, y = ql.y, source = "questline",
 				title = ql.questName or ql.questLineName or ("Quest " .. ql.questID), subtitle = "Pick up" .. (ql.questLineName and (" · " .. ql.questLineName) or "") })
 		end

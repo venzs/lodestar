@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **A quest this character can never take stops being suggested — everywhere.** Fixing the route was
+  not enough: smart mode builds its own list, and by every eligibility test "A Student of the Arcane"
+  *is* available — not completed, not in the log, and carrying no class or race restriction, because
+  there genuinely isn't one. It and "A Student of Nature" are one choice offered two ways, and a
+  druid who took Nature can never have the other. No database says so, so the answer has to be
+  remembered rather than recomputed, and shared by every list that offers quests.
+  Two ways in. The NPC is definitive — open them and the quest is not on their list — and now
+  records it rather than only skipping the step. And the player is definitive: `/lode guide skip
+  <name or id>` says so without walking five hundred yards to prove it, `/lode guide skip` lists what
+  is hidden, and `/lode guide unskip` puts it back. Kept per character and mirrored into the client
+  config, because a dismissal that lasts one session is not a dismissal on a client that hands
+  nothing back.
+
 - **A route you pick yourself is loaded, even when you have finished it.** Handing an exhausted
   route over to smart mode is right when the addon chose it — at login, or by auto-pick — and wrong
   when a person clicked its name in the menu: there it bounced straight back out, and what you saw

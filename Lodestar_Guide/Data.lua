@@ -243,7 +243,7 @@ function Guide:DataAvailableFrom(kind, id)
 	local raceBit, classBit = playerMasks()
 	for _, qid in ipairs(qids) do
 		local q = d.quests[qid]
-		if q and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) and canTake(q, level, raceBit, classBit) then
+		if q and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) and not Guide:QuestUnavailable(qid) and canTake(q, level, raceBit, classBit) then
 			tinsert(found, { questID = qid, title = q.t or ("Quest " .. qid), level = q.lvl, classQuest = q.class and q.class ~= 0 or false })
 		end
 	end
@@ -278,7 +278,7 @@ function Guide:DataAvailableItems(items, mapID)
 				if mapHere then
 					for _, qid in ipairs(qids) do
 						local q = d.quests[qid]
-						if q and not seen[qid] and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) and canTake(q, level, raceBit, classBit) then
+						if q and not seen[qid] and not C_QuestLog.IsOnQuest(qid) and not C_QuestLog.IsQuestFlaggedCompleted(qid) and not Guide:QuestUnavailable(qid) and canTake(q, level, raceBit, classBit) then
 							seen[qid] = true
 							local pmap, x, y, name, dist = nearest(store, { id })
 							if pmap then
