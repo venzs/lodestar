@@ -7,8 +7,11 @@
 --   --race Skyborne                        optional #race
 --   --levels 1-12                          optional #levels
 --   --next "Next guide name"               optional #next
+--   --next-horde "Guide"                  #next for Horde characters only (neutral races)
+--   --next-alliance "Guide"               #next for Alliance characters only
 --   --zone "Zephras Isle"                  name used in .goto (default: the map id)
 --   --max-level 12                         drop quests above this level
+--   --min-level 18                       drop quests below this level (zone easter eggs)
 --
 -- This is the piece that makes Lodestar different from a guide pack: the route is DERIVED, so it
 -- exists for content nobody has hand-authored. It reads the same three sources the addon does --
@@ -45,8 +48,21 @@ local FACTION = opt("faction", "Both")
 local RACE = opt("race")
 local LEVELS = opt("levels")
 local NEXT = opt("next")
+-- A neutral race needs two successors, not one: the Skyborne choose a faction at creation and
+-- level 12 sends the two halves to different continents. Emitted as "#next Horde: <name>".
+local NEXT_HORDE = opt("next-horde")
+local NEXT_ALLIANCE = opt("next-alliance")
 local ZONE = opt("zone", tostring(mapID))
 local MAX_LEVEL = tonumber(opt("max-level", "99"))
+-- Zones keep a few quests far below their own range -- an easter egg, a breadcrumb meant to be
+-- picked up elsewhere. Without a floor, a 20-25 route opens on "Accept CLUCK! (lvl 1) from Chicken",
+-- which is both wrong and the first thing anybody sees.
+local MIN_LEVEL = tonumber(opt("min-level", "0"))
+-- The levels the route claims to carry a character through. Used for the level estimate below, and
+-- as the ceiling on what a quest may REQUIRE: a route that leaves you at 25 cannot include a quest
+-- you are not allowed to accept until 26.
+local START_LEVEL = tonumber((LEVELS or ""):match("^(%d+)")) or 1
+local END_LEVEL = tonumber((LEVELS or ""):match("%-(%d+)")) or (START_LEVEL + 11)
 
 -- Load the same data the addon loads ---------------------------------------------------------------
 
@@ -62,6 +78,17 @@ local V, A, F = Guide.VanillaData, Guide.ATTData, Guide.ForeverData
 local function firstNPC(t) return t and t.npcs and t.npcs[1] or nil end
 
 --- Position of an NPC on this map: x, y (percent) or nil.
+---
+--- The two sources spell a coordinate differently and only one of them was being read. The harvest
+--- writes { 0, x, y, m = uiMapID }; pfQuest writes { zoneID, x, y } with no m at all, so every
+--- pfQuest position silently failed to match and the generator could only ever build a route for a
+--- zone somebody had already walked. That is why it produced nothing for any vanilla zone.
+---
+--- The map id argument is therefore read in whichever namespace the entry uses -- a uiMapID for
+--- harvested data, a pfQuest areaID for the vanilla database. They are separate numbering schemes
+--- and a value can be valid in both; in practice the harvest only covers zones that exist on the
+--- beta, so a collision would need the same number to name a beta zone and a vanilla one. Worth
+--- knowing rather than worth guarding, and the step count in the header makes a wrong map obvious.
 local function npcPos(id)
 	if not id then return nil end
 	for _, store in ipairs({ F.npcs, A.npcs, V.npcs }) do
@@ -70,6 +97,7 @@ local function npcPos(id)
 			if e.c then
 				for _, c in ipairs(e.c) do
 					if c.m == mapID then return c[2], c[3] end
+					if c.m == nil and c[1] == mapID then return c[2], c[3] end
 				end
 			end
 			if e.map == mapID and e.x then return e.x, e.y end
@@ -88,16 +116,48 @@ end
 
 local quests = {}
 
+-- Classic's race bitmask, as pfQuest stores it. A quest with no race field is open to everyone.
+local RACE_BIT = { human = 1, orc = 2, dwarf = 4, nightelf = 8, undead = 16, tauren = 32, gnome = 64, troll = 128 }
+local FACTION_MASK = {
+	Alliance = RACE_BIT.human + RACE_BIT.dwarf + RACE_BIT.nightelf + RACE_BIT.gnome,   -- 77
+	Horde    = RACE_BIT.orc + RACE_BIT.undead + RACE_BIT.tauren + RACE_BIT.troll,      -- 178
+}
+
+--- Does a race bitmask include any race of this faction? Lua 5.1 has no bitwise operators, so this
+--- walks the eight bits rather than pretending band exists.
+local function maskAllows(mask, faction)
+	if not mask or mask == 0 then return true end
+	local want = FACTION_MASK[faction]
+	if not want then return true end                    -- "Both": no filtering to do
+	local m, w, bit = mask, want, 1
+	for _ = 1, 8 do
+		if (m % 2) == 1 and (w % 2) == 1 then return true end
+		m, w, bit = math.floor(m / 2), math.floor(w / 2), bit * 2
+	end
+	return false
+end
+
+-- Every quest any source knows about. V.quests is the vanilla database and carries the 4,400-odd
+-- quests of the original game; leaving it out of this union is why a contested or high-level zone
+-- generated an empty route no matter which map id it was given.
 local ids = {}
 for qid in pairs(F.quests or {}) do ids[qid] = true end
 for qid in pairs(A.quests or {}) do ids[qid] = true end
+for qid in pairs(V.quests or {}) do ids[qid] = true end
 
 for qid in pairs(ids) do
 	local fq, aq, vq = (F.quests or {})[qid], (A.quests or {})[qid], (V.quests or {})[qid]
 	local title = (fq and fq.t) or (vq and vq.t)
 	local lvl = (fq and fq.lvl) or (aq and aq.lvl) or (vq and vq.lvl)
 	local giver = firstNPC(fq and fq.start) or firstNPC(aq and aq.start) or firstNPC(vq and vq.start)
-	local ender = firstNPC(fq and fq["end"]) or firstNPC(aq and aq["end"]) or firstNPC(vq and vq["end"]) or giver
+	-- The ender, and whether one is actually known. Defaulting to the giver is right for the common
+	-- case -- most quests are handed back to whoever gave them -- but not when the quest ends at a
+	-- world OBJECT: a shrine or a strongbox is not an NPC, firstNPC finds nothing, and silently
+	-- using the giver's position points the turn-in arrow across the zone.
+	local enderNPC = firstNPC(fq and fq["end"]) or firstNPC(aq and aq["end"]) or firstNPC(vq and vq["end"])
+	local enderObj = (vq and vq["end"] and vq["end"].objs and vq["end"].objs[1])
+		or (aq and aq["end"] and aq["end"].objs and aq["end"].objs[1])
+	local ender = enderNPC or (not enderObj and giver) or nil
 	local gx, gy = npcPos(giver)
 	if not gx then
 		-- fall back to a recorded accept position even when the giver NPC is unknown
@@ -105,6 +165,15 @@ for qid in pairs(ids) do
 		if at and at.m == mapID then gx, gy = at[2], at[3] end
 	end
 	local ex, ey = npcPos(ender)
+	if not ex and enderObj then
+		-- The object database knows where a shrine or a chest stands; the NPC one never will.
+		local o = V.objs and V.objs[enderObj]
+		if o and o.c then
+			for _, c in ipairs(o.c) do
+				if c.m == mapID or (c.m == nil and c[1] == mapID) then ex, ey = c[2], c[3] break end
+			end
+		end
+	end
 	if not ex then
 		-- A recorded turn-in position, even when the ender NPC itself was never identified. This is
 		-- what the client's own arrow for a completed quest gives, so it exists for far more quests
@@ -116,11 +185,39 @@ for qid in pairs(ids) do
 	-- objectives: text and count from the harvest, positions from either side
 	local objectives = fq and fq.o or nil
 	local spots = (fq and fq.spots) or (aq and aq.spots) or nil
-	if gx and (not lvl or lvl <= MAX_LEVEL) then
+	-- A contested zone's quest list is two routes interleaved. Without this an Alliance guide for
+	-- Ashenvale sends the player to Splintertree Post, which is a Horde camp that will kill them.
+	local allowed = maskAllows(vq and vq.race, FACTION)
+	-- A quest whose hard minimum is above where this route leaves the player cannot be part of it:
+	-- they would reach the end of the zone still unable to accept it. The balanced level may sit a
+	-- little past the range (that is what --max-level is for); the minimum may not.
+	local hardMin = (vq and vq.min) or (aq and aq.min)
+	local reachable = not hardMin or hardMin <= END_LEVEL
+	local inRange = reachable and (not lvl or (lvl <= MAX_LEVEL and lvl >= MIN_LEVEL))
+	if gx and allowed and inRange then
 		quests[qid] = {
 			id = qid, t = title, lvl = lvl, giver = giver, ender = ender,
 			gx = gx, gy = gy, ex = ex or gx, ey = ey or gy,
+			-- Whether that turn-in position is real or borrowed from the giver. "Elmore's Task" is
+			-- taken in Redridge and handed in to Grimand Elmore, who stands in Ironforge; falling
+			-- back to the giver's spot points the arrow at a patch of Lakeshire and calls it the
+			-- turn-in. A step with no position says "this is elsewhere", which is true. A step with
+			-- the wrong position says something false, confidently.
+			-- Three different situations, and collapsing them loses the route.
+			--   * the ender is known and stands here          -> point at it
+			--   * the ender is known and stands somewhere else -> an optional breadcrumb, no arrow
+			--   * the ender is not known at all               -> fall back to the giver and SAY so
+			-- The third is the normal state for a freshly harvested zone: nobody has handed the
+			-- quest in while Lodestar was watching, so there is no ender on record. Treating that
+			-- as "somewhere else" turned every turn-in in Zephras Isle into an optional step with
+			-- no arrow -- which in speed-run mode the engine skips entirely.
+			enderOffMap = ex == nil and (enderNPC or enderObj) ~= nil,
+			enderUnknown = ex == nil and (enderNPC or enderObj) == nil,
 			prev = prev, o = objectives, spots = spots,
+			-- The quest's own hard gate. `lvl` is the level it is BALANCED for and a route may
+			-- reasonably offer that a little early; `min` is the level below which the client simply
+			-- refuses to hand it over. Scheduling below `min` produces a step nobody can action.
+			min = (vq and vq.min) or (aq and aq.min) or nil,
 		}
 	end
 end
@@ -135,10 +232,10 @@ end
 
 --- Prerequisites that matter here: ones we are also going to do. A chain that starts off this map
 --- is not a constraint we can satisfy, so it is not one we should enforce.
-local function blockers(q, pending)
+local function blockers(q, all)
 	local out = {}
 	for _, p in ipairs(q.prev or {}) do
-		if pending[p] then out[#out + 1] = p end
+		if all[p] then out[#out + 1] = p end
 	end
 	return out
 end
@@ -161,14 +258,34 @@ local guard = 0
 -- better is available -- per-quest XP is only recorded where a player has actually turned that quest
 -- in, and the XP-per-level table is thinner still -- and a crude estimate applied consistently beats
 -- a precise one that exists for three quests out of seventeen.
-local QUESTS_PER_LEVEL = 2.5
+-- How many quests a level costs, derived from the route's own claim rather than assumed.
+--
+-- A fixed 2.5 is about right for a starting zone and badly wrong everywhere else: levels get far
+-- more expensive as they go, and a 20-25 route with sixty quests was emitting twenty-four level
+-- checkpoints and claiming to carry the player to 44. The declared #levels range is the honest
+-- number -- it is the designer's statement of what this route delivers -- so the pace is just the
+-- quests available divided by the levels promised. The floor keeps a thin route (one somebody has
+-- barely harvested yet) from claiming a level every quest.
 local ACCEPT_GRACE = 3       -- a quest is offered a few levels before its own level
+local MIN_QUESTS_PER_LEVEL = 2.5
 
+-- Where the character is when they walk in. This used to be hard-coded to 1, which is right for a
+-- starting zone and wrong for every other route: a 20-25 guide estimated its player at level 1 and
+-- so refused to schedule anything above level 4 until it had ordered a dozen quests, which reversed
+-- the route. The declared #levels range is the answer and it is already on the command line.
+local QUESTS_PER_LEVEL = MIN_QUESTS_PER_LEVEL
+if END_LEVEL > START_LEVEL and count > 0 then
+	QUESTS_PER_LEVEL = math.max(MIN_QUESTS_PER_LEVEL, count / (END_LEVEL - START_LEVEL))
+end
+
+--- Where a character is estimated to be this far into the route, never past what it promises.
 local function estimatedLevel(turnedIn)
-	return 1 + math.floor(turnedIn / QUESTS_PER_LEVEL)
+	local level = START_LEVEL + math.floor(turnedIn / QUESTS_PER_LEVEL)
+	return math.min(level, END_LEVEL)
 end
 
 local turnedIn = 0
+local announcedLevel = START_LEVEL
 
 while count > 0 and guard < 500 do
 	guard = guard + 1
@@ -176,7 +293,12 @@ while count > 0 and guard < 500 do
 	local ready = {}
 	for qid, q in pairs(pending) do
 		local blocked = false
-		for _, p in ipairs(blockers(q, pending)) do
+		-- Against `quests`, the whole set, not against `pending`. A quest leaves `pending` the moment
+		-- it is ACCEPTED, so asking "is my prerequisite still pending?" answers no as soon as it has
+		-- been picked up -- and the route then schedules the dependent quest before the prerequisite
+		-- has been handed in. That is how Redridge ended up accepting Underbelly Scales while The
+		-- Price of Shoes was still in the log. `done` is the only thing that means turned in.
+		for _, p in ipairs(blockers(q, quests)) do
 			if not done[p] then blocked = true break end
 		end
 		if not blocked then ready[#ready + 1] = q end
@@ -187,7 +309,11 @@ while count > 0 and guard < 500 do
 	local level = estimatedLevel(turnedIn)
 	local inLevel = {}
 	for _, q in ipairs(ready) do
-		if (q.lvl or 1) <= level + ACCEPT_GRACE then inLevel[#inLevel + 1] = q end
+		-- Grace applies to the balanced level only. The hard minimum is not negotiable: a step that
+		-- says "accept this" for a quest the character cannot be given is a wall, not a hint.
+		if (q.lvl or 1) <= level + ACCEPT_GRACE and (q.min or 1) <= level then
+			inLevel[#inLevel + 1] = q
+		end
 	end
 	if #inLevel > 0 then ready = inLevel end
 	if #ready == 0 then
@@ -230,8 +356,33 @@ while count > 0 and guard < 500 do
 	for _, q in ipairs(here) do
 		order[#order + 1] = { kind = "do", quest = q }
 	end
-	order[#order + 1] = { kind = "turnin", x = pick.ex, y = pick.ey, npc = pick.ender, quests = here }
+	-- One turn-in stop PER QUEST, at that quest's own ender.
+	--
+	-- This used to emit a single stop for the whole hub, positioned at one representative quest's
+	-- ender, and then list every quest in the hub under it. Four quests taken from one NPC do not
+	-- come back to one NPC: Raene's chain in Ashenvale is handed to Raene Wolfrunner at 36.6,49.6
+	-- while its neighbours end at 20.3,42.3, and the route confidently pointed the arrow eighteen
+	-- map units from the person holding the quest. Stops at the same spot still merge below, so a
+	-- hub whose quests really do share an ender still reads as one step.
+	local backs = {}
+	for _, q in ipairs(here) do backs[#backs + 1] = q end
+	table.sort(backs, function(a, b)
+		if (a.ex or 0) ~= (b.ex or 0) then return (a.ex or 0) < (b.ex or 0) end
+		return (a.ey or 0) < (b.ey or 0)
+	end)
+	for _, q in ipairs(backs) do
+		order[#order + 1] = { kind = "turnin", x = q.ex, y = q.ey, npc = q.ender, quests = { q } }
+	end
 	for _, q in ipairs(here) do done[q.id] = true turnedIn = turnedIn + 1 end
+	-- A level checkpoint whenever the estimate moves on. The player reads it as "you should be
+	-- about here by now"; the guide lint reads it as the level to judge the next accept against,
+	-- and without it every quest above the zone's opening level looks like it was scheduled too
+	-- early. One line per level, never a run of them, even if a big hub crosses two at once.
+	local now = estimatedLevel(turnedIn)
+	if now > announcedLevel then
+		announcedLevel = now
+		order[#order + 1] = { kind = "xp", level = now }
+	end
 	cx, cy = pick.ex, pick.ey
 end
 
@@ -264,8 +415,11 @@ if FACTION ~= "Both" then regenArg("faction", FACTION) end
 regenArg("race", RACE)
 regenArg("levels", LEVELS)
 regenArg("next", NEXT)
+regenArg("next-horde", NEXT_HORDE)
+regenArg("next-alliance", NEXT_ALLIANCE)
 if ZONE ~= tostring(mapID) then regenArg("zone", ZONE) end
 if MAX_LEVEL < 99 then regenArg("max-level", MAX_LEVEL) end
+if MIN_LEVEL > 0 then regenArg("min-level", MIN_LEVEL) end
 
 w("-- Lodestar Guides: %s", NAME)
 w("--")
@@ -284,6 +438,8 @@ w("#faction %s", FACTION)
 if RACE then w("#race %s", RACE) end
 if LEVELS then w("#levels %s", LEVELS) end
 if NEXT then w("#next %s", NEXT) end
+if NEXT_HORDE then w("#next Horde: %s", NEXT_HORDE) end
+if NEXT_ALLIANCE then w("#next Alliance: %s", NEXT_ALLIANCE) end
 w("#author Lodestar (generated)")
 w("#note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.")
 w("")
@@ -334,7 +490,9 @@ local function addStop(x, y, npc, action)
 end
 
 for _, stepRec in ipairs(order) do
-	if stepRec.kind == "hub" then
+	if stepRec.kind == "xp" then
+		stops[#stops + 1] = { xp = stepRec.level, actions = {} }
+	elseif stepRec.kind == "hub" then
 		for _, q in ipairs(stepRec.quests) do
 			addStop(stepRec.x, stepRec.y, stepRec.npc, { kind = "accept", q = q })
 		end
@@ -355,7 +513,16 @@ for _, stepRec in ipairs(order) do
 		end
 	elseif stepRec.kind == "turnin" then
 		for _, q in ipairs(stepRec.quests) do
-			addStop(stepRec.x, stepRec.y, stepRec.npc, { kind = "turnin", q = q })
+			if q.enderOffMap then
+				-- A quest handed in somewhere else is a breadcrumb out of the zone, and scheduling it
+				-- in the middle of the route means a cross-continent detour between two Lakeshire
+				-- quests. Keep it -- the XP is real and the player may well want the chain -- but as
+				-- an optional step, which completionist mode shows and speed-run skips. No position
+				-- either: the giver's spot is not where the ender stands.
+				addStop(nil, nil, q.ender, { kind = "turnin", q = q, offMap = true })
+			else
+				addStop(stepRec.x, stepRec.y, stepRec.npc, { kind = "turnin", q = q })
+			end
 		end
 	end
 end
@@ -364,6 +531,17 @@ for i, stop in ipairs(stops) do
 	local who = npcName(stop.npc)
 	if i > 1 then w("") end
 	w("step")
+	if stop.xp then w("  .xp %d", stop.xp) end
+	-- A checkpoint stop carries no actions at all, so "every action is off-map" is vacuously true
+	-- for it. Require at least one.
+	local offMapOnly = #stop.actions > 0
+	for _, a in ipairs(stop.actions) do
+		if not a.offMap then offMapOnly = false break end
+	end
+	if offMapOnly then
+		local target = npcName(stop.actions[1].q.ender)
+		w("  .optional >>Handed in outside this zone%s", target and (", to " .. target) or "")
+	end
 	if stop.x then w("  .goto %s,%.1f,%.1f", ZONE, stop.x, stop.y) end
 	for _, a in ipairs(stop.actions) do
 		local q = a.q
@@ -372,7 +550,19 @@ for i, stop in ipairs(stops) do
 				q.lvl and (" (lvl " .. q.lvl .. ")") or "",
 				who and (" from " .. who) or "")
 		elseif a.kind == "turnin" then
-			w("  .turnin %d >>Turn in %s%s", q.id, q.t or ("quest " .. q.id), who and (" to " .. who) or "")
+			local target = npcName(a.q.ender) or who
+			local note = ""
+			if a.offMap then
+				note = " (not in this zone)"
+			elseif a.q.enderUnknown then
+				-- The arrow points at the giver, which is usually right and sometimes not. The
+				-- engine has a better answer once the quest is in the log -- the client's own
+				-- next-objective waypoint -- but the route cannot know that in advance, so it says
+				-- what it is doing instead of pretending.
+				note = " (turn-in spot not recorded yet)"
+			end
+			w("  .turnin %d >>Turn in %s%s%s", q.id, q.t or ("quest " .. q.id),
+				target and (" to " .. target) or "", note)
 		else
 			w("  .complete %d >>%s", q.id, a.text or ("Finish " .. (q.t or ("quest " .. q.id))))
 		end

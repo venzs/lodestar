@@ -3386,6 +3386,80 @@ try("the last step reached by a clamp is not a finished guide", function()
 	G.db.char.progress[NAME] = wasProgress
 end)
 
+-- Which of the client's two answers about "have I done this?" is believed.
+--
+-- On the beta they disagree: IsQuestFlaggedCompleted answers true for every quest in Zephras Isle
+-- for a character who has done four of them. The first attempt at handling that was to stop
+-- believing the flag for a route the character's level said they could not have finished -- which
+-- replaced "you have done everything" with "you have done nothing" and started offering back
+-- quests that had just been handed in. GetAllCompletedQuestIDs answers with a list, and a list
+-- cannot be wrong in that shape, so it is the one to believe.
+try("the completed-quest list beats a lying per-quest flag", function()
+    local wasFlagged, wasLog = stub.flagged, stub.questLog
+    local realAll = C_QuestLog.GetAllCompletedQuestIDs
+
+    -- The client as Abhi's actually behaves: the flag says yes to everything, the list knows better.
+    stub.flagged = setmetatable({}, { __index = function() return true end })
+    C_QuestLog.GetAllCompletedQuestIDs = function() return { 363, 364 } end
+    stub.questLog = {}
+    G:RefreshCompleted()
+
+    check(G:IsActionComplete({ type = "turnin", questID = 363 }, nil),
+        "a quest in the list reads as finished")
+    check(not G:IsActionComplete({ type = "turnin", questID = 92470 }, nil),
+        "a quest the flag claims but the list does not is NOT treated as finished")
+
+    -- And the flag is still the answer on a client with no list to give, which is every client
+    -- where this whole problem does not exist.
+    C_QuestLog.GetAllCompletedQuestIDs = function() return {} end
+    G:RefreshCompleted()
+    check(G:IsActionComplete({ type = "turnin", questID = 92470 }, nil),
+        "with no list available the per-quest flag is used")
+
+    -- A turn-in watched happening this session counts whatever either of them says: the list lags
+    -- the event by a second or two and the player must not be sent back to an NPC they just left.
+    C_QuestLog.GetAllCompletedQuestIDs = function() return { 363 } end
+    stub.flagged = {}
+    G:RefreshCompleted()
+    check(not G:IsActionComplete({ type = "turnin", questID = 92471 }, nil), "not finished yet")
+    stub.fire("QUEST_TURNED_IN", 92471)
+    check(G:IsActionComplete({ type = "turnin", questID = 92471 }, nil),
+        "a turn-in seen this session counts immediately, before the list catches up")
+
+    C_QuestLog.GetAllCompletedQuestIDs = realAll
+    stub.flagged, stub.questLog = wasFlagged, wasLog
+    G:RefreshCompleted()
+end)
+
+-- A neutral race needs two successors, not one.
+--
+-- The Skyborne pick a faction at creation, so level 12 sends the two halves of the race to
+-- different continents. Zephras Isle had no #next at all, which meant a Skyborne character reached
+-- 12 and the suite had nowhere to send them -- it dropped straight into smart mode with no route.
+try("a neutral race's route chains by the character's faction", function()
+    local NAME = "Skyborne 1-12: Zephras Isle"
+    local guide = G.guideByName[NAME]
+    check(guide and guide.nextByFaction, "the route declares a per-faction successor")
+
+    local realFaction, realRace = Lodestar.player.faction, UnitRace
+    UnitRace = function() return "Windshaper Skyborne", "Skyborne", 11 end
+
+    Lodestar.player.faction = "Horde"
+    check(G:NextGuideName(guide) == "Horde 12-20: Silverpine Forest",
+        "a Horde Skyborne goes to Silverpine, got " .. tostring(G:NextGuideName(guide)))
+    Lodestar.player.faction = "Alliance"
+    check(G:NextGuideName(guide) == "Alliance 12-20: Westfall",
+        "an Alliance Skyborne goes to Westfall, got " .. tostring(G:NextGuideName(guide)))
+
+    -- And a route with a plain #next still answers the same for everyone, which is every route
+    -- written before this existed.
+    local plain = G.guideByName["Horde/Undead 1-5: Deathknell"]
+    check(G:NextGuideName(plain) == "Horde/Undead 5-12: Tirisfal Glades",
+        "an unqualified #next is unchanged: " .. tostring(G:NextGuideName(plain)))
+
+    Lodestar.player.faction, UnitRace = realFaction, realRace
+end)
+
 -- The client that forgets everything.
 --
 -- Measured on the beta rather than assumed: Lodestar writes a session counter that nothing resets,
@@ -3485,8 +3559,13 @@ try("a start position the route's level range says is impossible is not believed
 	G.db.char.progress[NAME] = nil
 	G.decisions = nil
 	G:LoadGuide(NAME)
-	check(G.stepIndex >= #guide.steps - 1,
-		"a character at the route's top level still resumes at the end, at " .. tostring(G.stepIndex))
+	-- Either it resumes at the end of the route, or -- because it really is finished and the route
+	-- now declares a successor -- it has already chained onto that. Both are the right answer; what
+	-- must not happen is being dropped back to the start.
+	local chained = G.current and G.current.name ~= NAME
+	check(chained or G.stepIndex >= #guide.steps - 1,
+		("a character at the route's top level resumes at the end or moves on, on %s at %s")
+			:format(tostring(G.current and G.current.name), tostring(G.stepIndex)))
 	check(not G.distrusted[guide.steps[1].actions[1].questID],
 		"and levelling past the contradiction restores trust in the client's own answer")
 

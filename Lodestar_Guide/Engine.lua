@@ -416,6 +416,23 @@ function Guide:PrevStep()
 	self:SetStep(self.stepIndex - 1)
 end
 
+--- Which guide follows this one for THIS character, or nil.
+---
+--- A route for a neutral race cannot name one successor: the Skyborne choose a faction at creation
+--- and level 12 sends them to different continents depending on which. A faction-specific #next
+--- wins when the client knows the faction; the unqualified one is the answer for everyone else,
+--- and for every route written before this existed.
+function Guide:NextGuideName(guide)
+	if not guide then return nil end
+	local byFaction = guide.nextByFaction
+	if byFaction then
+		local faction = Lodestar.player.faction or (UnitFactionGroup and UnitFactionGroup("player"))
+		local name = faction and byFaction[faction]
+		if name then return name end
+	end
+	return guide.next
+end
+
 --- The last step is done. Chain to the next guide when installed; otherwise stay on the last step
 --- (marked finished) unless the player asked to move on, so choosing an old guide from the menu
 --- doesn't silently bounce back to smart mode.
@@ -428,17 +445,18 @@ function Guide:FinishGuide(manual)
 	-- to be indistinguishable from this.
 	self.db.char.finished = self.db.char.finished or {}
 	self.db.char.finished[guide.name] = true
-	if guide.next and self.guideByName[guide.next] then
-		Lodestar:Msg("Finished %s — loading %s.", guide.name, guide.next)
-		self:LoadGuide(guide.next, 1)
+	local nextName = self:NextGuideName(guide)
+	if nextName and self.guideByName[nextName] then
+		Lodestar:Msg("Finished %s — loading %s.", guide.name, nextName)
+		self:LoadGuide(nextName, 1)
 	elseif manual then
 		Lodestar:Msg("Finished %s. %s Switching to smart mode: the window now lists your nearest turn-ins, objectives and quest givers.",
-			guide.name, guide.next and ("Next guide '" .. guide.next .. "' is not installed.") or "")
+			guide.name, nextName and ("Next guide '" .. nextName .. "' is not installed.") or "")
 		self:UnloadGuide()
 	else
 		if not self.finished then
 			Lodestar:Msg("%s is finished for this character.%s Click > for smart mode, or pick another guide from the right-click menu.",
-				guide.name, guide.next and (" The next guide, '" .. guide.next .. "', is not installed.") or "")
+				guide.name, nextName and (" The next guide, '" .. nextName .. "', is not installed.") or "")
 		end
 		self.finished = true
 		self:RefreshStepFrame()
@@ -510,24 +528,70 @@ end
 
 -- Completion -------------------------------------------------------------------------------------------
 
---- Quests whose "already completed" flag this session has positive evidence against.
+--- "Has this character finished this quest?", asked of whichever answer the client can give
+--- honestly.
 ---
---- Populated only by ImpossibleStart below, and only for the quests of a route the character
---- demonstrably has not run. It is not a hunch about the client: it is the route's own level range
---- contradicting the flag, for a specific list of quest IDs.
+--- There are two, and on this build they do not agree. IsQuestFlaggedCompleted answers per quest
+--- and, for a Skyborne character in Zephras Isle, answers TRUE for the entire zone -- which sent the
+--- route to its last step and told the player they had finished a 1-12 zone at level 6.
+--- GetAllCompletedQuestIDs answers with a LIST, which cannot make that mistake in the same way: a
+--- quest is either in it or it is not, and a wrong answer there would mean the server had actually
+--- sent the wrong list.
 ---
---- It has to live here, at the source, rather than as a guard on the start index. Starting at step 1
---- is not enough on its own -- EvaluateStep then walks straight back to the end, because every step
---- it looks at still reads as complete. One switch, applied where the question is asked, keeps the
---- start index, the reconcile, the step evaluator, the window and smart mode all saying the same
---- thing. Turn-ins recorded this session still count: those were watched happening.
-Guide.distrusted = {}
+--- So the list is the truth when there is one, and the flag is the fallback for a client that has
+--- no list to give. The first attempt at this went the other way -- keep asking the broken flag and
+--- refuse to believe it for quests a route said could not be finished -- which fixed "you have done
+--- everything" by replacing it with "you have done nothing", and started offering back quests the
+--- player had genuinely just handed in. Distrusting a bad signal is not the same as finding a good
+--- one.
+---
+--- The list is built once per bulk operation, not once per quest and not on a timer.
+---
+--- GetAllCompletedQuestIDs allocates a fresh table of every quest the character has ever finished --
+--- a couple of thousand entries at 60 -- and turnedIn is called in a loop over every action of every
+--- step. Calling it per quest would be quadratic. Caching it on a wall-clock timer is worse in a
+--- different way: the set changes because the SERVER said so, not because time passed, so a timer
+--- either holds a stale answer through a turn-in or rebuilds constantly for nothing.
+---
+--- So: the operations that walk the whole route refresh it once at the top, every quest event drops
+--- it, and anything else asking gets a set built on demand.
+local completedSet = nil
+
+function Guide:InvalidateCompleted()
+	completedSet = nil
+end
+
+local function completedList()
+	if completedSet then return completedSet end
+	if not C_QuestLog.GetAllCompletedQuestIDs then return nil end
+	local ok, list = pcall(C_QuestLog.GetAllCompletedQuestIDs)
+	if not (ok and type(list) == "table" and #list > 0) then return nil end
+	local set = {}
+	for _, id in ipairs(list) do set[id] = true end
+	completedSet = set
+	return set
+end
+
+--- Start a pass that will ask about many quests: drop the cached set so the pass sees the world as
+--- it is now, then let the first question rebuild it for the rest of the pass.
+function Guide:RefreshCompleted()
+	completedSet = nil
+end
 
 local function turnedIn(questID)
-	if C_QuestLog.IsQuestFlaggedCompleted(questID) and not Guide.distrusted[questID] then return true end
+	-- Watched happen, this session: better evidence than either client answer.
 	local t = recentTurnIn[questID]
-	return t ~= nil and (GetTime() - t) < TURNIN_GRACE
+	if t ~= nil and (GetTime() - t) < TURNIN_GRACE then return true end
+	local set = completedList()
+	if set then return set[questID] == true end
+	return C_QuestLog.IsQuestFlaggedCompleted(questID) and not Guide.distrusted[questID]
 end
+
+--- Quests whose completion flag this session has positive evidence against.
+---
+--- Only consulted on a client with no completed LIST to ask, which is the only situation where the
+--- per-quest flag is still load-bearing. Populated by ImpossibleStart.
+Guide.distrusted = {}
 
 local function accepted(questID)
 	if C_QuestLog.IsOnQuest(questID) or turnedIn(questID) then return true end
@@ -679,6 +743,7 @@ function Guide:CompletedDisagreement(questIDs)
 end
 
 function Guide:SuggestStartIndex(guide)
+	self:RefreshCompleted()
 	local pf = self:PlayerFilters()
 	local last = 0
 	local openBefore = {}   -- [idx] = true for applicable quest steps that are not complete
@@ -743,6 +808,7 @@ function Guide:StepBlocked(step)
 end
 
 function Guide:ReconcileToLog(guide)
+	self:RefreshCompleted()
 	local pf = self:PlayerFilters()
 	local actionable, done = {}, {}
 	local lastProof = 0
@@ -900,6 +966,10 @@ function Guide:EngineOnEvent(event, ...)
 	elseif event == "ITEM_DATA_LOAD_RESULT" then
 		self:RefreshStepFrame()
 	end
+	-- Any quest event can move a quest into or out of the completed set, and the cached copy is
+	-- read by every completion check in the engine. Five seconds of staleness is invisible in a
+	-- quiet moment and very visible in the second after a turn-in.
+	if event:sub(1, 6) == "QUEST_" then self:InvalidateCompleted() end
 	if not self.current then return end
 	local flags = self.stepFlags
 	local i = self.stepIndex
@@ -955,6 +1025,8 @@ function Guide:EngineOnEvent(event, ...)
 		-- The completed-quest list has not arrived yet; until it does, "you can pick this up" is not
 		-- a question the client can answer honestly (Smart.lua: CompletedQuestsReady).
 		if self.ResetCompletedReady then self:ResetCompletedReady() end
+		self:InvalidateCompleted()
+		wipe(self.distrusted)
 	end
 	if ENGINE_EVENTS[event] or event == "HEARTHSTONE_BOUND" or event == "TRAINER_CLOSED" or event == "MERCHANT_CLOSED" then
 		self:QueueEvaluate()
@@ -1095,6 +1167,8 @@ local function handleGuideSlash(rest)
 		if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character; using smart mode.") Guide:UnloadGuide() end
 	elseif verb == "why" then
 		Guide:PrintWhy()
+	elseif verb == "completed" then
+		Guide:PrintCompleted()
 	elseif verb == "sync" then
 		if Guide.current then Guide:SyncToQuestLog() else Lodestar:Say("No guide loaded — smart mode is already built from your quest log.") end
 	elseif verb == "smart" or verb == "unload" then
@@ -1126,6 +1200,62 @@ function Guide:SetCompletionist(on)
 	Lodestar:Msg("Guide: %s.", on and "completionist — optional quests and steps are shown" or "speed run — optional steps are skipped")
 	self:EvaluateStep()
 	self:RefreshStepFrame()
+end
+
+--- `/lode guide completed`: what each of the client's two answers says about this route's quests.
+---
+--- The addon has been wrong in both directions about what you have finished, and each time the
+--- argument was about which client call to believe. This prints both, side by side, for the quests
+--- of the loaded route, so the question stops being a matter of opinion:
+---
+---   flag   IsQuestFlaggedCompleted(id) -- answers per quest
+---   list   the id is in GetAllCompletedQuestIDs() -- answers with the whole set
+---   log    the quest is in the quest log right now
+---
+--- A quest you know you finished that reads "flag yes, list no" means the list is wrong. One that
+--- reads "flag yes, list no" for a quest you have NEVER taken means the flag is wrong. Either way,
+--- one screen settles it.
+function Guide:PrintCompleted()
+	local guide = self.current
+	if not guide then
+		Lodestar:Say("No guide loaded, so there is no quest list to check.")
+		return
+	end
+	local set, listSize = nil, 0
+	if C_QuestLog.GetAllCompletedQuestIDs then
+		local ok, list = pcall(C_QuestLog.GetAllCompletedQuestIDs)
+		if ok and type(list) == "table" then
+			set, listSize = {}, #list
+			for _, id in ipairs(list) do set[id] = true end
+		end
+	end
+	Lodestar:Say("Completed-quest check for %s — GetAllCompletedQuestIDs returned %s.",
+		guide.name, set and (listSize .. " ids") or "|cffff5555nothing at all|r")
+
+	local seen, agree, disagree = {}, 0, 0
+	for i, step in ipairs(guide.steps) do
+		for _, a in ipairs(step.actions or {}) do
+			if a.questID and not seen[a.questID] then
+				seen[a.questID] = true
+				local id = a.questID
+				local flag = C_QuestLog.IsQuestFlaggedCompleted(id) and true or false
+				local inList = set and (set[id] == true) or false
+				local inLog = C_QuestLog.IsOnQuest(id) and true or false
+				if set and flag ~= inList then
+					disagree = disagree + 1
+					Lodestar:Say("  |cffff5555%d|r step %d %s — flag %s, list %s%s", id, i,
+						C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(id) or "?",
+						flag and "yes" or "no", inList and "yes" or "no", inLog and ", in your log" or "")
+				else
+					agree = agree + 1
+				end
+			end
+		end
+	end
+	Lodestar:Say("%d quests agree, |cffff5555%d disagree|r. The addon believes the list where there is one.", agree, disagree)
+	if disagree > 0 then
+		Lodestar:Say("If the ones listed above are quests you HAVE done, the list is wrong and I should use the flag. If you have never taken them, the flag is wrong and the list is right.")
+	end
 end
 
 --- `/lode guide why`: the last routing decisions, in the order they were made.
@@ -1183,7 +1313,7 @@ end
 function Guide:EnableEngine()
 	if not self.engineSlash then
 		self.engineSlash = true
-		Lodestar:RegisterSlashVerb("guide", handleGuideSlash, "guide window and guide commands: /lode guide list|load|next|prev|reset|why")
+		Lodestar:RegisterSlashVerb("guide", handleGuideSlash, "guide window and guide commands: /lode guide list|load|next|prev|reset|why|completed")
 	end
 	-- Restore or pick a guide once the world is ready.
 	self:ScheduleTimer(function()
@@ -1206,7 +1336,7 @@ function Guide:EnableEngine()
 		-- route (the packs say so) and only steers PickGuide. Only a finished guide with no installed
 		-- #next hands the character back to the auto-pick.
 		local finished = savedGuide and (self.db.char.finished or {})[saved]
-			and not (savedGuide.next and self.guideByName[savedGuide.next])
+			and not (self:NextGuideName(savedGuide) and self.guideByName[self:NextGuideName(savedGuide)])
 		if savedGuide and not finished then
 			self:LoadGuide(saved)
 		elseif self.db.profile.steps.autoPickGuide then

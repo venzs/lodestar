@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+- **The completed-quest check asks the client's list, not its per-quest flag.** On this build
+  `IsQuestFlaggedCompleted` answers true for every quest in Zephras Isle for a character who has done
+  four of them, which is what sent a level 6 druid to step 36 of 36. The first attempt at handling
+  that refused to believe the flag for a route the character's level said they could not have
+  finished — which fixed "you have done everything" by replacing it with "you have done nothing",
+  and started offering back quests that had just been handed in. Distrusting a bad signal is not the
+  same as finding a good one: `GetAllCompletedQuestIDs` returns the finished quests as a list, which
+  cannot be wrong in that shape, so it is now the answer wherever the client provides one. The flag
+  remains the fallback for a client with no list. A turn-in watched happening this session counts
+  immediately either way, because the list lags the event and nobody should be sent back to an NPC
+  they just left.
+- **`/lode guide completed`** prints both of the client's answers side by side for every quest in the
+  loaded route, plus whether it is in the quest log. Which call to believe had been argued twice from
+  behaviour; this settles it from data, in one screen, without anyone reloading.
+- Guide: **a neutral race's route chains by faction.** `#next Horde: <guide>` and
+  `#next Alliance: <guide>` sit alongside the plain `#next`, because the Skyborne pick a side at
+  creation and level 12 sends the two halves of the race to different continents. Zephras Isle had no
+  successor at all, so a Skyborne reached 12 and fell into smart mode with no route.
+- **The route generator can read the vanilla database at last.** It only ever unioned the harvest and
+  ATT, never pfQuest's 4,400 quests, and its position lookup understood only the harvest's coordinate
+  shape — so every vanilla zone generated an empty route regardless of the map id it was given. With
+  both fixed it also learned: faction filtering by Classic's race bitmask (an Alliance Ashenvale route
+  was otherwise routed through a Horde camp), a level floor so a 20-25 route does not open on "Accept
+  CLUCK! (lvl 1) from Chicken", a quest's hard `min` level as a gate rather than a suggestion, `.xp`
+  checkpoints paced from the route's own declared level range, turn-in stops positioned at each
+  quest's own ender rather than one representative's (an Ashenvale turn-in pointed eighteen map units
+  from the NPC holding it), world objects as quest enders, and prerequisites satisfied by being turned
+  in rather than merely accepted.
+- Guide: a turn-in whose location was never recorded says so and points at the giver; one whose ender
+  is known to stand in another zone becomes an optional breadcrumb with no arrow at all. Conflating
+  the two briefly turned every turn-in in a freshly harvested zone into an optional step the
+  speed-run mode skipped.
+
 - **The beta client does not hand addon saved variables back, and that is now measured rather than
   inferred.** Lodestar writes a session counter at login that nothing ever resets. On this build it
   reads `sessions = 1` and `sawPreviousSession = false` every time — including across a plain

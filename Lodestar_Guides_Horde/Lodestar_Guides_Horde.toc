@@ -20,3 +20,4 @@ Horde_Stonetalon.lua
 Horde_Hillsbrad.lua
 Horde_Ashenvale.lua
 Horde_ThousandNeedles.lua
+Horde_Desolace.lua

@@ -6,6 +6,7 @@
 --   #class Paladin,Warrior
 --   #levels 1-6                               level range this guide covers
 --   #next Horde/Undead 6-12: Tirisfal Glades  guide to load when this one ends
+--   #next Horde: Horde 12-20: Silverpine Forest   same, but only for that faction (repeatable)
 --   #author abhi
 --   #note Draft recorded on beta, verify.
 --
@@ -135,7 +136,17 @@ function Parser.Parse(text)
 				local a, b = value:match("(%d+)%s*%-%s*(%d+)")
 				guide.minLevel, guide.maxLevel = tonumber(a) or tonumber(value), tonumber(b) or tonumber(value)
 			elseif key == "next" then
-				guide.next = value
+				-- "#next Horde: Some Guide" chains differently per faction, which a neutral race
+				-- needs: the Skyborne pick a side at creation and there is no one zone that is the
+				-- right level-12 answer for both. A plain "#next Some Guide" still means everyone,
+				-- and several #next lines may appear together.
+				local faction, name = value:match("^(%a+)%s*:%s*(.+)$")
+				if faction and (faction:lower() == "horde" or faction:lower() == "alliance") then
+					guide.nextByFaction = guide.nextByFaction or {}
+					guide.nextByFaction[faction:sub(1, 1):upper() .. faction:sub(2):lower()] = name
+				else
+					guide.next = value
+				end
 			elseif key == "author" then
 				guide.author = value
 			elseif key == "version" then

@@ -271,7 +271,14 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
         # inventing coordinates there would be worse than leaving the arrow alone.
         if st.goto is None:
             hard = any(a.type in ("accept", "turnin") for a in st.actions)
-            if hard:
+            # An optional step made only of turn-ins is the one honest exception: a breadcrumb taken
+            # in this zone and handed in somewhere else has no position HERE, and the giver's spot
+            # -- the only coordinate to hand -- is not where the ender stands. Pointing the arrow at
+            # it would be a confident lie, so the route says "handed in outside this zone" instead
+            # and names the NPC. Requiring a .goto here would force exactly the bug it exists to
+            # prevent.
+            elsewhere = st.optional and st.actions and all(a.type == "turnin" for a in st.actions)
+            if hard and not elsewhere:
                 g.error(st.line, "step with accept/turnin has no .goto")
             elif any(a.type == "complete" for a in st.actions):
                 g.warn(st.line, "complete step has no .goto -- the arrow has nothing to point at")

@@ -15,3 +15,6 @@ NightElf_Teldrassil.lua
 Alliance_Westfall.lua
 Alliance_LochModan.lua
 Alliance_Darkshore.lua
+Alliance_Redridge.lua
+Alliance_Wetlands.lua
+Alliance_Ashenvale.lua
