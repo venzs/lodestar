@@ -19,6 +19,13 @@
 - Leveling: **quest log hygiene** — a warning when the twenty-slot log is nearly full that names
   which quests have gone grey, `/lode log` for the full picture, and `/lode log drop <name>` to
   abandon one. Only grey quests are candidates and nothing is ever abandoned without a confirmation.
+- Guide: **stopped calling a protected function on every creature you walk past.** The harvest used
+  `CheckInteractDistance` to grade how close a sighting was. That function is protected on this
+  client: calling it raises `ADDON_ACTION_BLOCKED` and taints the execution path, and the `pcall`
+  around it did nothing, because a blocked call is not a Lua error. It fired from
+  `NAME_PLATE_UNIT_ADDED`, `UPDATE_MOUSEOVER_UNIT` and `PLAYER_TARGET_CHANGED`. Passive sightings
+  are now recorded at one grade and precision comes from `exact`, set when an interaction frame is
+  genuinely open. `tools/check_protected.py` rejects the whole class.
 - Guide: **saved progress pointing at a dead-end step is no longer trusted.** Saved progress is
   never stepped backwards over — that is what stops the guide dragging you back over work you
   skipped deliberately — but a saved step that hands in a quest you are carrying and have not

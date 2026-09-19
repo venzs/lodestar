@@ -28,6 +28,8 @@ echo "--- tocs ---"
 python3 tools/check_tocs.py
 echo "--- events ---"
 python3 tools/check_events.py
+echo "--- protected calls ---"
+python3 tools/check_protected.py
 echo "--- guides ---"
 python3 tools/router/lint_guides.py
 echo "--- smoke ---"

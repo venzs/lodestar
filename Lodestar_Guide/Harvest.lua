@@ -38,13 +38,20 @@ local Guide = Lodestar:GetModule("Guide")
 local SHARE_V = 1              -- LodestarShareDB format version (meta.v)
 local MAX_SAMPLES = 6          -- approximate positions kept per creature
 -- How close the player was when a creature was seen. A nameplate appears at ~40 yd, so a sighting
--- recorded at the player's own position can be that far out -- fine for an arrow, poor for a map
--- pin. CheckInteractDistance costs one C call and tells us when we were close enough that the
--- player's position IS the creature's, to within a few yards. This is what makes walking past an
--- NPC almost as good as talking to it, which is the difference between mapping a zone and
--- interviewing it.
-local NEAR_TRADE = 2           -- CheckInteractDistance index: ~11 yd
-local NEAR_DUEL = 3            -- ~10 yd
+-- recorded at the player's own position can be that far out -- fine for an arrow, poor for a map pin.
+--
+-- This used to grade that with CheckInteractDistance. It must not: that function is PROTECTED on
+-- this client, and calling it from an addon raises ADDON_ACTION_BLOCKED and taints the execution
+-- path. Four of them landed in one second on a live session, every one traced to the two pcalls
+-- that were here, reached from NAME_PLATE_UNIT_ADDED, UPDATE_MOUSEOVER_UNIT and
+-- PLAYER_TARGET_CHANGED -- so it fired on essentially every creature walked past. pcall does not
+-- help: it catches Lua errors, and a blocked protected call is not a Lua error.
+--
+-- There is no unprotected way to ask how far away an arbitrary creature is. So passive sightings
+-- are all recorded at one grade, and precision comes from the signal we can trust completely:
+-- `exact`, set when a gossip, merchant or trainer frame is actually open, which means the player is
+-- standing on top of the NPC. Slightly coarser passive data, no taint.
+local NEAR_PASSIVE = 1         -- a nameplate or mouseover: somewhere within nameplate range
 local SAMPLE_MIN_APART = 3     -- percent-of-map units; closer samples are merged
 local OBJ_SAMPLES = 6          -- positions kept per quest objective
 local OBJ_MIN_APART = 2        -- percent-of-map units between two objective samples
@@ -312,17 +319,6 @@ local function farEnough(e, mapID, x, y)
 	return true
 end
 
---- How close we are to `unit`, as a quality grade: 2 = close enough to stand in for its position,
---- 1 = somewhere in nameplate range, 0 = unknown. Never throws on units the API refuses.
-local function proximity(unit)
-	if not CheckInteractDistance then return 0 end
-	local ok, near = pcall(CheckInteractDistance, unit, NEAR_TRADE)
-	if ok and near then return 2 end
-	ok, near = pcall(CheckInteractDistance, unit, NEAR_DUEL)
-	if ok and near then return 2 end
-	return 1
-end
-
 --- Record a creature seen through a unit token. `exact` = we are interacting with it (within ~5 yd).
 local function noteUnit(unit, exact)
 	if not UnitExists(unit) or UnitIsPlayer(unit) then return nil end
@@ -358,7 +354,7 @@ local function noteUnit(unit, exact)
 			if kind == "npc" and Guide.QueueHarvestDelta then Guide:QueueHarvestDelta("npc", id, e) end
 		elseif not e.exact then
 			e.samples = e.samples or {}
-			local near = proximity(unit)
+			local near = NEAR_PASSIVE
 			if #e.samples < MAX_SAMPLES and farEnough(e, mapID, x, y) then
 				local zone, sub = zoneText()
 				tinsert(e.samples, { mapID, x, y, zone, sub })
@@ -1349,9 +1345,10 @@ local function restoreBackup()
 end
 
 --- What is still missing on the map the player is standing on. The point of this is that mapping a
---- zone does NOT require talking to anyone: a nameplate fires for every creature you walk past, and
---- CheckInteractDistance tells us when we were close enough for that to be a real position. So the
---- scarce thing is not conversations, it is ground covered -- and this says which ground.
+--- zone does NOT require talking to anyone: a nameplate fires for every creature you walk past, so
+--- the scarce thing is not conversations, it is ground covered -- and this says which ground. The
+--- positions those sightings carry are approximate (see NEAR_PASSIVE); an interaction upgrades one
+--- to exact.
 --- Returns: known, placed, unplaced (quests on this map with no position), nearNPCs, farNPCs.
 function Guide:HarvestGaps(mapID)
 	if not db then ensureDB() end
