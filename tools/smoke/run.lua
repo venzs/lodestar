@@ -1937,7 +1937,17 @@ try("harvest share", function()
 		"and says to search for it, since the client will not tell an addon the account folder")
 	check(b:find("/reload", 1, true) ~= nil, "and to /reload before copying it")
 	check(b:find(Lodestar.CONTACT, 1, true) ~= nil, "and where to send it")
-	check(b:find("not: your character name", 1, true) ~= nil, "and what is NOT in the file")
+	-- This used to assert the box said "not: your character name". The file has always contained it
+	-- -- the harvest keys its contributor block by Name-Realm so one character's sessions can be told
+	-- apart -- so the test was holding a false promise in place, which is worse than not testing the
+	-- line at all. It pins the true statement now, and pins the old wording's ABSENCE so it cannot
+	-- quietly return.
+	check(b:find("character's name, race, class", 1, true) ~= nil,
+		"the box says the file records the character name, which it does")
+	check(b:find("not: your character name", 1, true) == nil,
+		"and no longer claims otherwise")
+	check(b:find("What is not: gold, gear", 1, true) ~= nil,
+		"while still naming what it genuinely leaves out")
 
 	-- The nudge fires once, only past the threshold, and never twice.
 	local beforeNudge = #stub.chat
@@ -3441,9 +3451,16 @@ try("a session's recordings export to a string that round-trips", function()
     check(not joined:find("Yala Windwatcher", 1, true), "and not the NPC names, which are not the scarce part")
     check(not joined:find("Test", 1, true), "nor quest titles")
 
-    local text, count = G:ExportHarvest()
-    check(type(text) == "string" and text:find("^LODE1:"), "the string is tagged with its format: " .. tostring(text and text:sub(1, 12)))
-    check(count == #rows, "and reports the recordings, not counting the identity row")
+    local parts, count = G:ExportHarvest()
+    check(type(parts) == "table" and #parts >= 1, "the export comes back as a table of parts")
+    check(count == #rows, "and reports the recordings")
+    -- Every part is a complete export in its own right: own header, own DEFLATE stream. The version
+    -- this replaced cut one finished string into fixed lengths, so every piece after the first was a
+    -- headless fragment that decoded into plausible rubbish and nothing rejected it.
+    for i, part in ipairs(parts) do
+        check(part:find("^LODE1:") == 1, ("part %d carries its own header"):format(i))
+    end
+    local text = parts[1]
 
     -- Round trip through exactly what the importer will do.
     local payload = text:match("^LODE%d+:[^:]*:(.+)$")

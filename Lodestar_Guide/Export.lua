@@ -20,6 +20,7 @@ local Guide = Lodestar:GetModule("Guide")
 
 local FORMAT = 1               -- bump when the row grammar changes; the importer checks it
 local SOFT_LIMIT = 24000       -- characters before the export is split, well under an edit box's limit
+local MARKER_ROOM = 32         -- room for the part marker a split export adds to every piece
 
 local function deflate()
 	return _G.LibStub and _G.LibStub("LibDeflate", true) or _G.LibDeflate
@@ -77,17 +78,36 @@ end
 ---
 --- The saved-variable export has carried a contributor block since the harvest split; a pasted one
 --- did not -- so the format almost everybody actually uses was the anonymous one. Over a beta that
---- means a fortnight of contributions nobody can tell apart: not who to thank, not which zones are
---- covered and which only look covered, and not whose character to ask when a recorded position
---- turns out to be wrong.
+--- is a fortnight of contributions nobody can tell apart: not who to thank, not which zones are
+--- genuinely covered rather than only looking covered, and not whose character to ask when a
+--- recorded position turns out to be wrong.
 ---
---- About fifty characters against a typical export's two and a half thousand. A name travels because
---- it is the only stable key across a contributor's sessions; anyone who would rather not send one
---- can delete this single row from the paste and every other row still imports.
+--- What travels is an ID, not a name. `/lode share`, the README and the packaged INSTALL.txt all
+--- tell a contributor the harvest does not contain their character name, and a paste that carried
+--- one would make that false for the format most people use. A hash of name-realm is enough for
+--- everything the attribution is actually for -- telling one contributor's sessions apart, seeing
+--- which zones are covered by whom, noticing that every position in a zone came from one person --
+--- without the paste containing the name itself.
+---
+--- It is a stable pseudonym and not anonymity: with a short list of candidate names anyone can hash
+--- them and compare. That is fine for what this is, and it is why the ID is not presented as making
+--- a contributor untraceable.
+---
+--- About fifty characters against a part's twenty-four thousand. Anyone who would rather send
+--- nothing at all can delete this row from the paste and every other row still imports.
+local function stableID(s)
+	-- djb2 in plain arithmetic: Lua 5.1 has no bitwise operators, and WoW's `bit` library is not
+	-- available to the smoke stub. Kept under 2^31 so string.format("%x") is safe everywhere.
+	local h = 5381
+	for i = 1, #s do
+		h = (h * 33 + s:byte(i)) % 2147483647
+	end
+	return ("%08x"):format(h)
+end
 ---
 --- Deliberately NOT a format bump. The importer checks the header version for exact equality, so
 --- raising it would reject every export from a contributor still on the current build -- and this
---- row needs no such break, because an importer that does not know `c` skips it like any other
+--- needs no such break, because an importer that does not know `c` skips it like any other
 --- unrecognised row.
 local function identityRow()
 	local name = UnitName and UnitName("player")
@@ -104,15 +124,75 @@ local function identityRow()
 	end
 	local faction = (UnitFactionGroup and UnitFactionGroup("player")) or "?"
 	local level = (UnitLevel and UnitLevel("player")) or 0
-	-- Commas separate the fields, and neither a character name nor a realm name may contain one, so
-	-- the importer can split naively and nothing needs escaping. Spaces come out of the realm so the
-	-- key matches the "Name-Realm" the saved-variable exporter already writes.
-	local who = realm ~= "" and (name .. "-" .. realm:gsub("%s+", "")) or name
-	return ("c%s,%s,%s,%s,%d,%d"):format(who, race or "?", class or "?", faction or "?",
+	-- Hashed from the same "Name-Realm" the saved-variable side keys its contributors by, so one
+	-- character has one ID wherever their data arrives from. The hash is hex, so it cannot contain a
+	-- comma or a semicolon and nothing needs escaping.
+	local full = realm ~= "" and (name .. "-" .. realm:gsub("%s+", "")) or name
+	return ("c%s,%s,%s,%s,%d,%d"):format(stableID(full), race or "?", class or "?", faction or "?",
 		tonumber(level) or 0, (time and time()) or 0)
 end
 
---- The pasteable string, or nil plus a reason.
+--- One slice of the rows, packed as a complete export string: its own header, its own DEFLATE
+--- stream, decodable with nothing else in hand. Returns nil if the library refuses.
+---
+--- Each part is packed separately because a part has to survive being pasted on its own, out of
+--- order, or with somebody's "here you go!" typed around it. The first version of this cut the
+--- finished string into fixed lengths instead, which made every piece after the first a headless
+--- fragment of a stream -- and nothing anywhere rejected it. The separator between the pieces
+--- contributed eight letters that are in the encoding alphabet, so they were absorbed into the
+--- payload and the decoder carried on emitting plausible rubbish. Measured on a 4,000-row session
+--- pasted back in the right order: 2,541 positions correct, 1,437 silently lost, 22 real NPCs
+--- moved to coordinates nobody had recorded, and 117 NPC ids that were never in the session given
+--- positions of their own. All of it bound for the shipped route data, none of it raising anything.
+local function packPart(lib, build, rows, from, to, index, total, who)
+	local slice = {}
+	-- The identity rides on EVERY part, not just the first. These parts are deliberately
+	-- self-describing -- own header, own stream, pasteable in any order -- and an identity carried
+	-- only by part one breaks exactly that property: a contributor who sends parts two and three is
+	-- anonymous. Fifty characters against a part's twenty-four thousand, and the importer folds the
+	-- repeats back into one session by their shared timestamp.
+	if who then slice[#slice + 1] = who end
+	for i = from, to do slice[#slice + 1] = rows[i] end
+	-- A part marker, so the far end can say "you pasted 1 and 3 of 3" rather than quietly merging
+	-- two thirds of somebody's evening. Importers skip row kinds they do not know, including the
+	-- one already in the wild, so adding it costs no compatibility.
+	if total and total > 1 then slice[#slice + 1] = ("p%d,%d"):format(index, total) end
+	local body = table.concat(slice, ";")
+	local ok, packed = pcall(function()
+		return lib:EncodeForPrint(lib:CompressDeflate(body, { level = 9 }))
+	end)
+	if not (ok and packed) then return nil end
+	return ("LODE%d:%s:%s"):format(FORMAT, tostring(build), packed), #body
+end
+
+--- Row ranges that each pack to something an edit box will hold.
+---
+--- Compression means the only honest way to know how long a part comes out is to pack it, so a
+--- range that lands over the limit is halved and tried again rather than guessed at from the raw
+--- byte count -- which would be wrong by whatever the session happened to compress to.
+local function ranges(lib, build, rows, who)
+	local budget = SOFT_LIMIT - MARKER_ROOM
+	local out, pending = {}, { { 1, #rows } }
+	while #pending > 0 do
+		local span = table.remove(pending, 1)
+		local from, to = span[1], span[2]
+		-- Sized WITH the identity row, since the real part will carry one: measuring without it
+		-- would let a part land over the limit by exactly the thing this forgot to count.
+		local text = packPart(lib, build, rows, from, to, nil, nil, who)
+		if not text then return nil end
+		if #text <= budget or from >= to then
+			out[#out + 1] = { from, to }
+		else
+			-- Both halves go to the front, left first, so the parts stay in row order.
+			local mid = from + math.floor((to - from) / 2)
+			table.insert(pending, 1, { mid + 1, to })
+			table.insert(pending, 1, { from, mid })
+		end
+	end
+	return out
+end
+
+--- The pasteable parts, or nil plus a reason. Always a table, even for a session that fits in one.
 ---
 --- The header travels uncompressed so a malformed or truncated paste can be recognised as one of
 --- ours and rejected with a useful message, rather than failing somewhere inside the decoder.
@@ -121,49 +201,44 @@ function Guide:ExportHarvest()
 	if not lib then return nil, "the compression library did not load" end
 	local rows = self:HarvestRows()
 	if #rows == 0 then return nil, "nothing has been recorded yet" end
-	-- Counted before the identity row goes on, so "N recordings" still means N things observed.
-	-- And added only once there IS something to attribute: a session that recorded nothing should
-	-- report nothing to export rather than a paste carrying a name and no data.
-	local recorded = #rows
-	local who = identityRow()
-	if who then table.insert(rows, 1, who) end
 	local _, build = GetBuildInfo()
-	local body = table.concat(rows, ";")
-	local ok, packed = pcall(function()
-		return lib:EncodeForPrint(lib:CompressDeflate(body, { level = 9 }))
-	end)
-	if not (ok and packed) then return nil, "could not compress the recording" end
-	return ("LODE%d:%s:%s"):format(FORMAT, tostring(build), packed), recorded, #body
-end
-
---- Split at a length any edit box will hold, on the header boundary so each piece is self-describing.
-local function chunks(text)
-	if #text <= SOFT_LIMIT then return { text } end
-	local out, i = {}, 1
-	while i <= #text do
-		out[#out + 1] = text:sub(i, i + SOFT_LIMIT - 1)
-		i = i + SOFT_LIMIT
+	-- Built once, not per part. The row carries a timestamp and that is what the importer folds a
+	-- split export's repeated identities back together by, so it has to be the same on every part --
+	-- calling this inside the loop would tick over a second boundary and turn one session into two.
+	local who = identityRow()
+	local spans = ranges(lib, build, rows, who)
+	if not spans then return nil, "could not compress the recording" end
+	local parts, raw = {}, 0
+	for i, span in ipairs(spans) do
+		local text, n = packPart(lib, build, rows, span[1], span[2], i, #spans, who)
+		if not text then return nil, "could not compress the recording" end
+		parts[#parts + 1], raw = text, raw + n
 	end
-	return out
+	return parts, #rows, raw
 end
 
 --- `/lode export`: the copy box, with the string already in it and selected.
 function Guide:ShowHarvestExport()
-	local text, rowsOrErr, rawLen = self:ExportHarvest()
-	if not text then
+	local parts, rowsOrErr, rawLen = self:ExportHarvest()
+	if not parts then
 		Lodestar:Say("Nothing to export: %s. Play for a while with Lodestar running and try again.", tostring(rowsOrErr))
 		return
 	end
-	local parts = chunks(text)
+	local shown, total = {}, 0
+	for i, part in ipairs(parts) do
+		total = total + #part
+		if #parts > 1 then shown[#shown + 1] = ("--- part %d of %d ---"):format(i, #parts) end
+		shown[#shown + 1] = part
+	end
 	local header
 	if #parts == 1 then
 		header = ("%d recordings · %d characters — Ctrl+A then Ctrl+C, and paste it to %s")
-			:format(rowsOrErr, #text, Lodestar.CONTACT)
+			:format(rowsOrErr, total, Lodestar.CONTACT)
 	else
-		header = ("%d recordings · %d characters in %d parts — copy and paste each part; they can go in any order")
-			:format(rowsOrErr, #text, #parts)
+		header = ("%d recordings · %d characters in %d parts — send all %d; each one stands on its own, so order does not matter")
+			:format(rowsOrErr, total, #parts, #parts)
 	end
-	Lodestar:ShowCopyBox(table.concat(parts, "\n\n--- next part ---\n\n"), header)
+	Lodestar:ShowCopyBox(table.concat(shown, "\n\n"), header)
 	Lodestar:Say("Recording exported: |cffffffff%d|r positions and links, |cffffffff%d|r characters (from %d raw). Paste it to %s.",
-		rowsOrErr, #text, rawLen or 0, Lodestar.CONTACT)
+		rowsOrErr, total, rawLen or 0, Lodestar.CONTACT)
 end

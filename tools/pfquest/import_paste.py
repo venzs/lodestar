@@ -74,10 +74,10 @@ def parse_one(text: str):
 # Every row kind the importer counts, in one place. They were written out twice -- once in add() and
 # once in main() -- and adding `c` to only the first turned the very first export carrying an
 # identity row into a KeyError, with every unit test still green. One tuple, both dicts.
-ROW_KINDS = ("n", "o", "q", "f", "l", "c")
+ROW_KINDS = ("n", "o", "q", "f", "l", "c", "p")
 
 
-def add(scan, build, rows):
+def add(scan, build, rows, seen=None, part_log=None):
     npcs, objs, quests, taxi, levels = (scan.setdefault(k, {}) for k in
                                         ("npcs", "objects", "quests", "taxi", "levels"))
     counts = dict.fromkeys(ROW_KINDS, 0)
@@ -112,10 +112,20 @@ def add(scan, build, rows):
                 if ts > 0:
                     e["first"] = min(e.get("first") or ts, ts)
                     e["last"] = max(e.get("last") or ts, ts)
-                # One paste is one session. Several pastes from the same character in one file --
-                # a split export -- would otherwise each count as a session and inflate the total,
-                # so the row travels once per export rather than once per part.
-                e["sessions"] = (e.get("sessions") or 0) + 1
+                # A split export carries the identity on every part so each part stands on its own,
+                # which means the same session arrives two or three times. Folded back together by
+                # the timestamp the exporter stamps once per export. Without a timestamp -- an older
+                # build, or a row someone retyped -- there is nothing to fold on, so the parts count
+                # separately rather than being guessed at.
+                key = (parts[0], ts)
+                if ts <= 0 or seen is None or key not in seen:
+                    if seen is not None and ts > 0:
+                        seen.add(key)
+                    e["sessions"] = (e.get("sessions") or 0) + 1
+            elif kind == "p" and len(parts) == 2:
+                # "part i of n", so a missing piece is reported rather than silently merged.
+                if part_log is not None:
+                    part_log.add((int(parts[1]), int(parts[0])))
             else:
                 continue
             counts[kind] += 1
@@ -141,6 +151,9 @@ def main() -> int:
             texts.append(fh.read())
 
     scan, total = {}, dict.fromkeys(ROW_KINDS, 0)
+    # seen: (contributor, timestamp) already counted, so a split export is one session not three.
+    # part_log: (total, index) markers, so "you sent 1 and 3 of 3" can be said out loud.
+    seen, part_log = set(), set()
     found = 0
     for text in texts:
         # One file may hold several pastes -- a Discord channel copied wholesale, for instance.
@@ -150,7 +163,7 @@ def main() -> int:
                 continue
             found += 1
             build, rows = parsed
-            for k, v in add(scan, build, rows).items():
+            for k, v in add(scan, build, rows, seen, part_log).items():
                 total[k] += v
     if not found:
         raise SystemExit("no Lodestar export found in the input. A paste starts with LODE1: -- if "
@@ -158,6 +171,18 @@ def main() -> int:
 
     sys.stderr.write("import_paste: %d paste(s): %d NPCs, %d objects, %d quest links, %d flight points, %d level costs\n"
                      % (found, total["n"], total["o"], total["q"], total["f"], total["l"]))
+    # A split export says how many pieces it has. Saying which are missing is the whole reason the
+    # marker exists: the alternative is merging two thirds of somebody's evening without a word.
+    for n_parts in sorted({n for n, _ in part_log}):
+        have = {i for n, i in part_log if n == n_parts}
+        missing = sorted(set(range(1, n_parts + 1)) - have)
+        if missing:
+            sys.stderr.write("import_paste: WARNING -- a %d-part export is missing part(s) %s. "
+                             "Ask the contributor to send %s; each part stands on its own.\n"
+                             % (n_parts, ", ".join(str(i) for i in missing),
+                                "it" if len(missing) == 1 else "them"))
+        else:
+            sys.stderr.write("import_paste: all %d parts of a split export present\n" % n_parts)
     json.dump(scan, sys.stdout, indent=1, sort_keys=True)
     sys.stdout.write("\n")
     return 0

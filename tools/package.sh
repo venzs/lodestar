@@ -51,6 +51,20 @@ for dir in Lodestar Lodestar_Leveling Lodestar_Economy Lodestar_UI Lodestar_Guil
   printf '  %-28s %s\n' "$dir" "$(find "$STAGE/$dir" -type f | wc -l) files"
 done
 
+# Stamp the version into the STAGED TOCs, never the source ones.
+#
+# Without this the zip carries whatever the working tree happens to say, so making a build announce
+# itself correctly meant editing the source TOCs by hand -- and that is how a 0.1.0-beta2 build came
+# to exist in a game folder while the repository still read 0.1.0-dev. The hand-edit never came back,
+# and neither did the export rewrite sitting next to it. A build should be able to name itself
+# without anyone touching a tracked file.
+#
+# Written through a temporary file rather than `sed -i`, whose in-place flag differs between GNU and
+# BSD and would fail on exactly the machines this script exists to run on.
+find "$STAGE" -name '*.toc' | while read -r toc; do
+  sed "s/^## Version:.*/## Version: ${VERSION}/" "$toc" > "$toc.tmp" && mv "$toc.tmp" "$toc"
+done
+
 cat > "$STAGE/INSTALL.txt" <<TXT
 Lodestar $VERSION — a levelling suite for WoW: Forever
 =======================================================
@@ -91,12 +105,23 @@ That is the whole thing. No reload, no looking for files. If the paste is long,
 Discord turns it into an attachment by itself.
 
 It contains NPC and object positions, which NPC gives and ends which quest,
-flight point positions and the XP each level costs. It does NOT contain your
-character name, gold, gear, bags, guild, friends, chat, or anything you typed --
-and not quest text either, which the addon already has.
+flight point positions and the XP each level costs. It also carries your race,
+class and level, and a short id derived from your character name -- the id so
+that several sessions from one person can be told apart once everything is
+merged, and so a zone that looks covered by three people is not really one
+person three times.
+
+It does NOT contain your character name itself, nor gold, gear, bags, guild,
+friends, chat, or anything you typed -- and not quest text either, which the
+addon already has. The id is a hash, not a disguise: anyone holding a short list
+of names could match it. It is there to group sessions, not to hide you.
+
+If you would rather not send even that, delete the first line of the paste
+(it begins with "c") and everything else still imports.
 
 If you would rather send the whole recording as a file, /lode share explains
-where it is. The export above is the same positions in a shorter form.
+where it is. That file is the fuller version and DOES record your character
+name, for the same grouping reason.
 
 If you would rather not, /lode harvest off turns the recording off entirely and
 everything else keeps working. /lode share also has a "remind me" toggle in the

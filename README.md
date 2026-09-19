@@ -7,7 +7,10 @@ A suite of addons for **World of Warcraft: Forever**. One core, seven modules an
 **Playing on the beta?** Type `/lode export` after a session, copy the box, and paste it in the
 Discord. That is where the routes come from: Forever's new zones are in no public database, so every
 position the arrow knows about was recorded by somebody playing with this installed. It takes about
-ten seconds and sends positions only — no character name, gold, gear, guild, friends or chat.
+ten seconds and sends positions, your race, class and level, and a short id derived from your
+character name so one person's sessions can be told apart — not the name itself, and no gold, gear,
+bags, guild, friends or chat. (The saved-variable file `/lode share` describes is the fuller version
+and *does* record the character name, for the same reason.)
 
 | Addon | What it does |
 |---|---|

@@ -336,11 +336,17 @@ function Guide:HarvestShareInfo()
 		"",
 		"        " .. Lodestar.CONTACT,
 		"",
+		-- This said the file did not contain your character name. It always has: the harvest keys
+		-- its contributor block by Name-Realm so several sessions from one character can be told
+		-- apart when everything is merged. Saying otherwise to somebody deciding whether to send it
+		-- is the one thing this window must not do.
 		"What is in it: NPC and object positions, quest ids, titles, objective text,",
-		"flight points and XP per level.",
-		"What is not: your character name, gold, gear, bags, guild, friends, chat, or",
-		"anything you typed. /lode harvest off stops the recording entirely and every",
-		"other part of Lodestar keeps working.",
+		"flight points, XP per level, and your character's name, race, class and",
+		"level -- the name so that several sessions from one character can be told",
+		"apart once everything is merged together.",
+		"What is not: gold, gear, bags, guild, friends, chat, or anything you typed.",
+		"/lode harvest off stops the recording entirely and every other part of",
+		"Lodestar keeps working.",
 	}
 	Lodestar:ShowCopyBox(table.concat(lines, "\n"), "Sending your harvest")
 	Lodestar:Say("Harvest: |cffffffff%d|r quests, |cffffffff%d|r NPCs (%d placed), |cffffffff%d|r flight points. Instructions are in the window — |cffff9933/reload first|r.",

@@ -2,15 +2,57 @@
 
 ## Unreleased
 
+- **`/lode share` said the harvest file does not contain your character name. It always has.** The
+  harvest keys its contributor block by Name-Realm, so that several sessions from one character can
+  be told apart once everything is merged — and the window a contributor reads while deciding whether
+  to send the file told them the opposite. Everyone who sent a file during beta1 did so under that
+  statement. The window now says what is actually in there. The recording itself is unchanged:
+  *what* to record about a contributor is a decision to make deliberately, not a line to quietly
+  edit, and the statement being wrong is fixable on its own.
+  The smoke test had pinned the false line — which is how a wrong promise becomes permanent rather
+  than merely present. It pins the true one now, and pins the absence of the old wording so it cannot
+  come back unnoticed. The README carried the same claim and has the same correction.
+- **What the pasted export carries is an id, not a name.** A hash of Name-Realm: enough to tell one
+  contributor's sessions apart, to see which zones are covered by whom, and to notice that a zone
+  which looks covered by three people is one person three times — without the paste containing the
+  name. It is a stable pseudonym and not anonymity, since anyone with a short list of candidate names
+  can hash them and compare, and the INSTALL.txt says so rather than overselling it.
+- `tools/package.sh` stamps the version into the staged TOCs instead of trusting whatever the working
+  tree says. Making a build announce itself correctly used to mean editing tracked TOCs by hand, and
+  that is exactly how a `0.1.0-beta2` build came to exist in a game folder while the repository still
+  read `0.1.0-dev` — the hand-edit never came back, and neither did the export rewrite beside it.
+
+- **The multi-part export rewrite is in the repository at last.** It existed only on disk, in a
+  `0.1.0-beta2` build sitting in a game folder — no branch, no tag, nothing in the history, one
+  folder deletion from gone. What it fixes is not small. The version it replaces cut a finished
+  string into fixed lengths, which made every piece after the first a headless fragment of a DEFLATE
+  stream — and nothing anywhere rejected it, because the separator between pieces contributed eight
+  letters that are in the encoding alphabet, so they were absorbed into the payload and the decoder
+  carried on emitting plausible rubbish. Measured on a 4,000-row session pasted back *in the right
+  order*: 2,541 positions correct, 1,437 silently lost, 22 real NPCs moved to coordinates nobody had
+  recorded, and 117 NPC ids that were never in the session given positions of their own. All of it
+  bound for the shipped route data, none of it raising anything.
+  Each part now carries its own header and its own stream, so it survives being pasted alone, out of
+  order, or with chat decoration around it. `ranges()` finds the boundaries by packing and bisecting
+  rather than guessing, because compression means a raw byte count cannot predict the encoded
+  length. And a `p<index>,<total>` marker rides on every split.
+- The importer reads that marker and says what is missing — *"a 16-part export is missing part(s) 2,
+  7"* — instead of merging what arrived and calling it a session.
 - **A pasted export says who recorded it.** The saved-variable export has carried a contributor block
   since the harvest split; the pasted one did not — so the format almost everybody actually uses was
   the anonymous one. A beta's worth of contributions would have arrived indistinguishable: no way to
   tell who to thank, which zones are genuinely covered rather than only looking covered, or whose
   character to ask when a recorded position turns out to be wrong. One `c` row now carries
-  name-realm, race, class token, faction, level and a timestamp — about fifty characters against a
+  a hashed id, race, class token, faction, level and a timestamp — about fifty characters against a
   typical export's two and a half thousand — in the same shape the saved-variable side already
   writes, so `merge_scan.py` counts both kinds of contribution through one path. Anyone who would
   rather not send a name can delete that single row from the paste and every other row still imports.
+  It rides on **every** part rather than only the first, because that is the property the parts were
+  rewritten to have: an identity carried by part one alone leaves a contributor who sends parts two
+  and three anonymous. The importer folds the repeats back into one session by the timestamp the
+  exporter stamps once per export — verified on a real 16-part split, which imports as one session
+  and not sixteen. Without a timestamp there is nothing to fold on, so those count separately rather
+  than being guessed at.
   Deliberately not a format bump. The importer checks the header version for exact equality, so
   raising it would reject every export from a contributor still on the current build — and this needs
   no such break, because an importer that does not know `c` skips it like any other unrecognised row.
