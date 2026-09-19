@@ -73,6 +73,45 @@ function Guide:HarvestRows()
 	return rows
 end
 
+--- Who recorded this, as one row.
+---
+--- The saved-variable export has carried a contributor block since the harvest split; a pasted one
+--- did not -- so the format almost everybody actually uses was the anonymous one. Over a beta that
+--- means a fortnight of contributions nobody can tell apart: not who to thank, not which zones are
+--- covered and which only look covered, and not whose character to ask when a recorded position
+--- turns out to be wrong.
+---
+--- About fifty characters against a typical export's two and a half thousand. A name travels because
+--- it is the only stable key across a contributor's sessions; anyone who would rather not send one
+--- can delete this single row from the paste and every other row still imports.
+---
+--- Deliberately NOT a format bump. The importer checks the header version for exact equality, so
+--- raising it would reject every export from a contributor still on the current build -- and this
+--- row needs no such break, because an importer that does not know `c` skips it like any other
+--- unrecognised row.
+local function identityRow()
+	local name = UnitName and UnitName("player")
+	if not name or name == "" then return nil end
+	local realm = (GetRealmName and GetRealmName()) or ""
+	local race = UnitRace and (UnitRace("player")) or "?"
+	-- Written out rather than `local _, class = UnitClass and UnitClass("player")`: an `and`
+	-- expression yields exactly one value, so the class TOKEN -- the second return, and the one the
+	-- saved-variable exporter records -- was silently dropped and every contributor came back "?".
+	local class = "?"
+	if UnitClass then
+		local _, token = UnitClass("player")
+		class = token or "?"
+	end
+	local faction = (UnitFactionGroup and UnitFactionGroup("player")) or "?"
+	local level = (UnitLevel and UnitLevel("player")) or 0
+	-- Commas separate the fields, and neither a character name nor a realm name may contain one, so
+	-- the importer can split naively and nothing needs escaping. Spaces come out of the realm so the
+	-- key matches the "Name-Realm" the saved-variable exporter already writes.
+	local who = realm ~= "" and (name .. "-" .. realm:gsub("%s+", "")) or name
+	return ("c%s,%s,%s,%s,%d,%d"):format(who, race or "?", class or "?", faction or "?",
+		tonumber(level) or 0, (time and time()) or 0)
+end
+
 --- The pasteable string, or nil plus a reason.
 ---
 --- The header travels uncompressed so a malformed or truncated paste can be recognised as one of
@@ -82,13 +121,19 @@ function Guide:ExportHarvest()
 	if not lib then return nil, "the compression library did not load" end
 	local rows = self:HarvestRows()
 	if #rows == 0 then return nil, "nothing has been recorded yet" end
+	-- Counted before the identity row goes on, so "N recordings" still means N things observed.
+	-- And added only once there IS something to attribute: a session that recorded nothing should
+	-- report nothing to export rather than a paste carrying a name and no data.
+	local recorded = #rows
+	local who = identityRow()
+	if who then table.insert(rows, 1, who) end
 	local _, build = GetBuildInfo()
 	local body = table.concat(rows, ";")
 	local ok, packed = pcall(function()
 		return lib:EncodeForPrint(lib:CompressDeflate(body, { level = 9 }))
 	end)
 	if not (ok and packed) then return nil, "could not compress the recording" end
-	return ("LODE%d:%s:%s"):format(FORMAT, tostring(build), packed), #rows, #body
+	return ("LODE%d:%s:%s"):format(FORMAT, tostring(build), packed), recorded, #body
 end
 
 --- Split at a length any edit box will hold, on the header boundary so each piece is self-describing.

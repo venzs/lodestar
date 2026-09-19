@@ -671,7 +671,7 @@ F.quests[99048]={lvl=11,t="A Missing Hand"}
 F.quests[99049]={lvl=11,t="Threat from Below"}
 F.quests[99050]={lvl=10,o={{n=1,text="Empty Vial",type="item"},{n=1,text="Refreshing Spring Water",type="item"}},t="The Great Tree Provides"}
 F.quests[99051]={lvl=11,t="Threat from Below"}
-F.quests[99052]={lvl=12,t="Threat from Below",tag="Elite"}
+F.quests[99052]={["end"]={npcs={3142}},lvl=12,t="Threat from Below",tag="Elite"}
 F.quests[99053]={lvl=9,o={{n=1,text="Escort Lynessa Duskblossom out of Ban'ethil",type="event"}},t="Escaping Ban'ethil"}
 F.quests[99073]={lvl=10,t="Easing Suffering"}
 F.quests[99079]={lvl=9,t="Longwalker Malah"}
@@ -704,6 +704,7 @@ F.quests[99191]={lvl=60,t="A Donation of Wool"}
 F.quests[99196]={lvl=60,o={{n=60,text="Wool Cloth",type="item"}},t="A Donation of Wool"}
 F.npcs[416]={c={{[1]=0,[2]=63.1,[3]=52.2,m=1420}},lvl={8,8},n="Tarpit"}
 F.npcs[1860]={c={{[1]=0,[2]=66.3,[3]=25.4,m=1458}},lvl={10,10},n="Sargrave"}
+F.npcs[3296]={c={{[1]=0,[2]=48.7,[3]=37.7,m=1454}}}
 F.npcs[211022]={c={{[1]=0,[2]=73.8,[3]=33,m=1458}},kind={quest=true},lvl={40,40},n="Owen Thadd"}
 F.npcs[246152]={c={{[1]=0,[2]=60.2,[3]=53.1,m=1420}},lvl={16,16},n="Shari Stilwell"}
 F.npcs[249363]={c={{[1]=0,[2]=47.2,[3]=21.9,m=2521}},kind={quest=true},lvl={5,5},n="Yala Windwatcher"}
@@ -734,6 +735,28 @@ F.npcs[256935]={c={{[1]=0,[2]=36.9,[3]=33,m=2521}},lvl={5,5},n="Malduko Cloudcru
 F.npcs[257551]={c={{[1]=0,[2]=42.4,[3]=25,m=2521}},lvl={10,10},n="Valreaa Valewind"}
 F.npcs[257554]={c={{[1]=0,[2]=43.8,[3]=24.1,m=2521}},kind={quest=true},lvl={10,10},n="Halaan Hawk-Eye"}
 F.npcs[263113]={c={{[1]=0,[2]=43.7,[3]=24.1,m=2521}},kind={quest=true},lvl={10,10},n="Myriaal Mistwake"}
+F.taxi[22]={map=1464,x=44.9,y=56.2}
+F.taxi[23]={map=1464,x=62.8,y=44.3}
+F.taxi[25]={map=1464,x=55.7,y=53}
+F.taxi[29]={map=1464,x=40.8,y=47.3}
+F.taxi[30]={map=1464,x=55,y=73.4}
+F.taxi[38]={map=1464,x=31.7,y=58.5}
+F.taxi[40]={map=1464,x=60.6,y=80.2}
+F.taxi[42]={map=1464,x=44.3,y=69.4}
+F.taxi[44]={map=1464,x=63.1,y=36.2}
+F.taxi[48]={map=1464,x=46.5,y=30.4}
+F.taxi[53]={map=1464,x=64,y=23.2}
+F.taxi[55]={map=1464,x=56.7,y=64.2}
+F.taxi[58]={map=1464,x=41,y=37.4}
+F.taxi[61]={map=1464,x=55.4,y=41.8}
+F.taxi[69]={map=1464,x=53.8,y=20.5}
+F.taxi[72]={map=1464,x=41.6,y=79.2}
+F.taxi[77]={map=1464,x=52.8,y=61}
+F.taxi[79]={map=1464,x=49.8,y=76.4}
+F.taxi[80]={map=1464,x=60.6,y=54.9}
+F.taxi[559]={map=1464,x=58.7,y=29.5}
+F.taxi[3208]={map=1464,x=60.6,y=54.9}
+F.taxi[3242]={map=1464,x=56.7,y=33.2}
 F.levels[1]=400
 F.levels[2]=900
 F.levels[3]=1400
@@ -741,3 +764,5 @@ F.levels[4]=2100
 F.levels[5]=2800
 F.levels[10]=7600
 F.levels[11]=8800
+F.levels[12]=10100
+F.levels[13]=11400

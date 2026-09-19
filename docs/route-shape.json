@@ -21,39 +21,39 @@
     "travel": 1458.549
   },
   "Alliance 20-25: Ashenvale": {
-    "backtrack": 0.515,
-    "hops": 44,
-    "longest": 63.644,
+    "backtrack": 0.548,
+    "hops": 73,
+    "longest": 57.363,
     "radius": 4.31,
-    "travel": 505.379
+    "travel": 1183.931
   },
   "Alliance 20-25: Redridge Mountains": {
-    "backtrack": 0.314,
-    "hops": 35,
-    "longest": 45.406,
-    "radius": 1.0,
-    "travel": 134.944
+    "backtrack": 0.592,
+    "hops": 55,
+    "longest": 49.65,
+    "radius": 6.247,
+    "travel": 1015.883
   },
   "Alliance 20-25: Wetlands": {
-    "backtrack": 0.606,
-    "hops": 45,
+    "backtrack": 0.66,
+    "hops": 64,
     "longest": 56.427,
-    "radius": 4.492,
-    "travel": 542.58
+    "radius": 5.702,
+    "travel": 1345.456
   },
   "Alliance 25-30: Duskwood": {
-    "backtrack": 0.546,
-    "hops": 70,
-    "longest": 65.543,
-    "radius": 1.0,
-    "travel": 829.971
+    "backtrack": 0.606,
+    "hops": 101,
+    "longest": 69.061,
+    "radius": 3.782,
+    "travel": 2158.018
   },
   "Alliance 30-35: Hillsbrad Foothills": {
-    "backtrack": 0.293,
-    "hops": 37,
-    "longest": 50.768,
-    "radius": 1.0,
-    "travel": 189.857
+    "backtrack": 0.503,
+    "hops": 58,
+    "longest": 58.54,
+    "radius": 3.483,
+    "travel": 832.966
   },
   "Alliance/Dwarf,Gnome 1-12: Dun Morogh": {
     "backtrack": 0.252,
@@ -119,11 +119,11 @@
     "travel": 612.268
   },
   "Horde 30-35: Desolace": {
-    "backtrack": 0.395,
-    "hops": 41,
-    "longest": 43.505,
-    "radius": 5.42,
-    "travel": 389.587
+    "backtrack": 0.682,
+    "hops": 59,
+    "longest": 52.318,
+    "radius": 6.552,
+    "travel": 1276.809
   },
   "Horde/Orc,Troll 1-12: Durotar": {
     "backtrack": 0.437,

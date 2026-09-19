@@ -3443,14 +3443,33 @@ try("a session's recordings export to a string that round-trips", function()
 
     local text, count = G:ExportHarvest()
     check(type(text) == "string" and text:find("^LODE1:"), "the string is tagged with its format: " .. tostring(text and text:sub(1, 12)))
-    check(count == #rows, "and reports how many recordings went in")
+    check(count == #rows, "and reports the recordings, not counting the identity row")
 
     -- Round trip through exactly what the importer will do.
     local payload = text:match("^LODE%d+:[^:]*:(.+)$")
     check(payload ~= nil, "the payload is separable from the header")
     local back = LD:DecompressDeflate(LD:DecodeForPrint(payload))
-    check(back == joined, "and decodes back to precisely what went in")
-    check(#text < #joined, ("compressed: %d chars from %d"):format(#text, #joined))
+    -- Who recorded it rides in front. Without it a pasted contribution is anonymous, which over a
+    -- beta means no way to tell whose data is whose, which zones are genuinely covered rather than
+    -- only looking covered, or whose character to ask when a position turns out wrong. One row:
+    -- strip it and the remainder must still be byte-for-byte what the harvest produced.
+    local who, rest = back:match("^(c[^;]+);(.*)$")
+    check(who ~= nil, "the body opens with an identity row")
+    check(rest == joined, "and the rest decodes back to precisely what went in")
+    if who then
+        local fields = {}
+        for f in (who .. ","):gmatch("([^,]*),") do fields[#fields + 1] = f end
+        check(#fields == 6, "identity carries name, race, class, faction, level and time: " .. who)
+        check(tonumber(fields[5]) ~= nil, "the level is a number")
+        check(not who:find(";"), "and cannot break the row separator")
+        -- Pinned because it shipped broken once: the class TOKEN is UnitClass's second return, and
+        -- reading it through an `and` expression truncates to one value, so every contributor came
+        -- back "?" while the row itself still had six fields and every other check passed.
+        local _, token = UnitClass("player")
+        check(fields[3] == (token or "?"), "the class token survives, not just the field: " .. tostring(fields[3]))
+        check(fields[2] == (UnitRace("player")), "and the race: " .. tostring(fields[2]))
+    end
+    check(#text < #back, ("compressed: %d chars from %d"):format(#text, #back))
 
     db.npcs[900001], db.objects[900002], db.quests[900003], db.taxi[900004], db.levels[7] = nil, nil, nil, nil, nil
 end)

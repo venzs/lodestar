@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- **A pasted export says who recorded it.** The saved-variable export has carried a contributor block
+  since the harvest split; the pasted one did not — so the format almost everybody actually uses was
+  the anonymous one. A beta's worth of contributions would have arrived indistinguishable: no way to
+  tell who to thank, which zones are genuinely covered rather than only looking covered, or whose
+  character to ask when a recorded position turns out to be wrong. One `c` row now carries
+  name-realm, race, class token, faction, level and a timestamp — about fifty characters against a
+  typical export's two and a half thousand — in the same shape the saved-variable side already
+  writes, so `merge_scan.py` counts both kinds of contribution through one path. Anyone who would
+  rather not send a name can delete that single row from the paste and every other row still imports.
+  Deliberately not a format bump. The importer checks the header version for exact equality, so
+  raising it would reject every export from a contributor still on the current build — and this needs
+  no such break, because an importer that does not know `c` skips it like any other unrecognised row.
+  Checked both directions: a new export imports with its contributor, an existing one imports without.
+- The importer's row kinds live in one tuple now. They were spelled out twice, in `add()` and in
+  `main()`, and adding `c` to only the first turned the very first export carrying an identity row
+  into a `KeyError` — with the whole unit suite green, because nothing ran the exporter and the
+  importer against each other. The smoke test now round-trips the real export body and pins the class
+  token specifically: it is `UnitClass`'s second return, reading it through an `and` expression
+  truncates to one value, and every contributor came back `"?"` while the row still had its six
+  fields and every other check passed.
+
+- **`docs/route-shape.json` re-recorded, and the question it had been standing in for is now asked
+  directly.** The baseline predated objectives having positions, so every run since reported the same
+  ten regressions — and a signal that always fires is one people stop reading, which is precisely how
+  the next real regression gets past. A baseline can only detect change from where the routes
+  actually are, so a deliberate change is the moment to refresh it, not a reason to leave it stale.
+  What it had been implying is now stated outright on every run, independent of any baseline:
+  `route shape: generated routes double back 50-68%, hand-written 25-53% (7 generated, 16
+  hand-written)`. The gap is real — a generated route takes one quest, walks out and walks back,
+  where a person batches four objectives into a single loop — and re-recording cannot silence it,
+  which is the point of reporting it separately. Closing it means teaching the planner to batch.
+  The comment claiming the hand-written routes run 28% to 64% was wrong at both ends; measured, they
+  run 25% to 53%.
+
 - **A quest whose chain starts outside the route is offered as a breadcrumb, not as a dead step.**
   Thirty-seven steps across the packs accepted a quest whose prerequisite is given in another zone
   (twenty-one of them) or has no giver recorded in any source (eleven). The client refuses to hand

@@ -71,10 +71,16 @@ def parse_one(text: str):
     return build, [r for r in body.split(";") if r]
 
 
+# Every row kind the importer counts, in one place. They were written out twice -- once in add() and
+# once in main() -- and adding `c` to only the first turned the very first export carrying an
+# identity row into a KeyError, with every unit test still green. One tuple, both dicts.
+ROW_KINDS = ("n", "o", "q", "f", "l", "c")
+
+
 def add(scan, build, rows):
     npcs, objs, quests, taxi, levels = (scan.setdefault(k, {}) for k in
                                         ("npcs", "objects", "quests", "taxi", "levels"))
-    counts = dict.fromkeys(("n", "o", "q", "f", "l"), 0)
+    counts = dict.fromkeys(ROW_KINDS, 0)
     for row in rows:
         kind, rest = row[0], row[1:]
         parts = rest.split(",")
@@ -95,6 +101,21 @@ def add(scan, build, rows):
                     q["ender"] = ender
             elif kind == "l" and len(parts) == 2:
                 levels[str(int(parts[0]))] = int(parts[1])
+            elif kind == "c" and len(parts) >= 5:
+                # Who recorded it, in the same shape the saved-variable exporter writes, so
+                # merge_scan counts both kinds of contribution through one code path.
+                who = scan.setdefault("meta", {}).setdefault("contributors", {})
+                e = who.setdefault(parts[0], {"sessions": 0})
+                e["race"], e["class"], e["faction"] = parts[1], parts[2], parts[3]
+                e["level"] = int(parts[4])
+                ts = int(parts[5]) if len(parts) > 5 and parts[5].lstrip("-").isdigit() else 0
+                if ts > 0:
+                    e["first"] = min(e.get("first") or ts, ts)
+                    e["last"] = max(e.get("last") or ts, ts)
+                # One paste is one session. Several pastes from the same character in one file --
+                # a split export -- would otherwise each count as a session and inflate the total,
+                # so the row travels once per export rather than once per part.
+                e["sessions"] = (e.get("sessions") or 0) + 1
             else:
                 continue
             counts[kind] += 1
@@ -119,7 +140,7 @@ def main() -> int:
         with open(path, encoding="utf-8", errors="replace") as fh:
             texts.append(fh.read())
 
-    scan, total = {}, dict.fromkeys(("n", "o", "q", "f", "l"), 0)
+    scan, total = {}, dict.fromkeys(ROW_KINDS, 0)
     found = 0
     for text in texts:
         # One file may hold several pastes -- a Discord channel copied wholesale, for instance.

@@ -22,6 +22,9 @@ tools/pfquest/src/
 # exists precisely to preserve a session's harvest -- on this client every /reload overwrites
 # the previous one, so an archived copy is sometimes the only copy left.
 data/beta/*.lua
+# A pasted `/lode export` is the same thing in the newer shape: a raw contribution, not the database.
+# The scan-*.json the importer produces from it is what gets merged and IS tracked.
+data/beta/*.txt
 !data/beta/archive/
 
 # Files delivered into the repo folder from a Claude session -- patches, exports, scratch output.
