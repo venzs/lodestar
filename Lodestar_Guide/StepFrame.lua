@@ -117,7 +117,7 @@ end
 --- restoring with SetPoint(point, UIParent, point, ...) measures the same offsets against a
 --- different corner, and the window lands somewhere else on every login.
 local function savePosition()
-	Lodestar:SaveAnchor(frame, cfg().pos, "TOPRIGHT")
+	Lodestar:SaveAnchor(frame, cfg().pos, "TOPRIGHT", "steps")
 end
 
 local function makeButton(parent, text, width)
@@ -1200,7 +1200,7 @@ function Guide:UpdateStepFrame()
 		frame:Hide()
 		return
 	end
-	Lodestar:ApplyAnchor(frame, c.pos, UIParent, STEP_ANCHOR)
+	Lodestar:ApplyAnchor(frame, c.pos, UIParent, STEP_ANCHOR, "steps")
 	frame:SetScale(c.scale or 1)
 	frame:SetBackdropBorderColor(c.locked and 0.4 or 0.3, c.locked and 0.4 or 0.75, c.locked and 0.4 or 1, 0.9)
 	applyWidth(frameWidth())

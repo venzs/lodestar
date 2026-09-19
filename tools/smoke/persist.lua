@@ -58,6 +58,8 @@ if not MODE then
 	-- And the upgrade path: the same data sitting under the names Lodestar used before
 	-- Core/Saved.lua renamed them has to be adopted, not silently started over.
 	if run("readlegacy") ~= 0 then print("persist: legacy adoption failed") os.exit(1) end
+	-- And the client we actually have: saved variables written and never read back.
+	if run("forgetful") ~= 0 then print("persist: nothing survived a forgetful client") os.exit(1) end
 	os.exit(0)
 end
 
@@ -90,8 +92,38 @@ local function loadXml(path)
 	end
 end
 
+--- The client's own config file, which is a separate question from saved variables and, on the
+--- Forever beta, the only one of the two that comes back. Written at the end of a session and read
+--- at the very start of the next, before any addon runs -- which is when the real client loads it.
+local CVARFILE = SVDIR .. "/config-cache.lua"
+
+local function loadCVars()
+	if MODE == "write" then return end
+	local f = io.open(CVARFILE, "r")
+	if not f then return end
+	local chunk = loadstring(f:read("*a"), "@config-cache.lua")
+	f:close()
+	if chunk then
+		local t = chunk()
+		if type(t) == "table" then for k, v in pairs(t) do stub.cvars[k] = v end end
+	end
+end
+
+local function writeCVars()
+	local out = { "return {\n" }
+	for k, v in pairs(stub.cvars) do
+		out[#out + 1] = ("\t[%q] = %q,\n"):format(k, tostring(v))
+	end
+	out[#out + 1] = "}\n"
+	local f = assert(io.open(CVARFILE, "w"))
+	f:write(table.concat(out))
+	f:close()
+end
+
 --- Run the addon's saved-variable file the way the client does: plain global assignments in the
 --- global environment, after the addon's own files and before its ADDON_LOADED.
+---
+--- "forgetful" is the Forever beta as measured: the file is on disk and the client never reads it.
 local function loadSavedVariables(addon)
 	if MODE ~= "read" and MODE ~= "readlegacy" then return end
 	local dir = MODE == "readlegacy" and (SVDIR .. "/legacy") or SVDIR
@@ -118,6 +150,7 @@ local function loadToc(addon)
 	stub.fire("ADDON_LOADED", addon)
 end
 
+loadCVars()
 local addons = { "Lodestar", "Lodestar_Leveling", "Lodestar_Economy", "Lodestar_UI", "Lodestar_Guild",
 	"Lodestar_Guide", "Lodestar_Guides_Horde", "Lodestar_Guides_Alliance", "Lodestar_Character" }
 for _, a in ipairs(addons) do loadToc(a) end
@@ -210,6 +243,8 @@ local WANT = {
 	scale     = 1.4,
 	arrowMode = "QUEST",
 	questID   = 90210,
+	guide     = "Skyborne 1-12: Zephras Isle",
+	step      = 14,
 }
 
 local checks, failures = 0, {}
@@ -248,6 +283,8 @@ if MODE == "write" then
 	G.db.profile.arrow.mode = WANT.arrowMode
 
 	-- Something harvested this session, written through the real path.
+	G:SaveProgress(WANT.guide, WANT.step)
+
 	stub.fire("QUEST_DETAIL")
 	local H = G:HarvestDB()
 	H.quests[WANT.questID] = { t = "A Test Of Persistence", lvl = 5 }
@@ -255,6 +292,7 @@ if MODE == "write" then
 
 	stub.fire("PLAYER_LOGOUT")
 	writeSavedVariables()
+	writeCVars()
 
 	-- The whole point is that the file is what carries the data, so say what went into it.
 	for addon in pairs(SAVED) do
@@ -312,6 +350,39 @@ elseif MODE == "read" or MODE == "readlegacy" then
 		"the harvested quest came back intact")
 	check(type(H.meta) == "table" and type(H.meta.contributors) == "table"
 		and next(H.meta.contributors) ~= nil, "the contributor record came back")
+
+	print(("persist/%s: %d checks, %d failures"):format(MODE, checks, #failures))
+elseif MODE == "forgetful" then
+	-- The client Abhi is actually running. Its saved-variable file was written last session and is
+	-- sitting on disk right now; the client simply does not read it. Measured, not assumed: the
+	-- session counter reads 1 every login with sawPreviousSession false, across a plain /reload.
+	--
+	-- So everything below has to come back through the client's own config instead, and this is the
+	-- only test in the suite that can tell the difference -- the in-process one shares a Lua state,
+	-- so an in-memory cache makes the vault look like it works even when it cannot write a byte.
+	-- A setting only last session's file could supply. LodestarCore itself is not the test: the
+	-- addon creates that table whether or not the client handed one over.
+	check(G.db.profile.steps.upcoming ~= WANT.upcoming,
+		"the saved variables really did not come back")
+	check(Lodestar:VaultWorks(), "the client config is usable")
+
+	G:UpdateStepFrame()
+	G:UpdateArrowFrame()
+	local p, _, rel, x, y = _G.LodestarGuideFrame:GetPoint(1)
+	samePos({ point = p, rel = rel, x = x, y = y }, WANT.stepPos, "step frame, with nothing but the client config")
+	p, _, rel, x, y = _G.LodestarArrow:GetPoint(1)
+	samePos({ point = p, rel = rel, x = x, y = y }, WANT.arrowPos, "arrow, with nothing but the client config")
+
+	check(G.db.char.currentGuide == WANT.guide,
+		"the route came back: " .. tostring(G.db.char.currentGuide))
+	check(G.db.char.progress[WANT.guide] == WANT.step,
+		"at the step it was left on: " .. tostring(G.db.char.progress[WANT.guide]))
+
+	-- And the things that deliberately do NOT go in there are still gone, because the vault is a
+	-- handful of noticeable values and not a second database.
+	local H = G:HarvestDB()
+	check(not (type(H.quests) == "table" and H.quests[WANT.questID]),
+		"the harvest is not being smuggled through the config file")
 
 	print(("persist/%s: %d checks, %d failures"):format(MODE, checks, #failures))
 else

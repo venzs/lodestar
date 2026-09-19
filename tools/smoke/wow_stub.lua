@@ -70,6 +70,13 @@ InCombatLockdown = function() return false end
 GetBuildInfo = function() return "1.60.1", "69893", "Sep 16 2026", 16001 end
 GetLocale = function() return "enUS" end
 GetCVar = function(k) return stub.cvars[k] end
+-- The client's own config, which on the Forever beta is the only thing that survives a login when
+-- addon saved variables do not. RegisterCVar on a known name is a no-op, as on the real client.
+C_CVar = {
+	RegisterCVar = function(k, v) if stub.cvars[k] == nil then stub.cvars[k] = tostring(v or "") end end,
+	GetCVar = function(k) return stub.cvars[k] end,
+	SetCVar = function(k, v) stub.cvars[k] = tostring(v) return true end,
+}
 SetCVar = function(k, v) stub.cvars[k] = tostring(v) end
 GetCVarBool = function(k) return stub.cvars[k] == "1" end
 stub.cvars = { autoLootDefault = "1", showTimestamps = "none" }

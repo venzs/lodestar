@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- **The beta client does not hand addon saved variables back, and that is now measured rather than
+  inferred.** Lodestar writes a session counter at login that nothing ever resets. On this build it
+  reads `sessions = 1` and `sawPreviousSession = false` every time — including across a plain
+  `/reload`, where the previous session had already written `1` to the file sitting on disk. The
+  file is written correctly and ignored on the way in. Every "it forgot where my window was" and
+  "it restarted the guide" follows from that one fact, and none of it can be fixed by saving harder.
+- **So the things you'd notice go through the client's own config instead.** `C_CVar.RegisterCVar`
+  puts a value in `config-cache.wtf`, which demonstrably *does* survive a relaunch on the same
+  machine where the saved variables do not. `Core/Vault.lua` keeps exactly three things there —
+  where each window is, which guide you are on, and how far through it you are — and nothing else.
+  It is not a second database and must not become one: the harvest, the settings and the history
+  stay in the saved variables, where they belong and where they will start working again the day
+  the client is fixed. A saved variable that *does* come back always wins over the vault, so on a
+  healthy client this changes nothing at all.
+- `tools/smoke/persist.lua` gained a fourth session, `forgetful`, which is the beta as measured: the
+  saved-variable file is written and then deliberately withheld from the next login while the config
+  file is carried across. It runs in its own process, which is the only way to tell the difference —
+  the in-process suite shares a Lua state, so an in-memory cache makes the vault look like it works
+  even when it cannot write a byte.
+- **Guide: the client's "you have already done all of this" is no longer taken at face value.** On
+  Abhi's character `SuggestStartIndex` returned 36 of 36 for a level 6 druid: every quest in a 1-12
+  route reported as turned in. A route declares the levels it covers, and finishing it is what makes
+  a character level 12 — so a level 6 character has not finished it, whatever the flag says. When the
+  two contradict each other, the flag is dropped for that route's quests (turn-ins actually watched
+  this session still count), the start is worked out from the quest log instead, and Lodestar says so
+  in chat rather than silently disagreeing with the client. The distrust is reconsidered on every
+  load, so levelling past the contradiction restores the client's answer. `/lode guide why` lists the
+  quests involved, and cross-checks `IsQuestFlaggedCompleted` against `GetAllCompletedQuestIDs` so a
+  client that contradicts itself is recorded precisely rather than guessed at.
+
 - **Guide: the route was parking on its last step and then forgetting it existed.** Read out of a
   real WTF folder rather than reasoned about: a level 6 character had `progress` of 36 on the
   36-step Zephras Isle route, and the previous session's file still had `currentGuide` set while the

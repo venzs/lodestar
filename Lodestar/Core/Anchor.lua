@@ -35,7 +35,7 @@ end
 --- nothing -- which happens when the frame has no anchor yet, not only in error.
 ---
 --- Returns the table it wrote, so a caller that keeps `pos` as a whole value can assign the result.
-function Lodestar:SaveAnchor(frame, store, fallback)
+function Lodestar:SaveAnchor(frame, store, fallback, key)
 	fallback = corner(fallback, "CENTER")
 	if type(store) ~= "table" then return nil end
 	local point, _, relativePoint, x, y
@@ -46,6 +46,8 @@ function Lodestar:SaveAnchor(frame, store, fallback)
 	store.rel = corner(relativePoint, store.point)
 	store.x = tonumber(x) or 0
 	store.y = tonumber(y) or 0
+	-- Also into the vault, which is the only one of the two this client reads back today.
+	if key and self.VaultSaveAnchor then self:VaultSaveAnchor(key, store) end
 	return store
 end
 
@@ -55,10 +57,13 @@ end
 --- A missing `rel` in either the store or the default falls back to that side's `point`, which is
 --- the right answer for a frame that has genuinely never moved -- the damage comes from assuming it
 --- for one that HAS, which is why SaveAnchor above always writes the real one.
-function Lodestar:ApplyAnchor(frame, store, parent, default)
+function Lodestar:ApplyAnchor(frame, store, parent, default, key)
 	if not (frame and frame.SetPoint) then return end
 	default = default or {}
 	store = type(store) == "table" and store or default
+	-- A saved variable that came back wins; the vault only fills a gap. On a client that hands
+	-- saved variables back this changes nothing at all.
+	if key and self.VaultLoadAnchor then self:VaultLoadAnchor(key, store, default) end
 	local point = corner(store.point, corner(default.point, "CENTER"))
 	local rel = corner(store.rel, store.point and point or corner(default.rel, point))
 	local x = tonumber(store.x) or tonumber(default.x) or 0

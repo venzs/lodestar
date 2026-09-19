@@ -17,6 +17,7 @@ Locales\enUS.lua
 Core\Init.lua
 Core\Saved.lua
 Core\Utils.lua
+Core\Vault.lua
 Core\Anchor.lua
 Core\Errors.lua
 Core\CopyBox.lua

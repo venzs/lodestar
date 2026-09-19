@@ -125,7 +125,7 @@ local function savePosition()
 	-- The relativePoint has to travel with the offsets: dragging re-anchors the frame and the
 	-- corner WoW leaves behind is usually not the same one, so saving the point alone moves the
 	-- panel somewhere new on every login.
-	Character.db.profile.pos = Lodestar:SaveAnchor(panel, Character.db.profile.pos or {}, "TOPLEFT")
+	Character.db.profile.pos = Lodestar:SaveAnchor(panel, Character.db.profile.pos or {}, "TOPLEFT", "charpanel")
 end
 
 local function createPanel()
@@ -187,8 +187,11 @@ function Character:AnchorPanel()
 	local pos = self.db.profile.pos
 	local anchor = rawget(_G, "CharacterFrame")
 	panel:ClearAllPoints()
+	-- Asked before the branch, not inside it: on this client the saved variable comes back empty
+	-- every login, so a vault lookup that only ran when a position already existed would never run.
+	if type(pos) == "table" then Lodestar:VaultLoadAnchor("charpanel", pos, nil) end
 	if pos and pos.point then
-		Lodestar:ApplyAnchor(panel, pos, UIParent, nil)
+		Lodestar:ApplyAnchor(panel, pos, UIParent, nil, "charpanel")
 	elseif anchor then
 		panel:SetPoint("TOPLEFT", anchor, "TOPRIGHT", DOCK_X, DOCK_Y)
 	else

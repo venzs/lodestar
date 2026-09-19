@@ -3386,6 +3386,116 @@ try("the last step reached by a clamp is not a finished guide", function()
 	G.db.char.progress[NAME] = wasProgress
 end)
 
+-- The client that forgets everything.
+--
+-- Measured on the beta rather than assumed: Lodestar writes a session counter that nothing resets,
+-- and it reads 1 on every login with sawPreviousSession false, across a plain /reload. Saved
+-- variables are written correctly and ignored on the way in. So the window positions and the guide
+-- position have to survive through the client's OWN config, which does persist, or the player gets
+-- a factory-fresh addon several times an evening.
+--
+-- This test shares ONE Lua state with everything else in the file, so it cannot prove survival: the
+-- vault's in-memory cache would carry the values across even if it could not write a single byte.
+-- tools/smoke/persist.lua's "forgetful" session is the one that proves it, in a separate process
+-- with the saved-variable file deliberately withheld. What this one checks is the wiring either
+-- side of that: the values reach the vault at all, an empty profile is filled from it, and a saved
+-- variable that DID come back still wins.
+try("window and guide position are written to the client config, and a saved variable still wins", function()
+	local G2 = Lodestar:GetModule("Guide")
+	local Lev = Lodestar:GetModule("Leveling")
+
+	-- Put the windows somewhere and get onto a route.
+	_G.LodestarXPFrame:ClearAllPoints()
+	_G.LodestarXPFrame:SetPoint("BOTTOMLEFT", UIParent, "TOPRIGHT", -404, 111)
+	_G.LodestarXPFrame:GetScript("OnDragStop")(_G.LodestarXPFrame)
+	G2:SaveProgress("Skyborne 1-12: Zephras Isle", 14)
+
+	check(Lodestar:VaultGet("a:xp"), "the window position reached the client config: " .. tostring(Lodestar:VaultGet("a:xp")))
+	check(Lodestar:VaultGet("g") == "Skyborne 1-12: Zephras Isle" and Lodestar:VaultGet("gs") == "14",
+		"and so did the guide and step")
+
+	-- Now the login this client actually gives you: every saved variable comes back empty.
+	Lev.db.profile.xp.pos = {}
+	G2.db.char.currentGuide, G2.db.char.progress = nil, {}
+
+	Lev:UpdateXPFrame()
+	local p, _, rel, x, y = _G.LodestarXPFrame:GetPoint(1)
+	check(p == "BOTTOMLEFT" and rel == "TOPRIGHT" and x == -404 and y == 111,
+		("the XP tracker still comes back where it was left, got %s/%s %s,%s"):format(tostring(p), tostring(rel), tostring(x), tostring(y)))
+
+	G2.current, G2.stepIndex = nil, nil   -- the state a fresh login starts from
+	G2:EnableEngine()
+	stub.advance(4)
+	check(G2.current and G2.current.name == "Skyborne 1-12: Zephras Isle",
+		"and the character is back on its route, not re-picked from scratch: " .. tostring(G2.current and G2.current.name))
+
+	-- A saved variable that DID come back must still win: the vault fills a gap, it does not
+	-- overrule. The day the client is fixed, this is the path that runs.
+	Lev.db.profile.xp.pos = { point = "TOP", rel = "TOP", x = 7, y = -7 }
+	Lev:UpdateXPFrame()
+	p, _, rel, x, y = _G.LodestarXPFrame:GetPoint(1)
+	check(p == "TOP" and x == 7 and y == -7,
+		"a saved variable that survived beats the client config, got " .. tostring(p) .. " " .. tostring(x) .. "," .. tostring(y))
+end)
+
+-- A level 6 character cannot have finished a 1-12 route, whatever the client says.
+--
+-- This is the overshoot that started the whole thing: the quest data reported every quest in the
+-- Zephras route turned in, the suggested start ran to the last step, and that got written back as
+-- progress. The route's own "#levels 1-12" is the contradiction -- finishing it is what makes a
+-- character level 12 -- so the suggestion is bad data, not a reading of progress.
+try("a start position the route's level range says is impossible is not believed", function()
+	-- Zephras Isle: the actual route this happened on, and one with no installed #next, so a route
+	-- that really is finished stays on its last step instead of chaining away mid-test.
+	local NAME = "Skyborne 1-12: Zephras Isle"
+	local guide = G.guideByName[NAME]
+	local wasFlagged, wasLog, wasLevel = stub.flagged, stub.questLog, stub.level
+	local wasProgress = G.db.char.progress[NAME]
+	local realRace = UnitRace
+	UnitRace = function() return "Skyborne", "Skyborne", 11 end
+
+	-- Every quest the route touches reported as turned in, on a character far below its top level.
+	-- This is exactly what the client was telling the addon.
+	local flagged = {}
+	for _, step in ipairs(guide.steps) do
+		for _, a in ipairs(step.actions) do
+			if a.questID then flagged[a.questID] = true end
+		end
+	end
+	stub.flagged, stub.questLog = flagged, {}
+	stub.level = 6
+	G.db.char.progress[NAME] = nil
+	G.db.char.finished = {}
+	G.decisions = nil
+	G:LoadGuide(NAME)
+	check(G.stepIndex < #guide.steps,
+		("a level 6 character is not put on the last step of a %d-step 1-12 route, landed on %d")
+			:format(#guide.steps, G.stepIndex))
+	local rec
+	for i = #G.decisions, 1, -1 do
+		if G.decisions[i].kind == "load" and G.decisions[i].guide == NAME then rec = G.decisions[i] break end
+	end
+	check(rec and rec.impossibleStart, "and the reason is recorded: " .. tostring(rec and rec.impossibleStart))
+	check(rec and rec.proof and #rec.proof > 0, "along with the quests that were reported turned in")
+	check(not G.db.char.finished[NAME], "and a route it never ran is not marked finished")
+
+	-- The same data on a character who really is at the route's top level IS believed: the guard
+	-- must not break a genuine resume, which is what reconciling is for in the first place.
+	stub.level = 12
+	G.db.char.progress[NAME] = nil
+	G.decisions = nil
+	G:LoadGuide(NAME)
+	check(G.stepIndex >= #guide.steps - 1,
+		"a character at the route's top level still resumes at the end, at " .. tostring(G.stepIndex))
+	check(not G.distrusted[guide.steps[1].actions[1].questID],
+		"and levelling past the contradiction restores trust in the client's own answer")
+
+	stub.flagged, stub.questLog, stub.level = wasFlagged, wasLog, wasLevel
+	UnitRace = realRace
+	G.db.char.progress[NAME] = wasProgress
+	G.db.char.finished[NAME] = nil
+end)
+
 -- Every movable window remembers where it was left, including the half of the anchor that is easy
 -- to drop. Two of the five frames were saving the point and the offsets and throwing the
 -- relativePoint away; the guide window and the arrow had tests, the XP tracker and the guild board

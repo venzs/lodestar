@@ -271,7 +271,7 @@ end
 --- As in StepFrame: the relativePoint has to be saved with the offsets, or the arrow drifts to a
 --- new spot on every login because the same x/y are measured against a different corner.
 local function savePosition()
-	Lodestar:SaveAnchor(arrow, Guide.db.profile.arrow.pos, "CENTER")
+	Lodestar:SaveAnchor(arrow, Guide.db.profile.arrow.pos, "CENTER", "arrow")
 end
 
 local function colorFor(relative)
@@ -453,7 +453,7 @@ function Guide:UpdateArrowFrame()
 		if self.DrawMinimapLine then self:DrawMinimapLine(nil) end
 		return
 	end
-	Lodestar:ApplyAnchor(arrow, cfg.pos, UIParent, ARROW_ANCHOR)
+	Lodestar:ApplyAnchor(arrow, cfg.pos, UIParent, ARROW_ANCHOR, "arrow")
 	arrow:SetScale(cfg.scale or 1)
 	layoutArrow()
 	arrow:Show()

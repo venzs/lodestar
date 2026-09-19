@@ -218,7 +218,7 @@ end
 --- The whole anchor, through the shared helper. This used to save the point and the offsets and
 --- throw the relativePoint away, which is why the tracker reappeared somewhere new on every login.
 local function savePosition()
-	Lodestar:SaveAnchor(frame, Leveling.db.profile.xp.pos, "TOP")
+	Lodestar:SaveAnchor(frame, Leveling.db.profile.xp.pos, "TOP", "xp")
 end
 
 local function fillTooltip(tooltip)
@@ -350,7 +350,7 @@ function Leveling:UpdateXPFrame(level)
 		frame:Hide()
 		return
 	end
-	Lodestar:ApplyAnchor(frame, db.pos, UIParent, XP_ANCHOR)
+	Lodestar:ApplyAnchor(frame, db.pos, UIParent, XP_ANCHOR, "xp")
 	frame:SetScale(db.scale or 1)
 	frame:EnableMouse(true)
 	frame:SetBackdropBorderColor(db.locked and 0.4 or 0.3, db.locked and 0.4 or 0.75, db.locked and 0.4 or 1, 0.8)

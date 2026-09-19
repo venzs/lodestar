@@ -145,7 +145,7 @@ local function createBoard()
 	board:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
 		-- The whole anchor: saving the point without its relativePoint moved the board on every login.
-		Lodestar:SaveAnchor(self, Guild.db.profile.board.pos, "CENTER")
+		Lodestar:SaveAnchor(self, Guild.db.profile.board.pos, "CENTER", "board")
 	end)
 	board:SetBackdrop({
 		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
@@ -268,7 +268,7 @@ function Guild:ToggleBoard()
 		board:Hide()
 		return
 	end
-	Lodestar:ApplyAnchor(board, self.db.profile.board.pos, UIParent, BOARD_ANCHOR)
+	Lodestar:ApplyAnchor(board, self.db.profile.board.pos, UIParent, BOARD_ANCHOR, "board")
 	offset = 0
 	board:Show()
 end
