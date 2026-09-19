@@ -22,12 +22,26 @@ step
   .accept 484 >>Accept Young Crocolisk Skins (lvl 18) from James Halloran
 
 step
-  .goto Wetlands,61.8,56.8
-  .complete 484 >>Finish Young Crocolisk Skins
+  .goto Wetlands,10.0,58.0
+  .accept 1132 >>Accept Fiora Longears (lvl 18) from Red Jack Flint
 
 step
-  .goto Wetlands,8.5,55.7
-  .turnin 484 >>Turn in Young Crocolisk Skins to James Halloran
+  .goto Wetlands,11.8,58.0
+  .accept 470 >>Accept Digging Through the Ooze (lvl 19) from Sida
+
+step
+  .goto Wetlands,10.9,59.6
+  .accept 463 >>Accept The Greenwarden (lvl 20) from First Mate Fitzsimmons
+
+step
+  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
+  .goto Wetlands,10.8,60.4
+  .accept 943 >>Accept The Absent Minded Prospector (lvl 15) from Archaeologist Flagongut
+
+step
+  .optional >>Needs The Doomed Fleet, which starts in Stormwind City
+  .goto Wetlands,10.6,60.6
+  .accept 321 >>Accept Lightforge Iron (lvl 20) from Glorin Steelbrow
 
 step
   .goto Wetlands,8.3,58.6
@@ -38,70 +52,86 @@ step
   .complete 279 >>Finish Claws from the Deep
 
 step
-  .goto Wetlands,8.3,58.6
-  .turnin 279 >>Turn in Claws from the Deep to Karl Boran
+  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
+  .goto Wetlands,30.5,48.7
+  .complete 943 >>Finish The Absent Minded Prospector
 
 step
-  .goto Wetlands,10.9,59.6
-  .accept 463 >>Accept The Greenwarden (lvl 20) from First Mate Fitzsimmons
+  .goto Wetlands,44.3,24.7
+  .complete 470 >>Finish Digging Through the Ooze
+
+step
+  .goto Wetlands,61.8,56.8
+  .complete 484 >>Finish Young Crocolisk Skins
 
 step
   .goto Wetlands,56.4,40.4
   .turnin 463 >>Turn in The Greenwarden to Rethiel the Greenwarden
-  .accept 276 >>Accept Tramping Paws (lvl 20) from Rethiel the Greenwarden
 
 step
-  .goto Wetlands,61.6,66.8
-  .complete 276 >>Finish Tramping Paws
+  .goto Wetlands,11.8,58.0
+  .turnin 470 >>Turn in Digging Through the Ooze to Sida
 
 step
-  .goto Wetlands,56.4,40.4
-  .turnin 276 >>Turn in Tramping Paws to Rethiel the Greenwarden
-  .accept 277 >>Accept Fire Taboo (lvl 20) from Rethiel the Greenwarden
+  .optional >>Handed in outside this zone, to Fiora Longears
+  .turnin 1132 >>Turn in Fiora Longears to Fiora Longears (not in this zone)
 
 step
-  .goto Wetlands,35.4,31.5
-  .complete 277 >>Finish Fire Taboo
-
-step
-  .goto Wetlands,56.4,40.4
-  .turnin 277 >>Turn in Fire Taboo to Rethiel the Greenwarden
-  .accept 275 >>Accept Blisters on The Land (lvl 20) from Rethiel the Greenwarden
-
-step
-  .goto Wetlands,40.6,33.2
-  .complete 275 >>Finish Blisters on The Land
-
-step
-  .goto Wetlands,56.4,40.4
-  .turnin 275 >>Turn in Blisters on The Land to Rethiel the Greenwarden
-
-step
-  .goto Wetlands,49.9,39.4
-  .accept 469 >>Accept Daily Delivery (lvl 18) from Einar Stonegrip
+  .goto Wetlands,8.3,58.6
+  .turnin 279 >>Turn in Claws from the Deep to Karl Boran
 
 step
   .goto Wetlands,8.5,55.7
-  .turnin 469 >>Turn in Daily Delivery to James Halloran
+  .turnin 484 >>Turn in Young Crocolisk Skins to James Halloran
+
+step
+  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
+  .goto Wetlands,10.8,60.4
+  .turnin 943 >>Turn in The Absent Minded Prospector to Archaeologist Flagongut
+
+step
+  .optional >>Needs The Doomed Fleet, which starts in Stormwind City
+  .goto Wetlands,12.1,64.2
+  .turnin 321 >>Turn in Lightforge Iron
 
 step
   .xp 21
+
+step
+  .goto Wetlands,10.6,60.6
+  .accept 526 >>Accept Lightforge Ingots (lvl 20) from Glorin Steelbrow
+
+step
+  .goto Wetlands,8.3,58.6
+  .accept 281 >>Accept Reclaiming Goods (lvl 20) from Karl Boran
 
 step
   .goto Wetlands,8.5,55.7
   .accept 471 >>Accept Apprentice's Duties (lvl 18) from James Halloran
 
 step
+  .goto Wetlands,11.5,52.2
+  .accept 305 >>Accept In Search of The Excavation Team (lvl 21) from Tarrel Rockweaver
+
+step
   .goto Wetlands,20.8,24.0
   .complete 471 >>Finish Apprentice's Duties
+
+step
+  .goto Wetlands,27.0,16.9
+  .complete 526 >>Finish Lightforge Ingots
+
+step
+  .goto Wetlands,13.5,41.4
+  .turnin 281 >>Turn in Reclaiming Goods
 
 step
   .goto Wetlands,8.5,55.7
   .turnin 471 >>Turn in Apprentice's Duties to James Halloran
 
 step
-  .goto Wetlands,11.5,52.2
-  .accept 305 >>Accept In Search of The Excavation Team (lvl 21) from Tarrel Rockweaver
+  .goto Wetlands,10.6,60.6
+  .turnin 526 >>Turn in Lightforge Ingots to Glorin Steelbrow
 
 step
   .goto Wetlands,38.9,52.3
@@ -113,26 +143,7 @@ step
   .turnin 306 >>Turn in In Search of The Excavation Team to Tarrel Rockweaver
 
 step
-  .optional >>Needs The Doomed Fleet, which starts in Stormwind City
   .goto Wetlands,10.6,60.6
-  .accept 321 >>Accept Lightforge Iron (lvl 20) from Glorin Steelbrow
-
-step
-  .optional >>Needs The Doomed Fleet, which starts in Stormwind City
-  .goto Wetlands,12.1,64.2
-  .turnin 321 >>Turn in Lightforge Iron
-
-step
-  .goto Wetlands,10.6,60.6
-  .accept 526 >>Accept Lightforge Ingots (lvl 20) from Glorin Steelbrow
-
-step
-  .goto Wetlands,27.0,16.9
-  .complete 526 >>Finish Lightforge Ingots
-
-step
-  .goto Wetlands,10.6,60.6
-  .turnin 526 >>Turn in Lightforge Ingots to Glorin Steelbrow
   .accept 322 >>Accept Blessed Arm (lvl 20) from Glorin Steelbrow
 
 step
@@ -141,6 +152,11 @@ step
 
 step
   .xp 22
+
+step
+  .optional >>Needs The Eye of Paleth, which this route does not cover
+  .goto Wetlands,10.6,60.6
+  .accept 293 >>Accept Cleansing the Eye (lvl 22) from Glorin Steelbrow
 
 step
   .goto Wetlands,10.9,59.6
@@ -152,6 +168,13 @@ step
 step
   .goto Wetlands,10.9,59.6
   .turnin 288 >>Turn in The Third Fleet to First Mate Fitzsimmons
+
+step
+  .optional >>Handed in outside this zone, to Archbishop Benedictus
+  .turnin 293 >>Turn in Cleansing the Eye to Archbishop Benedictus (not in this zone)
+
+step
+  .goto Wetlands,10.9,59.6
   .accept 289 >>Accept The Cursed Crew (lvl 22) from First Mate Fitzsimmons
 
 step
@@ -202,19 +225,27 @@ step
   .turnin 296 >>Turn in Ormer's Revenge to Ormer Ironbraid
 
 step
-  .goto Wetlands,11.8,58.0
-  .accept 470 >>Accept Digging Through the Ooze (lvl 19) from Sida
-
-step
-  .goto Wetlands,44.3,24.7
-  .complete 470 >>Finish Digging Through the Ooze
-
-step
-  .goto Wetlands,11.8,58.0
-  .turnin 470 >>Turn in Digging Through the Ooze to Sida
-
-step
   .xp 23
+
+step
+  .goto Wetlands,49.9,39.4
+  .accept 469 >>Accept Daily Delivery (lvl 18) from Einar Stonegrip
+
+step
+  .goto Wetlands,56.4,40.4
+  .accept 276 >>Accept Tramping Paws (lvl 20) from Rethiel the Greenwarden
+
+step
+  .goto Wetlands,61.6,66.8
+  .complete 276 >>Finish Tramping Paws
+
+step
+  .goto Wetlands,56.4,40.4
+  .turnin 276 >>Turn in Tramping Paws to Rethiel the Greenwarden
+
+step
+  .goto Wetlands,8.5,55.7
+  .turnin 469 >>Turn in Daily Delivery to James Halloran
 
 step
   .optional >>Needs The Algaz Gauntlet, which starts in Loch Modan
@@ -244,6 +275,33 @@ step
   .turnin 465 >>Turn in Nek'rosh's Gambit
 
 step
+  .goto Wetlands,56.4,40.4
+  .accept 277 >>Accept Fire Taboo (lvl 20) from Rethiel the Greenwarden
+
+step
+  .goto Wetlands,35.4,31.5
+  .complete 277 >>Finish Fire Taboo
+
+step
+  .goto Wetlands,56.4,40.4
+  .turnin 277 >>Turn in Fire Taboo to Rethiel the Greenwarden
+
+step
+  .xp 24
+
+step
+  .goto Wetlands,56.4,40.4
+  .accept 275 >>Accept Blisters on The Land (lvl 20) from Rethiel the Greenwarden
+
+step
+  .goto Wetlands,40.6,33.2
+  .complete 275 >>Finish Blisters on The Land
+
+step
+  .goto Wetlands,56.4,40.4
+  .turnin 275 >>Turn in Blisters on The Land to Rethiel the Greenwarden
+
+step
   .optional >>Needs A Dark Threat Looms, which starts in Loch Modan
   .goto Wetlands,50.0,18.2
   .accept 274 >>Accept A Dark Threat Looms (lvl 16) from Ashlan Stonesmirk
@@ -253,59 +311,11 @@ step
   .turnin 274 >>Turn in A Dark Threat Looms to Chief Engineer Hinderweir VII (not in this zone)
 
 step
-  .goto Wetlands,10.0,58.0
-  .accept 1132 >>Accept Fiora Longears (lvl 18) from Red Jack Flint
-
-step
-  .optional >>Handed in outside this zone, to Fiora Longears
-  .turnin 1132 >>Turn in Fiora Longears to Fiora Longears (not in this zone)
-
-step
-  .goto Wetlands,8.3,58.6
-  .accept 281 >>Accept Reclaiming Goods (lvl 20) from Karl Boran
-
-step
-  .goto Wetlands,13.5,41.4
-  .turnin 281 >>Turn in Reclaiming Goods
-
-step
-  .xp 24
-
-step
-  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
-  .goto Wetlands,10.8,60.4
-  .accept 943 >>Accept The Absent Minded Prospector (lvl 15) from Archaeologist Flagongut
-
-step
-  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
-  .goto Wetlands,30.5,48.7
-  .complete 943 >>Finish The Absent Minded Prospector
-
-step
-  .optional >>Needs The Absent Minded Prospector, which starts in Teldrassil
-  .goto Wetlands,10.8,60.4
-  .turnin 943 >>Turn in The Absent Minded Prospector to Archaeologist Flagongut
-
-step
-  .optional >>Needs The Eye of Paleth, which this route does not cover
-  .goto Wetlands,10.6,60.6
-  .accept 293 >>Accept Cleansing the Eye (lvl 22) from Glorin Steelbrow
-
-step
-  .optional >>Handed in outside this zone, to Archbishop Benedictus
-  .turnin 293 >>Turn in Cleansing the Eye to Archbishop Benedictus (not in this zone)
-
-step
   .xp 25 >>You should be 25 by now. If you are not, the rest of this zone will not be offered to you yet -- finish the optional quests above, or kill your way up, before carrying on.
 
 step
-  .goto Wetlands,10.8,55.9
-  .accept 472 >>Accept Fall of Dun Modr (lvl 25) from Harlo Barnaby
-
-step
-  .goto Wetlands,49.8,18.3
-  .turnin 472 >>Turn in Fall of Dun Modr to Longbraid the Grim
-  .accept 303 >>Accept The Dark Iron War (lvl 25) from Longbraid the Grim
+  .goto Wetlands,49.7,18.2
+  .accept 303 >>Accept The Dark Iron War (lvl 25) from Motley Garmason
 
 step
   .goto Wetlands,59.5,23.7
@@ -334,5 +344,13 @@ step
 step
   .goto Wetlands,38.8,52.4
   .turnin 299 >>Turn in Uncovering the Past to Prospector Whelgar
+
+step
+  .goto Wetlands,10.8,55.9
+  .accept 472 >>Accept Fall of Dun Modr (lvl 25) from Harlo Barnaby
+
+step
+  .goto Wetlands,49.8,18.3
+  .turnin 472 >>Turn in Fall of Dun Modr to Longbraid the Grim
 
 ]], "generated")

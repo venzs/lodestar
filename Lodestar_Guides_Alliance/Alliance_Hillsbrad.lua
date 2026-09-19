@@ -21,36 +21,195 @@ step
   .accept 536 >>Accept Down the Coast (lvl 25) from Lieutenant Farren Orinelle
 
 step
+  .goto Hillsbrad Foothills,51.9,58.7
+  .accept 555 >>Accept Soothing Turtle Bisque (lvl 28) from Chef Jessen
+
+step
+  .optional >>Needs The Ensorcelled Parchment, which this route does not cover
+  .goto Hillsbrad Foothills,50.6,57.1
+  .accept 554 >>Accept Stormpike's Deciphering (lvl 28) from Loremaster Dibbs
+
+step
+  .optional >>Needs Encrypted Letter, which this route does not cover
+  .goto Hillsbrad Foothills,50.6,57.1
+  .accept 514 >>Accept Letter to Stormpike (lvl 30) from Loremaster Dibbs
+
+step
+  .goto Hillsbrad Foothills,50.0,57.3
+  .accept 8373 >>Accept The Power of Pine (lvl 25) from Sergeant Hartman
+  .accept 1658 >>Accept Crashing the Wickerman Festival (lvl 25) from Sergeant Hartman
+
+step
+  .goto Hillsbrad Foothills,49.5,58.7
+  .accept 500 >>Accept Crushridge Bounty (lvl 30) from Marshal Redpath
+
+step
+  .goto Hillsbrad Foothills,48.1,59.1
+  .accept 505 >>Accept Syndicate Assassins (lvl 26) from Magistrate Henry Maleb
+
+step
+  .optional >>Needs Foreboding Plans, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
+  .accept 512 >>Accept Noble Deaths (lvl 26) from Magistrate Henry Maleb
+
+step
+  .optional >>Needs Further Mysteries, which starts in Ironforge
+  .goto Hillsbrad Foothills,48.1,59.1
+  .accept 537 >>Accept Dark Council (lvl 30) from Magistrate Henry Maleb
+
+step
+  .goto Hillsbrad Foothills,49.4,55.5
+  .accept 565 >>Accept Bartolo's Yeti Fur Cloak (lvl 29) from Bartolo Ginsetti
+
+step
+  .goto Hillsbrad Foothills,52.4,56.0
+  .accept 564 >>Accept Costly Menace (lvl 30) from Darren Malvew
+
+step
   .goto Hillsbrad Foothills,42.7,69.2
   .complete 536 >>Finish Down the Coast
 
 step
-  .goto Hillsbrad Foothills,51.5,58.4
-  .turnin 536 >>Turn in Down the Coast to Lieutenant Farren Orinelle
-  .accept 559 >>Accept Farren's Proof (lvl 25) from Lieutenant Farren Orinelle
+  .goto Hillsbrad Foothills,44.8,30.0
+  .complete 565 >>Finish Bartolo's Yeti Fur Cloak
 
 step
-  .goto Hillsbrad Foothills,42.7,69.2
-  .complete 559 >>Finish Farren's Proof
-
-step
-  .goto Hillsbrad Foothills,51.5,58.4
-  .turnin 559 >>Turn in Farren's Proof to Lieutenant Farren Orinelle
-  .accept 560 >>Accept Farren's Proof (lvl 25) from Lieutenant Farren Orinelle
-
-step
-  .goto Hillsbrad Foothills,49.5,58.7
-  .turnin 560 >>Turn in Farren's Proof to Marshal Redpath
-  .accept 561 >>Accept Farren's Proof (lvl 25) from Marshal Redpath
-  .accept 500 >>Accept Crushridge Bounty (lvl 30) from Marshal Redpath
+  .goto Hillsbrad Foothills,39.0,21.0
+  .complete 564 >>Finish Costly Menace
 
 step
   .goto Hillsbrad Foothills,48.6,2.1
   .complete 500 >>Finish Crushridge Bounty
 
 step
+  .optional >>Needs Foreboding Plans, which this route does not cover
+  .goto Hillsbrad Foothills,59.7,7.4
+  .complete 512 >>Finish Noble Deaths
+
+step
+  .goto Hillsbrad Foothills,60.0,9.6
+  .complete 505 >>Finish Syndicate Assassins
+
+step
+  .complete 8373 >>Finish The Power of Pine
+
+step
+  .complete 1658 >>Finish Crashing the Wickerman Festival
+
+step
+  .complete 555 >>Finish Soothing Turtle Bisque
+
+step
+  .optional >>Needs Further Mysteries, which starts in Ironforge
+  .complete 537 >>Finish Dark Council
+
+step
+  .goto Hillsbrad Foothills,52.4,56.0
+  .turnin 564 >>Turn in Costly Menace to Darren Malvew
+
+step
+  .optional >>Handed in outside this zone, to Prospector Stormpike
+  .turnin 554 >>Turn in Stormpike's Deciphering to Prospector Stormpike (not in this zone)
+
+step
+  .optional >>Handed in outside this zone, to Prospector Stormpike
+  .turnin 514 >>Turn in Letter to Stormpike to Prospector Stormpike (not in this zone)
+
+step
+  .goto Hillsbrad Foothills,50.0,57.3
+  .turnin 8373 >>Turn in The Power of Pine to Sergeant Hartman
+  .turnin 1658 >>Turn in Crashing the Wickerman Festival to Sergeant Hartman
+
+step
   .goto Hillsbrad Foothills,49.5,58.7
   .turnin 500 >>Turn in Crushridge Bounty to Marshal Redpath
+
+step
+  .goto Hillsbrad Foothills,48.1,59.1
+  .turnin 505 >>Turn in Syndicate Assassins to Magistrate Henry Maleb
+
+step
+  .optional >>Needs Foreboding Plans, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
+  .turnin 512 >>Turn in Noble Deaths to Magistrate Henry Maleb
+
+step
+  .optional >>Needs Further Mysteries, which starts in Ironforge
+  .goto Hillsbrad Foothills,48.1,59.1
+  .turnin 537 >>Turn in Dark Council to Magistrate Henry Maleb
+
+step
+  .goto Hillsbrad Foothills,51.5,58.4
+  .turnin 536 >>Turn in Down the Coast to Lieutenant Farren Orinelle
+
+step
+  .goto Hillsbrad Foothills,51.9,58.7
+  .turnin 555 >>Turn in Soothing Turtle Bisque to Chef Jessen
+
+step
+  .goto Hillsbrad Foothills,49.4,55.5
+  .turnin 565 >>Turn in Bartolo's Yeti Fur Cloak to Bartolo Ginsetti
+
+step
+  .xp 31
+
+step
+  .goto Hillsbrad Foothills,49.5,58.7
+  .accept 504 >>Accept Crushridge Warmongers (lvl 30) from Marshal Redpath
+
+step
+  .goto Hillsbrad Foothills,50.3,59.0
+  .accept 659 >>Accept Hints of a New Plague? (lvl 30) from Phin Odelic
+
+step
+  .goto Hillsbrad Foothills,51.5,58.4
+  .accept 559 >>Accept Farren's Proof (lvl 25) from Lieutenant Farren Orinelle
+
+step
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
+  .accept 523 >>Accept Baron's Demise (lvl 30) from Magistrate Henry Maleb
+
+step
+  .goto Hillsbrad Foothills,42.7,69.2
+  .complete 559 >>Finish Farren's Proof
+
+step
+  .goto Hillsbrad Foothills,43.2,0.5
+  .complete 504 >>Finish Crushridge Warmongers
+
+step
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .complete 523 >>Finish Baron's Demise
+
+step
+  .goto Hillsbrad Foothills,51.5,58.4
+  .turnin 559 >>Turn in Farren's Proof to Lieutenant Farren Orinelle
+
+step
+  .optional >>Handed in outside this zone, to Quae
+  .turnin 659 >>Turn in Hints of a New Plague? to Quae (not in this zone)
+
+step
+  .goto Hillsbrad Foothills,49.5,58.7
+  .turnin 504 >>Turn in Crushridge Warmongers to Marshal Redpath
+
+step
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
+  .turnin 523 >>Turn in Baron's Demise to Magistrate Henry Maleb
+
+step
+  .xp 32
+
+step
+  .goto Hillsbrad Foothills,51.5,58.4
+  .accept 560 >>Accept Farren's Proof (lvl 25) from Lieutenant Farren Orinelle
+
+step
+  .goto Hillsbrad Foothills,49.5,58.7
+  .turnin 560 >>Turn in Farren's Proof to Marshal Redpath
+  .accept 561 >>Accept Farren's Proof (lvl 25) from Marshal Redpath
 
 step
   .goto Hillsbrad Foothills,51.5,58.4
@@ -71,186 +230,12 @@ step
   .turnin 563 >>Turn in Reassignment to Major Samuelson (not in this zone)
 
 step
-  .xp 31
-
-step
-  .goto Hillsbrad Foothills,51.9,58.7
-  .accept 555 >>Accept Soothing Turtle Bisque (lvl 28) from Chef Jessen
-
-step
-  .complete 555 >>Finish Soothing Turtle Bisque
-
-step
-  .goto Hillsbrad Foothills,51.9,58.7
-  .turnin 555 >>Turn in Soothing Turtle Bisque to Chef Jessen
-
-step
-  .goto Hillsbrad Foothills,50.3,59.0
-  .accept 659 >>Accept Hints of a New Plague? (lvl 30) from Phin Odelic
-
-step
-  .optional >>Handed in outside this zone, to Quae
-  .turnin 659 >>Turn in Hints of a New Plague? to Quae (not in this zone)
-
-step
-  .goto Hillsbrad Foothills,49.5,58.7
-  .accept 504 >>Accept Crushridge Warmongers (lvl 30) from Marshal Redpath
-
-step
-  .goto Hillsbrad Foothills,43.2,0.5
-  .complete 504 >>Finish Crushridge Warmongers
-
-step
-  .goto Hillsbrad Foothills,49.5,58.7
-  .turnin 504 >>Turn in Crushridge Warmongers to Marshal Redpath
-
-step
-  .goto Hillsbrad Foothills,48.1,59.1
-  .accept 505 >>Accept Syndicate Assassins (lvl 26) from Magistrate Henry Maleb
-
-step
-  .optional >>Needs Foreboding Plans, which this route does not cover
-  .goto Hillsbrad Foothills,48.1,59.1
-  .accept 512 >>Accept Noble Deaths (lvl 26) from Magistrate Henry Maleb
-
-step
-  .optional >>Needs Further Mysteries, which starts in Ironforge
-  .goto Hillsbrad Foothills,48.1,59.1
-  .accept 537 >>Accept Dark Council (lvl 30) from Magistrate Henry Maleb
-
-step
-  .optional >>Needs Assassin's Contract, which this route does not cover
-  .goto Hillsbrad Foothills,48.1,59.1
-  .accept 523 >>Accept Baron's Demise (lvl 30) from Magistrate Henry Maleb
-
-step
-  .goto Hillsbrad Foothills,60.0,9.6
-  .complete 505 >>Finish Syndicate Assassins
-
-step
-  .optional >>Needs Foreboding Plans, which this route does not cover
-  .goto Hillsbrad Foothills,59.7,7.4
-  .complete 512 >>Finish Noble Deaths
-
-step
-  .optional >>Needs Further Mysteries, which starts in Ironforge
-  .complete 537 >>Finish Dark Council
-
-step
-  .optional >>Needs Assassin's Contract, which this route does not cover
-  .complete 523 >>Finish Baron's Demise
-
-step
-  .goto Hillsbrad Foothills,48.1,59.1
-  .turnin 505 >>Turn in Syndicate Assassins to Magistrate Henry Maleb
-
-step
-  .optional >>Needs Further Mysteries, which starts in Ironforge
-  .goto Hillsbrad Foothills,48.1,59.1
-  .turnin 537 >>Turn in Dark Council to Magistrate Henry Maleb
-
-step
-  .optional >>Needs Foreboding Plans, which this route does not cover
-  .goto Hillsbrad Foothills,48.1,59.1
-  .turnin 512 >>Turn in Noble Deaths to Magistrate Henry Maleb
-
-step
-  .optional >>Needs Assassin's Contract, which this route does not cover
-  .goto Hillsbrad Foothills,48.1,59.1
-  .turnin 523 >>Turn in Baron's Demise to Magistrate Henry Maleb
-
-step
-  .xp 32
-
-step
-  .goto Hillsbrad Foothills,50.0,57.3
-  .accept 1658 >>Accept Crashing the Wickerman Festival (lvl 25) from Sergeant Hartman
-  .accept 8373 >>Accept The Power of Pine (lvl 25) from Sergeant Hartman
-
-step
-  .complete 1658 >>Finish Crashing the Wickerman Festival
-
-step
-  .complete 8373 >>Finish The Power of Pine
-
-step
-  .goto Hillsbrad Foothills,50.0,57.3
-  .turnin 1658 >>Turn in Crashing the Wickerman Festival to Sergeant Hartman
-  .turnin 8373 >>Turn in The Power of Pine to Sergeant Hartman
-
-step
-  .optional >>Needs The Ensorcelled Parchment, which this route does not cover
-  .goto Hillsbrad Foothills,50.6,57.1
-  .accept 554 >>Accept Stormpike's Deciphering (lvl 28) from Loremaster Dibbs
-
-step
-  .optional >>Needs Encrypted Letter, which this route does not cover
-  .goto Hillsbrad Foothills,50.6,57.1
-  .accept 514 >>Accept Letter to Stormpike (lvl 30) from Loremaster Dibbs
-
-step
-  .optional >>Handed in outside this zone, to Prospector Stormpike
-  .turnin 554 >>Turn in Stormpike's Deciphering to Prospector Stormpike (not in this zone)
-
-step
-  .optional >>Handed in outside this zone, to Prospector Stormpike
-  .turnin 514 >>Turn in Letter to Stormpike to Prospector Stormpike (not in this zone)
-
-step
-  .goto Hillsbrad Foothills,49.4,55.5
-  .accept 565 >>Accept Bartolo's Yeti Fur Cloak (lvl 29) from Bartolo Ginsetti
-
-step
-  .goto Hillsbrad Foothills,44.8,30.0
-  .complete 565 >>Finish Bartolo's Yeti Fur Cloak
-
-step
-  .goto Hillsbrad Foothills,49.4,55.5
-  .turnin 565 >>Turn in Bartolo's Yeti Fur Cloak to Bartolo Ginsetti
-
-step
-  .goto Hillsbrad Foothills,52.4,56.0
-  .accept 564 >>Accept Costly Menace (lvl 30) from Darren Malvew
-
-step
-  .goto Hillsbrad Foothills,39.0,21.0
-  .complete 564 >>Finish Costly Menace
-
-step
-  .goto Hillsbrad Foothills,52.4,56.0
-  .turnin 564 >>Turn in Costly Menace to Darren Malvew
-
-step
   .xp 33
 
 step
   .goto Hillsbrad Foothills,43.2,20.5
   .accept 8399 >>Accept Fight for Warsong Gulch (lvl 29) from Alliance Brigadier General
   .accept 8374 >>Accept Claiming Arathi Basin (lvl 29) from Alliance Brigadier General
-
-step
-  .complete 8399 >>Finish Fight for Warsong Gulch
-
-step
-  .complete 8374 >>Finish Claiming Arathi Basin
-
-step
-  .goto Hillsbrad Foothills,43.2,20.5
-  .turnin 8399 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
-  .turnin 8374 >>Turn in Claiming Arathi Basin to Alliance Brigadier General
-  .accept 8404 >>Accept Fight for Warsong Gulch (lvl 29) from Alliance Brigadier General
-  .accept 8384 >>Accept Claiming Arathi Basin (lvl 29) from Alliance Brigadier General
-
-step
-  .complete 8404 >>Finish Fight for Warsong Gulch
-
-step
-  .complete 8384 >>Finish Claiming Arathi Basin
-
-step
-  .goto Hillsbrad Foothills,43.2,20.5
-  .turnin 8404 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
-  .turnin 8384 >>Turn in Claiming Arathi Basin to Alliance Brigadier General
 
 step
   .optional >>Needs Stolen Winter Veil Treats, which starts in Orgrimmar
@@ -273,12 +258,36 @@ step
   .complete 7043 >>Finish You're a Mean One...
 
 step
+  .complete 8399 >>Finish Fight for Warsong Gulch
+
+step
+  .complete 8374 >>Finish Claiming Arathi Basin
+
+step
   .optional >>Handed in outside this zone, to Kaymard Copperpinch
   .turnin 6983 >>Turn in You're a Mean One... to Kaymard Copperpinch (not in this zone)
 
 step
   .optional >>Handed in outside this zone, to Wulmort Jinglepocket
   .turnin 7043 >>Turn in You're a Mean One... to Wulmort Jinglepocket (not in this zone)
+
+step
+  .goto Hillsbrad Foothills,43.2,20.5
+  .turnin 8399 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
+  .turnin 8374 >>Turn in Claiming Arathi Basin to Alliance Brigadier General
+  .accept 8384 >>Accept Claiming Arathi Basin (lvl 29) from Alliance Brigadier General
+  .accept 8404 >>Accept Fight for Warsong Gulch (lvl 29) from Alliance Brigadier General
+
+step
+  .complete 8384 >>Finish Claiming Arathi Basin
+
+step
+  .complete 8404 >>Finish Fight for Warsong Gulch
+
+step
+  .goto Hillsbrad Foothills,43.2,20.5
+  .turnin 8384 >>Turn in Claiming Arathi Basin to Alliance Brigadier General
+  .turnin 8404 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
 
 step
   .optional >>Needs Magical Analysis, which starts in Stranglethorn Vale
@@ -313,28 +322,28 @@ step
   .accept 6701 >>Accept Syndicate Emblems (lvl 24) from Ravenholdt Guard
 
 step
-  .optional >>Needs The Manor, Ravenholdt, which this route does not cover
-  .class Rogue
-  .goto Hillsbrad Foothills,60.0,9.6
-  .complete 6701 >>Finish Syndicate Emblems
-
-step
-  .optional >>Needs The Manor, Ravenholdt, which this route does not cover
-  .class Rogue
-  .goto Hillsbrad Foothills,80.6,16.8
-  .turnin 6701 >>Turn in Syndicate Emblems to Ravenholdt Guard
-
-step
   .optional >>Needs The Windwatcher, which starts in The Barrens
   .class Warrior
   .goto Hillsbrad Foothills,79.3,7.0
   .accept 1712 >>Accept Cyclonian (lvl 30) from Bath'rah the Windwatcher
 
 step
+  .optional >>Needs The Manor, Ravenholdt, which this route does not cover
+  .class Rogue
+  .goto Hillsbrad Foothills,60.0,9.6
+  .complete 6701 >>Finish Syndicate Emblems
+
+step
   .optional >>Needs The Windwatcher, which starts in The Barrens
   .class Warrior
   .goto Hillsbrad Foothills,68.8,27.2
   .complete 1712 >>Finish Cyclonian
+
+step
+  .optional >>Needs The Manor, Ravenholdt, which this route does not cover
+  .class Rogue
+  .goto Hillsbrad Foothills,80.6,16.8
+  .turnin 6701 >>Turn in Syndicate Emblems to Ravenholdt Guard
 
 step
   .optional >>Needs The Windwatcher, which starts in The Barrens
@@ -358,13 +367,13 @@ step
 
 step
   .class Warrior
-  .goto Hillsbrad Foothills,78.3,6.9
-  .turnin 1714 >>Turn in Essence of the Exile
+  .goto Hillsbrad Foothills,79.3,7.0
+  .turnin 1713 >>Turn in The Summoning to Bath'rah the Windwatcher
 
 step
   .class Warrior
-  .goto Hillsbrad Foothills,79.3,7.0
-  .turnin 1713 >>Turn in The Summoning to Bath'rah the Windwatcher
+  .goto Hillsbrad Foothills,78.3,6.9
+  .turnin 1714 >>Turn in Essence of the Exile
 
 step
   .class Warrior

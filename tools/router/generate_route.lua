@@ -491,6 +491,30 @@ local function dist(ax, ay, bx, by)
 	return math.sqrt(dx * dx + dy * dy)
 end
 
+--- Take `list` nearest-first from (x, y), locating each item with `posOf`. Returns the ordered list
+--- and where it finished, so the next leg carries on from there rather than teleporting back.
+---
+--- Greedy, not optimal: this is a travelling-salesman problem and the exact answer is not worth the
+--- run time for a dozen stops. An item with no position sorts last and does not move the cursor,
+--- because a step with nowhere to go costs the player no walking.
+local function walkNearest(list, x, y, posOf)
+	local rest, out = {}, {}
+	for i, v in ipairs(list) do rest[i] = v end
+	while #rest > 0 do
+		local bi, best = 1, math.huge
+		for i, v in ipairs(rest) do
+			local px, py = posOf(v)
+			local d = px and dist(x, y, px, py) or 1e6
+			if d < best then bi, best = i, d end
+		end
+		local v = table.remove(rest, bi)
+		out[#out + 1] = v
+		local px, py = posOf(v)
+		if px then x, y = px, py end
+	end
+	return out, x, y
+end
+
 --- Prerequisites that matter here: ones we are also going to do. A chain that starts off this map
 --- is not a constraint we can satisfy, so it is not one we should enforce.
 ---
@@ -643,30 +667,65 @@ while count > 0 and guard < 500 do
 		return (a.lvl or 99) < (b.lvl or 99)
 	end)
 	local pick = ready[1]
-	-- Take everything this giver offers that is also ready: you are standing right there.
+	-- Everything ready within reach of the giver we are already walking to, not only what that one
+	-- giver hands out.
+	--
+	-- This is where the generated routes' backtracking came from. One giver at a time means walking
+	-- out to its objectives and back again for every giver, so a village with three quest givers is
+	-- three round trips over the same ground. A person does it once: collect from all three, loop the
+	-- objectives, hand everything in on the way past. The radius is a village and its surroundings
+	-- rather than a whole zone, because a batch that spans the map is not a batch -- it is the same
+	-- round trips with their steps interleaved, which reads worse and walks no shorter.
+	--
+	-- Capped well under the client's twenty-slot log. A route that fills the log leaves the player
+	-- unable to pick anything up, and Leveling's own quest-log warning exists because a full log is
+	-- a real thing that happens to real players.
+	local HUB_RADIUS, LOG_ROOM = 12, 12
 	local here = {}
 	for _, q in ipairs(ready) do
-		if q.giver and pick.giver and q.giver == pick.giver then here[#here + 1] = q end
+		if #here < LOG_ROOM and q.gx and dist(pick.gx, pick.gy, q.gx, q.gy) <= HUB_RADIUS then
+			here[#here + 1] = q
+		end
 	end
 	if #here == 0 then here = { pick } end
-	table.sort(here, function(a, b) return (a.lvl or 99) < (b.lvl or 99) end)
-	order[#order + 1] = { kind = "hub", x = pick.gx, y = pick.gy, npc = pick.giver, quests = here }
+
+	-- One stop per giver, the givers themselves walked nearest-first from where we stand.
+	local byGiver, givers = {}, {}
+	for _, q in ipairs(here) do
+		local key = q.giver or ("@%s,%s"):format(tostring(q.gx), tostring(q.gy))
+		if not byGiver[key] then
+			byGiver[key] = { x = q.gx, y = q.gy, npc = q.giver, quests = {} }
+			givers[#givers + 1] = byGiver[key]
+		end
+		local list = byGiver[key].quests
+		list[#list + 1] = q
+	end
+	local atX, atY = cx, cy
+	local collect
+	collect, atX, atY = walkNearest(givers, atX, atY, function(g) return g.x, g.y end)
+	for _, g in ipairs(collect) do
+		table.sort(g.quests, function(a, b) return (a.lvl or 99) < (b.lvl or 99) end)
+		order[#order + 1] = { kind = "hub", x = g.x, y = g.y, npc = g.npc, quests = g.quests }
+	end
 	for _, q in ipairs(here) do
 		accepted[q.id] = true
 		pending[q.id] = nil
 		count = count - 1
 	end
-	-- Do them, then hand them back, in the order they were handed over.
-	--
-	-- Walking the objectives nearest-first from the giver was tried and reverted: it changed one
-	-- route of six and made its backtracking slightly worse (0.58 -> 0.60), because a greedy walk
-	-- ends wherever it ends and the return leg pays for it. The out-and-back in these routes is not
-	-- a scheduling mistake to be optimised away -- it is accept here, go out, come back, which is
-	-- what questing is. A hub's quests are few enough that their order barely moves the total.
+
+	-- Then the objectives as ONE loop across everything just collected, rather than an out-and-back
+	-- per quest. A quest whose objective has no position costs no walking, so it rides along at the
+	-- end in level order instead of dragging the cursor somewhere arbitrary.
+	local placed, unplaced = {}, {}
 	for _, q in ipairs(here) do
-		order[#order + 1] = { kind = "do", quest = q }
+		if q.ox then placed[#placed + 1] = q else unplaced[#unplaced + 1] = q end
 	end
-	-- One turn-in stop PER QUEST, at that quest's own ender.
+	local doing
+	doing, atX, atY = walkNearest(placed, atX, atY, function(q) return q.ox, q.oy end)
+	for _, q in ipairs(doing) do order[#order + 1] = { kind = "do", quest = q } end
+	for _, q in ipairs(unplaced) do order[#order + 1] = { kind = "do", quest = q } end
+
+	-- One turn-in stop PER QUEST, at that quest's own ender, and those walked nearest-first too.
 	--
 	-- This used to emit a single stop for the whole hub, positioned at one representative quest's
 	-- ender, and then list every quest in the hub under it. Four quests taken from one NPC do not
@@ -674,12 +733,8 @@ while count > 0 and guard < 500 do
 	-- while its neighbours end at 20.3,42.3, and the route confidently pointed the arrow eighteen
 	-- map units from the person holding the quest. Stops at the same spot still merge below, so a
 	-- hub whose quests really do share an ender still reads as one step.
-	local backs = {}
-	for _, q in ipairs(here) do backs[#backs + 1] = q end
-	table.sort(backs, function(a, b)
-		if (a.ex or 0) ~= (b.ex or 0) then return (a.ex or 0) < (b.ex or 0) end
-		return (a.ey or 0) < (b.ey or 0)
-	end)
+	local backs
+	backs, atX, atY = walkNearest(here, atX, atY, function(q) return q.ex, q.ey end)
 	for _, q in ipairs(backs) do
 		order[#order + 1] = { kind = "turnin", x = q.ex, y = q.ey, npc = q.ender, quests = { q } }
 	end
@@ -693,7 +748,10 @@ while count > 0 and guard < 500 do
 		announcedLevel = now
 		order[#order + 1] = { kind = "xp", level = now }
 	end
-	cx, cy = pick.ex, pick.ey
+	-- Where the batch actually finished, which is the last turn-in rather than the ender of whichever
+	-- quest happened to be picked first. Carrying the wrong position forward makes the NEXT hub
+	-- choice wrong too, and that error compounds over a route.
+	cx, cy = atX, atY
 end
 
 -- Emit ---------------------------------------------------------------------------------------------

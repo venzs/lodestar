@@ -23,9 +23,21 @@ step
   .accept 970 >>Accept The Tower of Althalaxx (lvl 13) from Delgren the Purifier
 
 step
+  .goto Ashenvale,26.4,38.6
+  .accept 1010 >>Accept Bathran's Hair (lvl 20) from Orendil Broadleaf
+
+step
   .optional >>Needs The Tower of Althalaxx, which starts in Darkshore
   .goto Ashenvale,31.1,30.3
   .complete 970 >>Finish The Tower of Althalaxx
+
+step
+  .goto Ashenvale,31.9,22.9
+  .complete 1010 >>Finish Bathran's Hair
+
+step
+  .goto Ashenvale,26.4,38.6
+  .turnin 1010 >>Turn in Bathran's Hair to Orendil Broadleaf
 
 step
   .optional >>Needs The Tower of Althalaxx, which starts in Darkshore
@@ -35,46 +47,41 @@ step
 step
   .goto Ashenvale,26.2,38.7
   .accept 973 >>Accept The Tower of Althalaxx (lvl 13) from Delgren the Purifier
+  .accept 1020 >>Accept Orendil's Cure (lvl 20) from Delgren the Purifier
 
 step
   .goto Ashenvale,25.3,60.7
   .complete 973 >>Finish The Tower of Althalaxx
 
 step
-  .goto Ashenvale,26.2,38.7
-  .turnin 973 >>Turn in The Tower of Althalaxx to Delgren the Purifier
-  .accept 1010 >>Accept Bathran's Hair (lvl 20) from Delgren the Purifier
-
-step
-  .goto Ashenvale,31.9,22.9
-  .complete 1010 >>Finish Bathran's Hair
-
-step
-  .goto Ashenvale,26.4,38.6
-  .turnin 1010 >>Turn in Bathran's Hair to Orendil Broadleaf
-  .accept 1020 >>Accept Orendil's Cure (lvl 20) from Orendil Broadleaf
-
-step
   .goto Ashenvale,37.4,51.8
   .turnin 1020 >>Turn in Orendil's Cure to Pelturas Whitemoon
-  .accept 1033 >>Accept Elune's Tear (lvl 20) from Pelturas Whitemoon
 
 step
-  .goto Ashenvale,46.1,46.3
-  .complete 1033 >>Finish Elune's Tear
+  .goto Ashenvale,26.2,38.7
+  .turnin 973 >>Turn in The Tower of Althalaxx to Delgren the Purifier
+  .accept 976 >>Accept Supplies to Auberdine (lvl 19) from Delgren the Purifier
 
 step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1033 >>Turn in Elune's Tear to Pelturas Whitemoon
-  .accept 1034 >>Accept The Ruins of Stardust (lvl 20) from Pelturas Whitemoon
+  .goto Ashenvale,26.2,38.7
+  .turnin 976 >>Turn in Supplies to Auberdine to Delgren the Purifier
 
 step
-  .goto Ashenvale,33.5,67.6
-  .complete 1034 >>Finish The Ruins of Stardust
+  .goto Ashenvale,34.7,48.8
+  .accept 1008 >>Accept The Zoram Strand (lvl 14) from Shindrell Swiftfire
 
 step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1034 >>Turn in The Ruins of Stardust to Pelturas Whitemoon
+  .optional >>Needs Update for Sentinel Thenysil, which starts in Stonetalon Mountains
+  .goto Ashenvale,34.9,49.8
+  .accept 1081 >>Accept Reception from Tyrande (lvl 17) from Sentinel Thenysil
+
+step
+  .goto Ashenvale,34.9,49.8
+  .accept 1070 >>Accept On Guard in Stonetalon (lvl 17) from Sentinel Thenysil
+
+step
+  .goto Ashenvale,35.8,49.1
+  .accept 1056 >>Accept Journey to Stonetalon Peak (lvl 18) from Faldreas Goeth'Shael
 
 step
   .goto Ashenvale,36.6,49.6
@@ -82,19 +89,148 @@ step
   .accept 1054 >>Accept Culling the Threat (lvl 18) from Raene Wolfrunner
 
 step
+  .goto Ashenvale,37.4,51.8
+  .accept 1033 >>Accept Elune's Tear (lvl 20) from Pelturas Whitemoon
+
+step
+  .goto Ashenvale,46.1,46.3
+  .complete 1033 >>Finish Elune's Tear
+
+step
   .goto Ashenvale,37.7,34.7
   .complete 1054 >>Finish Culling the Threat
+
+step
+  .goto Ashenvale,10.7,24.2
+  .complete 1008 >>Finish The Zoram Strand
 
 step
   .goto Ashenvale,20.3,42.3
   .turnin 991 >>Turn in Raene's Cleansing to Teronis' Corpse
 
 step
+  .goto Ashenvale,34.7,48.8
+  .turnin 1008 >>Turn in The Zoram Strand to Shindrell Swiftfire
+
+step
+  .optional >>Handed in outside this zone, to Tyrande Whisperwind
+  .turnin 1081 >>Turn in Reception from Tyrande to Tyrande Whisperwind (not in this zone)
+
+step
+  .optional >>Handed in outside this zone, to Kaela Shadowspear
+  .turnin 1070 >>Turn in On Guard in Stonetalon to Kaela Shadowspear (not in this zone)
+
+step
+  .optional >>Handed in outside this zone, to Keeper Albagorm
+  .turnin 1056 >>Turn in Journey to Stonetalon Peak to Keeper Albagorm (not in this zone)
+
+step
   .goto Ashenvale,36.6,49.6
   .turnin 1054 >>Turn in Culling the Threat to Raene Wolfrunner
 
 step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1033 >>Turn in Elune's Tear to Pelturas Whitemoon
+
+step
   .xp 21
+
+step
+  .goto Ashenvale,37.4,51.8
+  .accept 1034 >>Accept The Ruins of Stardust (lvl 20) from Pelturas Whitemoon
+
+step
+  .goto Ashenvale,34.7,48.8
+  .accept 1134 >>Accept Pridewings of Stonetalon (lvl 18) from Shindrell Swiftfire
+
+step
+  .goto Ashenvale,33.5,67.6
+  .complete 1034 >>Finish The Ruins of Stardust
+
+step
+  .complete 1134 >>Finish Pridewings of Stonetalon
+
+step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1034 >>Turn in The Ruins of Stardust to Pelturas Whitemoon
+
+step
+  .goto Ashenvale,34.7,48.8
+  .turnin 1134 >>Turn in Pridewings of Stonetalon to Shindrell Swiftfire
+
+step
+  .goto Ashenvale,37.4,51.8
+  .accept 1035 >>Accept Fallen Sky Lake (lvl 20) from Pelturas Whitemoon
+
+step
+  .goto Ashenvale,66.7,82.2
+  .complete 1035 >>Finish Fallen Sky Lake
+
+step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1035 >>Turn in Fallen Sky Lake to Pelturas Whitemoon
+
+step
+  .optional >>Needs Raene's Cleansing, which this route does not cover
+  .goto Ashenvale,53.5,46.2
+  .accept 1029 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
+
+step
+  .optional >>Needs Raene's Cleansing, which this route does not cover
+  .goto Ashenvale,36.6,49.6
+  .turnin 1029 >>Turn in Raene's Cleansing to Raene Wolfrunner
+
+step
+  .xp 22
+
+step
+  .goto Ashenvale,36.6,49.6
+  .accept 1030 >>Accept Raene's Cleansing (lvl 18) from Raene Wolfrunner
+
+step
+  .goto Ashenvale,50.8,75.1
+  .turnin 1030 >>Turn in Raene's Cleansing to Krolg
+  .accept 1045 >>Accept Raene's Cleansing (lvl 18) from Krolg
+
+step
+  .goto Ashenvale,49.8,67.2
+  .accept 1016 >>Accept Elemental Bracers (lvl 20) from Sentinel Velene Starstrike
+
+step
+  .goto Ashenvale,49.4,69.8
+  .complete 1016 >>Finish Elemental Bracers
+
+step
+  .goto Ashenvale,54.7,79.6
+  .complete 1045 >>Finish Raene's Cleansing
+
+step
+  .goto Ashenvale,50.8,75.1
+  .turnin 1045 >>Turn in Raene's Cleansing to Krolg
+
+step
+  .goto Ashenvale,49.8,67.2
+  .turnin 1016 >>Turn in Elemental Bracers to Sentinel Velene Starstrike
+  .accept 1017 >>Accept Mage Summoner (lvl 20) from Sentinel Velene Starstrike
+
+step
+  .goto Ashenvale,50.8,75.1
+  .accept 1046 >>Accept Raene's Cleansing (lvl 18) from Krolg
+
+step
+  .goto Ashenvale,54.7,79.6
+  .complete 1046 >>Finish Raene's Cleansing
+
+step
+  .complete 1017 >>Finish Mage Summoner
+
+step
+  .goto Ashenvale,49.8,67.2
+  .turnin 1017 >>Turn in Mage Summoner to Sentinel Velene Starstrike
+
+step
+  .goto Ashenvale,36.6,49.6
+  .turnin 1046 >>Turn in Raene's Cleansing to Raene Wolfrunner
 
 step
   .goto Ashenvale,20.3,42.3
@@ -115,17 +251,15 @@ step
   .complete 1025 >>Finish An Aggressive Defense
 
 step
-  .goto Ashenvale,36.6,49.6
-  .turnin 1025 >>Turn in An Aggressive Defense to Raene Wolfrunner
-
-step
   .goto Ashenvale,53.5,46.2
   .turnin 1024 >>Turn in Raene's Cleansing to Shael'dryn
 
 step
-  .optional >>Needs Raene's Cleansing, which this route does not cover
-  .goto Ashenvale,53.5,46.2
-  .accept 1029 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
+  .goto Ashenvale,36.6,49.6
+  .turnin 1025 >>Turn in An Aggressive Defense to Raene Wolfrunner
+
+step
+  .xp 23
 
 step
   .goto Ashenvale,53.5,46.2
@@ -136,102 +270,8 @@ step
   .complete 1026 >>Finish Raene's Cleansing
 
 step
-  .optional >>Needs Raene's Cleansing, which this route does not cover
-  .goto Ashenvale,36.6,49.6
-  .turnin 1029 >>Turn in Raene's Cleansing to Raene Wolfrunner
-
-step
   .goto Ashenvale,53.5,46.2
   .turnin 1026 >>Turn in Raene's Cleansing to Shael'dryn
-
-step
-  .goto Ashenvale,36.6,49.6
-  .accept 1030 >>Accept Raene's Cleansing (lvl 18) from Raene Wolfrunner
-
-step
-  .goto Ashenvale,50.8,75.1
-  .turnin 1030 >>Turn in Raene's Cleansing to Krolg
-  .accept 1045 >>Accept Raene's Cleansing (lvl 18) from Krolg
-
-step
-  .goto Ashenvale,54.7,79.6
-  .complete 1045 >>Finish Raene's Cleansing
-
-step
-  .goto Ashenvale,50.8,75.1
-  .turnin 1045 >>Turn in Raene's Cleansing to Krolg
-  .accept 1046 >>Accept Raene's Cleansing (lvl 18) from Krolg
-
-step
-  .goto Ashenvale,54.7,79.6
-  .complete 1046 >>Finish Raene's Cleansing
-
-step
-  .goto Ashenvale,36.6,49.6
-  .turnin 1046 >>Turn in Raene's Cleansing to Raene Wolfrunner
-
-step
-  .xp 22
-
-step
-  .goto Ashenvale,34.7,48.8
-  .accept 1008 >>Accept The Zoram Strand (lvl 14) from Shindrell Swiftfire
-
-step
-  .goto Ashenvale,10.7,24.2
-  .complete 1008 >>Finish The Zoram Strand
-
-step
-  .goto Ashenvale,34.7,48.8
-  .turnin 1008 >>Turn in The Zoram Strand to Shindrell Swiftfire
-  .accept 1134 >>Accept Pridewings of Stonetalon (lvl 18) from Shindrell Swiftfire
-
-step
-  .complete 1134 >>Finish Pridewings of Stonetalon
-
-step
-  .goto Ashenvale,34.7,48.8
-  .turnin 1134 >>Turn in Pridewings of Stonetalon to Shindrell Swiftfire
-
-step
-  .optional >>Needs Update for Sentinel Thenysil, which starts in Stonetalon Mountains
-  .goto Ashenvale,34.9,49.8
-  .accept 1081 >>Accept Reception from Tyrande (lvl 17) from Sentinel Thenysil
-
-step
-  .goto Ashenvale,34.9,49.8
-  .accept 1070 >>Accept On Guard in Stonetalon (lvl 17) from Sentinel Thenysil
-
-step
-  .optional >>Handed in outside this zone, to Tyrande Whisperwind
-  .turnin 1081 >>Turn in Reception from Tyrande to Tyrande Whisperwind (not in this zone)
-
-step
-  .optional >>Handed in outside this zone, to Kaela Shadowspear
-  .turnin 1070 >>Turn in On Guard in Stonetalon to Kaela Shadowspear (not in this zone)
-
-step
-  .goto Ashenvale,35.8,49.1
-  .accept 1056 >>Accept Journey to Stonetalon Peak (lvl 18) from Faldreas Goeth'Shael
-
-step
-  .optional >>Handed in outside this zone, to Keeper Albagorm
-  .turnin 1056 >>Turn in Journey to Stonetalon Peak to Keeper Albagorm (not in this zone)
-
-step
-  .goto Ashenvale,37.4,51.8
-  .accept 1035 >>Accept Fallen Sky Lake (lvl 20) from Pelturas Whitemoon
-
-step
-  .goto Ashenvale,66.7,82.2
-  .complete 1035 >>Finish Fallen Sky Lake
-
-step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1035 >>Turn in Fallen Sky Lake to Pelturas Whitemoon
-
-step
-  .goto Ashenvale,53.5,46.2
   .accept 1027 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
 
 step
@@ -240,37 +280,11 @@ step
 step
   .goto Ashenvale,53.5,46.2
   .turnin 1027 >>Turn in Raene's Cleansing to Shael'dryn
-
-step
-  .xp 23
-
-step
-  .goto Ashenvale,53.5,46.2
   .accept 1028 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
 
 step
   .goto Ashenvale,56.4,49.2
   .turnin 1028 >>Turn in Raene's Cleansing
-
-step
-  .goto Ashenvale,49.8,67.2
-  .accept 1016 >>Accept Elemental Bracers (lvl 20) from Sentinel Velene Starstrike
-
-step
-  .goto Ashenvale,49.4,69.8
-  .complete 1016 >>Finish Elemental Bracers
-
-step
-  .goto Ashenvale,49.8,67.2
-  .turnin 1016 >>Turn in Elemental Bracers to Sentinel Velene Starstrike
-  .accept 1017 >>Accept Mage Summoner (lvl 20) from Sentinel Velene Starstrike
-
-step
-  .complete 1017 >>Finish Mage Summoner
-
-step
-  .goto Ashenvale,49.8,67.2
-  .turnin 1017 >>Turn in Mage Summoner to Sentinel Velene Starstrike
 
 step
   .goto Ashenvale,61.9,83.8
@@ -290,14 +304,6 @@ step
 step
   .goto Ashenvale,61.9,83.8
   .turnin 8386 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
-
-step
-  .goto Ashenvale,26.2,38.9
-  .accept 976 >>Accept Supplies to Auberdine (lvl 19) from Feero Ironhand
-
-step
-  .goto Ashenvale,26.2,38.7
-  .turnin 976 >>Turn in Supplies to Auberdine to Delgren the Purifier
 
 step
   .goto Ashenvale,14.8,31.3

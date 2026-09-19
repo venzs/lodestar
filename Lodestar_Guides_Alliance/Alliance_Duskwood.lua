@@ -23,69 +23,26 @@ step
   .accept 165 >>Accept The Hermit (lvl 17) from Elaine Carevin
 
 step
-  .goto Duskwood,7.8,34.1
-  .turnin 164 >>Turn in Deliveries to Sven to Sven Yorgen
-
-step
-  .goto Duskwood,28.1,31.5
-  .turnin 165 >>Turn in The Hermit to Abercrombie
-
-step
-  .optional >>Needs Sven's Camp, which this route does not cover
-  .goto Duskwood,7.8,34.1
-  .accept 262 >>Accept The Shadowy Figure (lvl 20) from Sven Yorgen
-
-step
-  .optional >>Needs Armed and Ready, which starts in Stormwind City
-  .goto Duskwood,7.8,34.1
-  .accept 55 >>Accept Morbent Fel (lvl 20) from Sven Yorgen
-
-step
-  .goto Duskwood,7.8,34.1
-  .accept 95 >>Accept Sven's Revenge (lvl 20) from Sven Yorgen
-
-step
-  .optional >>Needs Armed and Ready, which starts in Stormwind City
-  .goto Duskwood,16.9,33.4
-  .complete 55 >>Finish Morbent Fel
-
-step
-  .optional >>Needs Armed and Ready, which starts in Stormwind City
-  .goto Duskwood,7.8,34.1
-  .turnin 55 >>Turn in Morbent Fel to Sven Yorgen
-
-step
-  .goto Duskwood,49.9,77.7
-  .turnin 95 >>Turn in Sven's Revenge
-
-step
-  .optional >>Needs Sven's Camp, which this route does not cover
-  .goto Duskwood,75.8,45.3
-  .turnin 262 >>Turn in The Shadowy Figure to Madame Eva
+  .goto Duskwood,75.8,47.6
+  .accept 173 >>Accept Worgen in the Woods (lvl 23) from Calor
 
 step
   .goto Duskwood,75.8,45.3
   .accept 101 >>Accept The Totem of Infliction (lvl 18) from Madame Eva
-  .accept 265 >>Accept The Shadowy Search Continues (lvl 20) from Madame Eva
   .accept 66 >>Accept The Legend of Stalvan (lvl 22) from Madame Eva
 
 step
-  .goto Duskwood,21.9,34.3
-  .complete 101 >>Finish The Totem of Infliction
+  .optional >>Needs The Legend of Stalvan, which starts in Elwynn Forest
+  .goto Duskwood,73.8,44.5
+  .accept 79 >>Accept The Legend of Stalvan (lvl 22) from Tavernkeep Smitts
 
 step
-  .goto Duskwood,72.5,46.9
-  .turnin 66 >>Turn in The Legend of Stalvan to Clerk Daltry
-  .turnin 265 >>Turn in The Shadowy Search Continues to Clerk Daltry
+  .goto Duskwood,73.9,43.5
+  .accept 90 >>Accept Seasoned Wolf Kabobs (lvl 18) from Chef Grual
 
 step
-  .goto Duskwood,75.8,45.3
-  .turnin 101 >>Turn in The Totem of Infliction to Madame Eva
-
-step
-  .goto Duskwood,72.5,46.9
-  .accept 266 >>Accept Inquire at the Inn (lvl 20) from Clerk Daltry
-  .accept 67 >>Accept The Legend of Stalvan (lvl 22) from Clerk Daltry
+  .goto Duskwood,73.5,46.8
+  .accept 56 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
 
 step
   .optional >>Needs The Legend of Stalvan, which this route does not cover
@@ -98,37 +55,56 @@ step
   .accept 1042 >>Accept The Carevin Family (lvl 25) from Clerk Daltry
 
 step
-  .optional >>Handed in outside this zone
-  .turnin 67 >>Turn in The Legend of Stalvan (not in this zone)
+  .optional >>Needs Messenger to Darkshire, which starts in Redridge Mountains
+  .goto Duskwood,71.9,46.4
+  .accept 146 >>Accept Messenger to Darkshire (lvl 18) from Lord Ello Ebonlocke
+
+step
+  .goto Duskwood,79.8,48.0
+  .accept 174 >>Accept Look To The Stars (lvl 20) from Viktori Prism'Antras
+
+step
+  .goto Duskwood,65.9,40.8
+  .complete 173 >>Finish Worgen in the Woods
+
+step
+  .goto Duskwood,69.5,30.8
+  .complete 90 >>Finish Seasoned Wolf Kabobs
+
+step
+  .goto Duskwood,78.7,70.8
+  .complete 56 >>Finish The Night Watch
+
+step
+  .goto Duskwood,21.9,34.3
+  .complete 101 >>Finish The Totem of Infliction
+
+step
+  .complete 174 >>Finish Look To The Stars
+
+step
+  .goto Duskwood,28.1,31.5
+  .turnin 165 >>Turn in The Hermit to Abercrombie
+
+step
+  .goto Duskwood,7.8,34.1
+  .turnin 164 >>Turn in Deliveries to Sven to Sven Yorgen
+
+step
+  .optional >>Handed in outside this zone, to Magistrate Solomon
+  .turnin 146 >>Turn in Messenger to Darkshire to Magistrate Solomon (not in this zone)
+
+step
+  .goto Duskwood,72.5,46.9
+  .turnin 66 >>Turn in The Legend of Stalvan to Clerk Daltry
 
 step
   .optional >>Handed in outside this zone, to Innkeeper Farley
   .turnin 69 >>Turn in The Legend of Stalvan to Innkeeper Farley (not in this zone)
 
 step
-  .goto Duskwood,73.8,44.5
-  .turnin 266 >>Turn in Inquire at the Inn to Tavernkeep Smitts
-
-step
-  .optional >>Needs The Caravan Road, which starts in Stranglethorn Vale
-  .goto Duskwood,75.3,49.0
-  .turnin 1042 >>Turn in The Carevin Family to Jonathan Carevin
-
-step
-  .xp 26
-
-step
-  .goto Duskwood,73.8,44.5
-  .accept 453 >>Accept Finding the Shadowy Figure (lvl 20) from Tavernkeep Smitts
-
-step
-  .optional >>Needs The Legend of Stalvan, which starts in Elwynn Forest
-  .goto Duskwood,73.8,44.5
-  .accept 79 >>Accept The Legend of Stalvan (lvl 22) from Tavernkeep Smitts
-
-step
-  .goto Duskwood,18.4,56.4
-  .turnin 453 >>Turn in Finding the Shadowy Figure to Jitters
+  .goto Duskwood,73.5,46.8
+  .turnin 56 >>Turn in The Night Watch to Commander Althea Ebonlocke
 
 step
   .optional >>Needs The Legend of Stalvan, which starts in Elwynn Forest
@@ -136,38 +112,182 @@ step
   .turnin 79 >>Turn in The Legend of Stalvan to Commander Althea Ebonlocke
 
 step
-  .goto Duskwood,18.4,56.4
-  .accept 268 >>Accept Return to Sven (lvl 20) from Jitters
+  .goto Duskwood,75.8,47.6
+  .turnin 173 >>Turn in Worgen in the Woods to Calor
 
 step
-  .goto Duskwood,7.8,34.1
-  .turnin 268 >>Turn in Return to Sven to Sven Yorgen
-  .accept 323 >>Accept Proving Your Worth (lvl 20) from Sven Yorgen
+  .optional >>Needs The Caravan Road, which starts in Stranglethorn Vale
+  .goto Duskwood,75.3,49.0
+  .turnin 1042 >>Turn in The Carevin Family to Jonathan Carevin
 
 step
-  .goto Duskwood,16.9,33.2
-  .complete 323 >>Finish Proving Your Worth
+  .goto Duskwood,75.8,45.3
+  .turnin 101 >>Turn in The Totem of Infliction to Madame Eva
 
 step
-  .goto Duskwood,7.8,34.1
-  .turnin 323 >>Turn in Proving Your Worth to Sven Yorgen
-  .accept 269 >>Accept Seeking Wisdom (lvl 20) from Sven Yorgen
+  .goto Duskwood,73.9,43.5
+  .turnin 90 >>Turn in Seasoned Wolf Kabobs to Chef Grual
 
 step
-  .optional >>Handed in outside this zone, to Bishop Farthing
-  .turnin 269 >>Turn in Seeking Wisdom to Bishop Farthing (not in this zone)
+  .goto Duskwood,79.8,48.0
+  .turnin 174 >>Turn in Look To The Stars to Viktori Prism'Antras
 
 step
-  .goto Duskwood,7.7,33.2
-  .accept 226 >>Accept Wolves at Our Heels (lvl 19) from Lars
+  .xp 26
 
 step
-  .goto Duskwood,15.6,26.1
-  .complete 226 >>Finish Wolves at Our Heels
+  .goto Duskwood,79.8,48.0
+  .accept 175 >>Accept Look To The Stars (lvl 20) from Viktori Prism'Antras
 
 step
-  .goto Duskwood,7.7,33.2
-  .turnin 226 >>Turn in Wolves at Our Heels to Lars
+  .goto Duskwood,75.8,47.6
+  .accept 221 >>Accept Worgen in the Woods (lvl 23) from Calor
+
+step
+  .goto Duskwood,75.3,49.0
+  .accept 1043 >>Accept The Scythe of Elune (lvl 25) from Jonathan Carevin
+
+step
+  .goto Duskwood,73.5,46.8
+  .accept 57 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
+  .accept 80 >>Accept The Legend of Stalvan (lvl 22) from Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,72.5,46.9
+  .accept 67 >>Accept The Legend of Stalvan (lvl 22) from Clerk Daltry
+
+step
+  .goto Duskwood,71.9,47.8
+  .accept 377 >>Accept Crime and Punishment (lvl 24) from Councilman Millstipe
+
+step
+  .goto Duskwood,66.3,44.8
+  .complete 221 >>Finish Worgen in the Woods
+
+step
+  .goto Duskwood,73.5,79.1
+  .complete 1043 >>Finish The Scythe of Elune
+
+step
+  .goto Duskwood,21.4,43.3
+  .complete 57 >>Finish The Night Watch
+
+step
+  .complete 377 >>Finish Crime and Punishment
+
+step
+  .goto Duskwood,71.9,47.8
+  .turnin 377 >>Turn in Crime and Punishment to Councilman Millstipe
+
+step
+  .goto Duskwood,72.5,46.9
+  .turnin 80 >>Turn in The Legend of Stalvan to Clerk Daltry
+
+step
+  .optional >>Handed in outside this zone
+  .turnin 67 >>Turn in The Legend of Stalvan (not in this zone)
+
+step
+  .goto Duskwood,73.5,46.8
+  .turnin 57 >>Turn in The Night Watch to Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,75.8,47.6
+  .turnin 221 >>Turn in Worgen in the Woods to Calor
+
+step
+  .goto Duskwood,75.3,49.0
+  .turnin 1043 >>Turn in The Scythe of Elune to Jonathan Carevin
+
+step
+  .goto Duskwood,82.0,59.1
+  .turnin 175 >>Turn in Look To The Stars to Blind Mary
+  .accept 177 >>Accept Look To The Stars (lvl 20) from Blind Mary
+
+step
+  .goto Duskwood,81.2,71.5
+  .complete 177 >>Finish Look To The Stars
+
+step
+  .goto Duskwood,79.8,48.0
+  .turnin 177 >>Turn in Look To The Stars to Viktori Prism'Antras
+  .accept 181 >>Accept Look To The Stars (lvl 20) from Viktori Prism'Antras
+
+step
+  .goto Duskwood,75.8,47.6
+  .accept 222 >>Accept Worgen in the Woods (lvl 23) from Calor
+
+step
+  .goto Duskwood,75.3,49.0
+  .accept 1044 >>Accept Answered Questions (lvl 25) from Jonathan Carevin
+
+step
+  .goto Duskwood,73.5,46.8
+  .accept 58 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,72.5,46.9
+  .accept 97 >>Accept The Legend of Stalvan (lvl 22) from Clerk Daltry
+
+step
+  .goto Duskwood,71.7,72.8
+  .complete 222 >>Finish Worgen in the Woods
+
+step
+  .goto Duskwood,36.8,83.8
+  .complete 181 >>Finish Look To The Stars
+
+step
+  .goto Duskwood,23.7,34.1
+  .complete 58 >>Finish The Night Watch
+
+step
+  .goto Duskwood,73.5,46.8
+  .turnin 97 >>Turn in The Legend of Stalvan to Commander Althea Ebonlocke
+  .turnin 58 >>Turn in The Night Watch to Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,75.8,47.6
+  .turnin 222 >>Turn in Worgen in the Woods to Calor
+
+step
+  .optional >>Handed in outside this zone, to Thyn'tel Bladeweaver
+  .turnin 1044 >>Turn in Answered Questions to Thyn'tel Bladeweaver (not in this zone)
+
+step
+  .goto Duskwood,79.8,48.0
+  .turnin 181 >>Turn in Look To The Stars to Viktori Prism'Antras
+
+step
+  .xp 27
+
+step
+  .goto Duskwood,75.8,47.6
+  .accept 223 >>Accept Worgen in the Woods (lvl 23) from Calor
+
+step
+  .goto Duskwood,73.5,46.8
+  .accept 98 >>Accept The Legend of Stalvan (lvl 22) from Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,77.3,36.2
+  .complete 98 >>Finish The Legend of Stalvan
+
+step
+  .goto Duskwood,75.8,45.3
+  .turnin 98 >>Turn in The Legend of Stalvan to Madame Eva
+
+step
+  .goto Duskwood,75.3,49.0
+  .turnin 223 >>Turn in Worgen in the Woods to Jonathan Carevin
+
+step
+  .goto Duskwood,45.1,67.0
+  .accept 236 >>Accept Awaiting Word (lvl 21) from Watcher Dodds
+
+step
+  .goto Duskwood,81.9,19.7
+  .turnin 236 >>Turn in Awaiting Word to Watcher Callahan
 
 step
   .goto Duskwood,28.1,31.5
@@ -205,17 +325,17 @@ step
 step
   .goto Duskwood,73.8,44.5
   .turnin 156 >>Turn in Gather Rot Blossoms to Tavernkeep Smitts
-
-step
-  .xp 27
-
-step
-  .goto Duskwood,73.8,44.5
   .accept 159 >>Accept Juice Delivery (lvl 20) from Tavernkeep Smitts
 
 step
   .goto Duskwood,28.1,31.5
   .turnin 159 >>Turn in Juice Delivery to Abercrombie
+
+step
+  .xp 28
+
+step
+  .goto Duskwood,28.1,31.5
   .accept 133 >>Accept Ghoulish Effigy (lvl 20) from Abercrombie
 
 step
@@ -239,118 +359,12 @@ step
 step
   .goto Duskwood,71.9,46.4
   .turnin 160 >>Turn in Note to the Mayor to Lord Ello Ebonlocke
-
-step
-  .optional >>Needs Messenger to Darkshire, which starts in Redridge Mountains
-  .goto Duskwood,71.9,46.4
-  .accept 146 >>Accept Messenger to Darkshire (lvl 18) from Lord Ello Ebonlocke
-
-step
-  .goto Duskwood,71.9,46.4
   .accept 251 >>Accept Translate Abercrombie's Note (lvl 20) from Lord Ello Ebonlocke
-
-step
-  .optional >>Handed in outside this zone, to Magistrate Solomon
-  .turnin 146 >>Turn in Messenger to Darkshire to Magistrate Solomon (not in this zone)
-
-step
-  .goto Duskwood,72.6,47.6
-  .turnin 251 >>Turn in Translate Abercrombie's Note to Sirra Von'Indi
-  .accept 401 >>Accept Wait for Sirra to Finish (lvl 20) from Sirra Von'Indi
-
-step
-  .complete 401 >>Finish Wait for Sirra to Finish
-
-step
-  .goto Duskwood,72.6,47.6
-  .turnin 401 >>Turn in Wait for Sirra to Finish to Sirra Von'Indi
-  .accept 252 >>Accept Translation to Ello (lvl 20) from Sirra Von'Indi
-
-step
-  .goto Duskwood,71.9,46.4
-  .turnin 252 >>Turn in Translation to Ello to Lord Ello Ebonlocke
-
-step
-  .goto Duskwood,73.5,46.8
-  .accept 56 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
-  .accept 80 >>Accept The Legend of Stalvan (lvl 22) from Commander Althea Ebonlocke
-
-step
-  .goto Duskwood,78.7,70.8
-  .complete 56 >>Finish The Night Watch
-
-step
-  .goto Duskwood,72.5,46.9
-  .turnin 80 >>Turn in The Legend of Stalvan to Clerk Daltry
-
-step
-  .goto Duskwood,73.5,46.8
-  .turnin 56 >>Turn in The Night Watch to Commander Althea Ebonlocke
-  .accept 57 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
-
-step
-  .goto Duskwood,21.4,43.3
-  .complete 57 >>Finish The Night Watch
-
-step
-  .goto Duskwood,73.5,46.8
-  .turnin 57 >>Turn in The Night Watch to Commander Althea Ebonlocke
-
-step
-  .xp 28
-
-step
-  .goto Duskwood,72.5,46.9
-  .accept 97 >>Accept The Legend of Stalvan (lvl 22) from Clerk Daltry
-
-step
-  .goto Duskwood,73.5,46.8
-  .turnin 97 >>Turn in The Legend of Stalvan to Commander Althea Ebonlocke
 
 step
   .optional >>Needs The Weathered Grave, which this route does not cover
   .goto Duskwood,72.6,47.6
   .accept 227 >>Accept Morgan Ladimore (lvl 28) from Sirra Von'Indi
-
-step
-  .optional >>Needs The Weathered Grave, which this route does not cover
-  .goto Duskwood,73.5,46.8
-  .turnin 227 >>Turn in Morgan Ladimore to Commander Althea Ebonlocke
-
-step
-  .goto Duskwood,73.5,46.8
-  .accept 58 >>Accept The Night Watch (lvl 18) from Commander Althea Ebonlocke
-  .accept 98 >>Accept The Legend of Stalvan (lvl 22) from Commander Althea Ebonlocke
-  .accept 228 >>Accept Mor'Ladim (lvl 28) from Commander Althea Ebonlocke
-
-step
-  .goto Duskwood,23.7,34.1
-  .complete 58 >>Finish The Night Watch
-
-step
-  .goto Duskwood,77.3,36.2
-  .complete 98 >>Finish The Legend of Stalvan
-
-step
-  .goto Duskwood,16.7,37.4
-  .complete 228 >>Finish Mor'Ladim
-
-step
-  .goto Duskwood,73.5,46.8
-  .turnin 58 >>Turn in The Night Watch to Commander Althea Ebonlocke
-  .turnin 228 >>Turn in Mor'Ladim to Commander Althea Ebonlocke
-
-step
-  .goto Duskwood,75.8,45.3
-  .turnin 98 >>Turn in The Legend of Stalvan to Madame Eva
-
-step
-  .goto Duskwood,73.5,46.8
-  .accept 229 >>Accept The Daughter Who Lived (lvl 28) from Commander Althea Ebonlocke
-
-step
-  .goto Duskwood,74.5,46.1
-  .turnin 229 >>Turn in The Daughter Who Lived to Watcher Ladimore
 
 step
   .optional >>Needs The Missing Diplomat, which starts in Stormwind City
@@ -363,137 +377,66 @@ step
   .complete 1244 >>Finish The Missing Diplomat
 
 step
+  .goto Duskwood,72.6,47.6
+  .turnin 251 >>Turn in Translate Abercrombie's Note to Sirra Von'Indi
+
+step
+  .optional >>Needs The Weathered Grave, which this route does not cover
+  .goto Duskwood,73.5,46.8
+  .turnin 227 >>Turn in Morgan Ladimore to Commander Althea Ebonlocke
+
+step
   .optional >>Needs The Missing Diplomat, which starts in Stormwind City
   .goto Duskwood,74.8,44.2
   .turnin 1244 >>Turn in The Missing Diplomat to Watcher Backus
-
-step
-  .goto Duskwood,75.8,47.6
-  .accept 173 >>Accept Worgen in the Woods (lvl 23) from Calor
-
-step
-  .goto Duskwood,65.9,40.8
-  .complete 173 >>Finish Worgen in the Woods
-
-step
-  .goto Duskwood,75.8,47.6
-  .turnin 173 >>Turn in Worgen in the Woods to Calor
-  .accept 221 >>Accept Worgen in the Woods (lvl 23) from Calor
-
-step
-  .goto Duskwood,66.3,44.8
-  .complete 221 >>Finish Worgen in the Woods
-
-step
-  .goto Duskwood,75.8,47.6
-  .turnin 221 >>Turn in Worgen in the Woods to Calor
-  .accept 222 >>Accept Worgen in the Woods (lvl 23) from Calor
-
-step
-  .goto Duskwood,71.7,72.8
-  .complete 222 >>Finish Worgen in the Woods
-
-step
-  .goto Duskwood,75.8,47.6
-  .turnin 222 >>Turn in Worgen in the Woods to Calor
-
-step
-  .goto Duskwood,75.3,49.0
-  .accept 1043 >>Accept The Scythe of Elune (lvl 25) from Jonathan Carevin
-
-step
-  .goto Duskwood,73.5,79.1
-  .complete 1043 >>Finish The Scythe of Elune
-
-step
-  .goto Duskwood,75.3,49.0
-  .turnin 1043 >>Turn in The Scythe of Elune to Jonathan Carevin
-  .accept 1044 >>Accept Answered Questions (lvl 25) from Jonathan Carevin
-
-step
-  .optional >>Handed in outside this zone, to Thyn'tel Bladeweaver
-  .turnin 1044 >>Turn in Answered Questions to Thyn'tel Bladeweaver (not in this zone)
-
-step
-  .xp 29
-
-step
-  .goto Duskwood,79.8,48.0
-  .accept 174 >>Accept Look To The Stars (lvl 20) from Viktori Prism'Antras
-
-step
-  .complete 174 >>Finish Look To The Stars
-
-step
-  .goto Duskwood,79.8,48.0
-  .turnin 174 >>Turn in Look To The Stars to Viktori Prism'Antras
-  .accept 175 >>Accept Look To The Stars (lvl 20) from Viktori Prism'Antras
-
-step
-  .goto Duskwood,82.0,59.1
-  .turnin 175 >>Turn in Look To The Stars to Blind Mary
-  .accept 177 >>Accept Look To The Stars (lvl 20) from Blind Mary
-
-step
-  .goto Duskwood,81.2,71.5
-  .complete 177 >>Finish Look To The Stars
-
-step
-  .goto Duskwood,79.8,48.0
-  .turnin 177 >>Turn in Look To The Stars to Viktori Prism'Antras
-  .accept 181 >>Accept Look To The Stars (lvl 20) from Viktori Prism'Antras
-
-step
-  .goto Duskwood,36.8,83.8
-  .complete 181 >>Finish Look To The Stars
-
-step
-  .goto Duskwood,79.8,48.0
-  .turnin 181 >>Turn in Look To The Stars to Viktori Prism'Antras
-
-step
-  .goto Duskwood,75.8,47.6
-  .accept 223 >>Accept Worgen in the Woods (lvl 23) from Calor
-
-step
-  .goto Duskwood,75.3,49.0
-  .turnin 223 >>Turn in Worgen in the Woods to Jonathan Carevin
-
-step
-  .goto Duskwood,74.5,46.1
-  .accept 231 >>Accept A Daughter's Love (lvl 28) from Watcher Ladimore
-
-step
-  .goto Duskwood,17.7,29.1
-  .turnin 231 >>Turn in A Daughter's Love
-
-step
-  .goto Duskwood,45.1,67.0
-  .accept 236 >>Accept Awaiting Word (lvl 21) from Watcher Dodds
-
-step
-  .goto Duskwood,81.9,19.7
-  .turnin 236 >>Turn in Awaiting Word to Watcher Callahan
-
-step
-  .goto Duskwood,73.9,43.5
-  .accept 90 >>Accept Seasoned Wolf Kabobs (lvl 18) from Chef Grual
-
-step
-  .goto Duskwood,69.5,30.8
-  .complete 90 >>Finish Seasoned Wolf Kabobs
-
-step
-  .goto Duskwood,73.9,43.5
-  .turnin 90 >>Turn in Seasoned Wolf Kabobs to Chef Grual
 
 step
   .goto Duskwood,74.8,44.2
   .accept 1245 >>Accept The Missing Diplomat (lvl 28) from Watcher Backus
 
 step
+  .goto Duskwood,73.5,46.8
+  .accept 228 >>Accept Mor'Ladim (lvl 28) from Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,72.6,47.6
+  .accept 401 >>Accept Wait for Sirra to Finish (lvl 20) from Sirra Von'Indi
+
+step
+  .goto Duskwood,16.7,37.4
+  .complete 228 >>Finish Mor'Ladim
+
+step
+  .complete 401 >>Finish Wait for Sirra to Finish
+
+step
+  .goto Duskwood,72.6,47.6
+  .turnin 401 >>Turn in Wait for Sirra to Finish to Sirra Von'Indi
+
+step
+  .goto Duskwood,73.5,46.8
+  .turnin 228 >>Turn in Mor'Ladim to Commander Althea Ebonlocke
+
+step
   .optional >>Handed in outside this zone, to Elling Trias
   .turnin 1245 >>Turn in The Missing Diplomat to Elling Trias (not in this zone)
+
+step
+  .goto Duskwood,73.5,46.8
+  .accept 229 >>Accept The Daughter Who Lived (lvl 28) from Commander Althea Ebonlocke
+
+step
+  .goto Duskwood,72.6,47.6
+  .accept 252 >>Accept Translation to Ello (lvl 20) from Sirra Von'Indi
+
+step
+  .goto Duskwood,71.9,46.4
+  .turnin 252 >>Turn in Translation to Ello to Lord Ello Ebonlocke
+
+step
+  .goto Duskwood,74.5,46.1
+  .turnin 229 >>Turn in The Daughter Who Lived to Watcher Ladimore
+  .accept 231 >>Accept A Daughter's Love (lvl 28) from Watcher Ladimore
 
 step
   .goto Duskwood,71.9,46.4
@@ -507,15 +450,93 @@ step
   .turnin 253 >>Turn in Bride of the Embalmer to Lord Ello Ebonlocke
 
 step
-  .goto Duskwood,71.9,47.8
-  .accept 377 >>Accept Crime and Punishment (lvl 24) from Councilman Millstipe
+  .goto Duskwood,17.7,29.1
+  .turnin 231 >>Turn in A Daughter's Love
 
 step
-  .complete 377 >>Finish Crime and Punishment
+  .xp 29
 
 step
-  .goto Duskwood,71.9,47.8
-  .turnin 377 >>Turn in Crime and Punishment to Councilman Millstipe
+  .goto Duskwood,7.7,33.2
+  .accept 226 >>Accept Wolves at Our Heels (lvl 19) from Lars
+
+step
+  .optional >>Needs Sven's Camp, which this route does not cover
+  .goto Duskwood,7.8,34.1
+  .accept 262 >>Accept The Shadowy Figure (lvl 20) from Sven Yorgen
+
+step
+  .optional >>Needs Armed and Ready, which starts in Stormwind City
+  .goto Duskwood,7.8,34.1
+  .accept 55 >>Accept Morbent Fel (lvl 20) from Sven Yorgen
+
+step
+  .goto Duskwood,7.8,34.1
+  .accept 95 >>Accept Sven's Revenge (lvl 20) from Sven Yorgen
+
+step
+  .optional >>Needs Armed and Ready, which starts in Stormwind City
+  .goto Duskwood,16.9,33.4
+  .complete 55 >>Finish Morbent Fel
+
+step
+  .goto Duskwood,15.6,26.1
+  .complete 226 >>Finish Wolves at Our Heels
+
+step
+  .goto Duskwood,7.7,33.2
+  .turnin 226 >>Turn in Wolves at Our Heels to Lars
+
+step
+  .optional >>Needs Armed and Ready, which starts in Stormwind City
+  .goto Duskwood,7.8,34.1
+  .turnin 55 >>Turn in Morbent Fel to Sven Yorgen
+
+step
+  .goto Duskwood,49.9,77.7
+  .turnin 95 >>Turn in Sven's Revenge
+
+step
+  .optional >>Needs Sven's Camp, which this route does not cover
+  .goto Duskwood,75.8,45.3
+  .turnin 262 >>Turn in The Shadowy Figure to Madame Eva
+
+step
+  .goto Duskwood,75.8,45.3
+  .accept 265 >>Accept The Shadowy Search Continues (lvl 20) from Madame Eva
+
+step
+  .goto Duskwood,72.5,46.9
+  .turnin 265 >>Turn in The Shadowy Search Continues to Clerk Daltry
+  .accept 266 >>Accept Inquire at the Inn (lvl 20) from Clerk Daltry
+
+step
+  .goto Duskwood,73.8,44.5
+  .turnin 266 >>Turn in Inquire at the Inn to Tavernkeep Smitts
+  .accept 453 >>Accept Finding the Shadowy Figure (lvl 20) from Tavernkeep Smitts
+
+step
+  .goto Duskwood,18.4,56.4
+  .turnin 453 >>Turn in Finding the Shadowy Figure to Jitters
+  .accept 268 >>Accept Return to Sven (lvl 20) from Jitters
+
+step
+  .goto Duskwood,7.8,34.1
+  .turnin 268 >>Turn in Return to Sven to Sven Yorgen
+  .accept 323 >>Accept Proving Your Worth (lvl 20) from Sven Yorgen
+
+step
+  .goto Duskwood,16.9,33.2
+  .complete 323 >>Finish Proving Your Worth
+
+step
+  .goto Duskwood,7.8,34.1
+  .turnin 323 >>Turn in Proving Your Worth to Sven Yorgen
+  .accept 269 >>Accept Seeking Wisdom (lvl 20) from Sven Yorgen
+
+step
+  .optional >>Handed in outside this zone, to Bishop Farthing
+  .turnin 269 >>Turn in Seeking Wisdom to Bishop Farthing (not in this zone)
 
 step
   .xp 30

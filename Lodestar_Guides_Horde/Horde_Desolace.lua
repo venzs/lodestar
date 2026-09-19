@@ -28,9 +28,31 @@ step
   .accept 1433 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
 
 step
+  .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
+  .goto Desolace,56.2,59.6
+  .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
+
+step
+  .goto Desolace,56.3,59.7
+  .accept 1368 >>Accept Gelkis Alliance (lvl 30) from Gurda Wildmane
+  .accept 1367 >>Accept Magram Alliance (lvl 30) from Gurda Wildmane
+
+step
+  .goto Desolace,60.9,61.9
+  .accept 5561 >>Accept Kodo Roundup (lvl 30) from Smeed Scrabblescrew
+
+step
+  .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
+  .goto Desolace,73.4,41.6
+  .complete 1365 >>Finish Khan Dez'hepah
+
+step
   .optional >>Needs Alliance Relations, which starts in Orgrimmar
   .goto Desolace,75.3,19.3
   .complete 1434 >>Finish Befouled by Satyr
+
+step
+  .complete 5561 >>Finish Kodo Roundup
 
 step
   .optional >>Needs Alliance Relations, which starts in Orgrimmar
@@ -43,36 +65,13 @@ step
   .turnin 1434 >>Turn in Befouled by Satyr to Takata Steelblade
 
 step
-  .goto Desolace,52.6,54.4
-  .accept 1436 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
-
-step
-  .optional >>Handed in outside this zone, to Keldran
-  .turnin 1436 >>Turn in Alliance Relations to Keldran (not in this zone)
-
-step
-  .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
-  .goto Desolace,56.2,59.6
-  .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
-
-step
-  .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
-  .goto Desolace,73.4,41.6
-  .complete 1365 >>Finish Khan Dez'hepah
-
-step
   .optional >>Needs The Kolkar of Desolace, which starts in The Barrens
   .goto Desolace,56.2,59.6
   .turnin 1365 >>Turn in Khan Dez'hepah to Felgur Twocuts
 
 step
-  .goto Desolace,56.3,59.7
-  .accept 1368 >>Accept Gelkis Alliance (lvl 30) from Gurda Wildmane
-  .accept 1367 >>Accept Magram Alliance (lvl 30) from Gurda Wildmane
-
-step
-  .goto Desolace,36.2,79.2
-  .turnin 1368 >>Turn in Gelkis Alliance to Uthek the Wise
+  .goto Desolace,60.9,61.9
+  .turnin 5561 >>Turn in Kodo Roundup to Smeed Scrabblescrew
 
 step
   .goto Desolace,75.0,68.2
@@ -80,11 +79,20 @@ step
 
 step
   .goto Desolace,36.2,79.2
+  .turnin 1368 >>Turn in Gelkis Alliance to Uthek the Wise
   .accept 1370 >>Accept Stealing Supplies (lvl 30) from Uthek the Wise
+
+step
+  .goto Desolace,39.5,78.1
+  .accept 5821 >>Accept Bodyguard for Hire (lvl 30) from Cork Gizelton
 
 step
   .goto Desolace,70.9,75.4
   .complete 1370 >>Finish Stealing Supplies
+
+step
+  .goto Desolace,60.9,61.9
+  .turnin 5821 >>Turn in Bodyguard for Hire to Smeed Scrabblescrew
 
 step
   .goto Desolace,36.2,79.2
@@ -123,20 +131,69 @@ step
   .turnin 1380 >>Turn in Khan Hratha to Uthek the Wise
 
 step
-  .goto Desolace,39.5,78.1
-  .accept 5821 >>Accept Bodyguard for Hire (lvl 30) from Cork Gizelton
+  .goto Desolace,25.0,72.3
+  .accept 5763 >>Accept Hunting in Stranglethorn (lvl 28) from Roon Wildmane
 
 step
-  .goto Desolace,60.9,61.9
-  .turnin 5821 >>Turn in Bodyguard for Hire to Smeed Scrabblescrew
-  .accept 5561 >>Accept Kodo Roundup (lvl 30) from Smeed Scrabblescrew
+  .goto Desolace,22.6,72.0
+  .accept 6142 >>Accept Clam Bait (lvl 31) from Mai'Lahii
 
 step
-  .complete 5561 >>Finish Kodo Roundup
+  .goto Desolace,34.1,30.7
+  .complete 6142 >>Finish Clam Bait
 
 step
-  .goto Desolace,60.9,61.9
-  .turnin 5561 >>Turn in Kodo Roundup to Smeed Scrabblescrew
+  .optional >>Handed in outside this zone, to Hemet Nesingwary
+  .turnin 5763 >>Turn in Hunting in Stranglethorn to Hemet Nesingwary (not in this zone)
+
+step
+  .goto Desolace,22.6,72.0
+  .turnin 6142 >>Turn in Clam Bait to Mai'Lahii
+
+step
+  .xp 32
+
+step
+  .goto Desolace,23.3,72.9
+  .accept 6143 >>Accept Other Fish to Fry (lvl 32) from Drulzegar Skraghook
+
+step
+  .goto Desolace,25.8,68.2
+  .accept 5381 >>Accept Hand of Iruxos (lvl 32) from Taiga Wisemane
+
+step
+  .goto Desolace,35.4,22.0
+  .complete 6143 >>Finish Other Fish to Fry
+
+step
+  .complete 5381 >>Finish Hand of Iruxos
+
+step
+  .goto Desolace,25.8,68.2
+  .turnin 5381 >>Turn in Hand of Iruxos to Taiga Wisemane
+
+step
+  .goto Desolace,23.3,72.9
+  .turnin 6143 >>Turn in Other Fish to Fry to Drulzegar Skraghook
+
+step
+  .goto Desolace,25.8,68.2
+  .accept 5581 >>Accept Portals of the Legion (lvl 32) from Taiga Wisemane
+
+step
+  .complete 5581 >>Finish Portals of the Legion
+
+step
+  .goto Desolace,25.8,68.2
+  .turnin 5581 >>Turn in Portals of the Legion to Taiga Wisemane
+
+step
+  .goto Desolace,52.6,54.4
+  .accept 1436 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
+
+step
+  .goto Desolace,55.4,55.8
+  .accept 5386 >>Accept Catch of the Day (lvl 32) from Nataka Longhorn
 
 step
   .goto Desolace,56.2,59.6
@@ -147,22 +204,22 @@ step
   .complete 1366 >>Finish Centaur Bounty
 
 step
-  .goto Desolace,56.2,59.6
-  .turnin 1366 >>Turn in Centaur Bounty to Felgur Twocuts
-
-step
-  .xp 32
-
-step
-  .goto Desolace,55.4,55.8
-  .accept 5386 >>Accept Catch of the Day (lvl 32) from Nataka Longhorn
-
-step
   .complete 5386 >>Finish Catch of the Day
 
 step
   .goto Desolace,55.4,55.8
   .turnin 5386 >>Turn in Catch of the Day to Nataka Longhorn
+
+step
+  .optional >>Handed in outside this zone, to Keldran
+  .turnin 1436 >>Turn in Alliance Relations to Keldran (not in this zone)
+
+step
+  .goto Desolace,56.2,59.6
+  .turnin 1366 >>Turn in Centaur Bounty to Felgur Twocuts
+
+step
+  .xp 33
 
 step
   .goto Desolace,75.0,68.2
@@ -208,14 +265,6 @@ step
   .accept 1532 >>Accept Call of Air (lvl 30) from Xanis Flameweaver
 
 step
-  .optional >>Handed in outside this zone, to Prate Cloudseer
-  .class Shaman
-  .turnin 1532 >>Turn in Call of Air to Prate Cloudseer (not in this zone)
-
-step
-  .xp 33
-
-step
   .class Mage
   .goto Desolace,88.6,46.7
   .accept 1947 >>Accept Journey to the Marsh (lvl 30) from Ursyn Ghull
@@ -224,6 +273,14 @@ step
   .optional >>Handed in outside this zone, to Tabetha
   .class Mage
   .turnin 1947 >>Turn in Journey to the Marsh to Tabetha (not in this zone)
+
+step
+  .optional >>Handed in outside this zone, to Prate Cloudseer
+  .class Shaman
+  .turnin 1532 >>Turn in Call of Air to Prate Cloudseer (not in this zone)
+
+step
+  .xp 34
 
 step
   .goto Desolace,62.3,39.0
@@ -256,60 +313,6 @@ step
 step
   .goto Desolace,38.9,27.2
   .turnin 6027 >>Turn in Book of the Ancients to Azore Aldamort
-
-step
-  .goto Desolace,25.8,68.2
-  .accept 5381 >>Accept Hand of Iruxos (lvl 32) from Taiga Wisemane
-
-step
-  .complete 5381 >>Finish Hand of Iruxos
-
-step
-  .goto Desolace,25.8,68.2
-  .turnin 5381 >>Turn in Hand of Iruxos to Taiga Wisemane
-  .accept 5581 >>Accept Portals of the Legion (lvl 32) from Taiga Wisemane
-
-step
-  .complete 5581 >>Finish Portals of the Legion
-
-step
-  .goto Desolace,25.8,68.2
-  .turnin 5581 >>Turn in Portals of the Legion to Taiga Wisemane
-
-step
-  .xp 34
-
-step
-  .goto Desolace,25.0,72.3
-  .accept 5763 >>Accept Hunting in Stranglethorn (lvl 28) from Roon Wildmane
-
-step
-  .optional >>Handed in outside this zone, to Hemet Nesingwary
-  .turnin 5763 >>Turn in Hunting in Stranglethorn to Hemet Nesingwary (not in this zone)
-
-step
-  .goto Desolace,23.3,72.9
-  .accept 6143 >>Accept Other Fish to Fry (lvl 32) from Drulzegar Skraghook
-
-step
-  .goto Desolace,35.4,22.0
-  .complete 6143 >>Finish Other Fish to Fry
-
-step
-  .goto Desolace,23.3,72.9
-  .turnin 6143 >>Turn in Other Fish to Fry to Drulzegar Skraghook
-
-step
-  .goto Desolace,22.6,72.0
-  .accept 6142 >>Accept Clam Bait (lvl 31) from Mai'Lahii
-
-step
-  .goto Desolace,34.1,30.7
-  .complete 6142 >>Finish Clam Bait
-
-step
-  .goto Desolace,22.6,72.0
-  .turnin 6142 >>Turn in Clam Bait to Mai'Lahii
 
 step
   .goto Desolace,33.9,53.5

@@ -21,39 +21,39 @@
     "travel": 1458.549
   },
   "Alliance 20-25: Ashenvale": {
-    "backtrack": 0.548,
-    "hops": 73,
-    "longest": 57.363,
-    "radius": 4.31,
-    "travel": 1183.931
+    "backtrack": 0.48,
+    "hops": 75,
+    "longest": 70.531,
+    "radius": 4.069,
+    "travel": 1135.211
   },
   "Alliance 20-25: Redridge Mountains": {
-    "backtrack": 0.592,
-    "hops": 55,
-    "longest": 49.65,
-    "radius": 6.247,
-    "travel": 1015.883
+    "backtrack": 0.427,
+    "hops": 57,
+    "longest": 54.644,
+    "radius": 1.231,
+    "travel": 641.283
   },
   "Alliance 20-25: Wetlands": {
-    "backtrack": 0.66,
-    "hops": 64,
-    "longest": 56.427,
-    "radius": 5.702,
-    "travel": 1345.456
+    "backtrack": 0.58,
+    "hops": 70,
+    "longest": 54.173,
+    "radius": 3.262,
+    "travel": 1056.819
   },
   "Alliance 25-30: Duskwood": {
-    "backtrack": 0.606,
-    "hops": 101,
-    "longest": 69.061,
-    "radius": 3.782,
-    "travel": 2158.018
+    "backtrack": 0.559,
+    "hops": 108,
+    "longest": 67.517,
+    "radius": 1.854,
+    "travel": 1880.771
   },
   "Alliance 30-35: Hillsbrad Foothills": {
-    "backtrack": 0.503,
-    "hops": 58,
-    "longest": 58.54,
-    "radius": 3.483,
-    "travel": 832.966
+    "backtrack": 0.439,
+    "hops": 61,
+    "longest": 68.702,
+    "radius": 1.015,
+    "travel": 618.924
   },
   "Alliance/Dwarf,Gnome 1-12: Dun Morogh": {
     "backtrack": 0.252,
@@ -119,11 +119,11 @@
     "travel": 612.268
   },
   "Horde 30-35: Desolace": {
-    "backtrack": 0.682,
-    "hops": 59,
-    "longest": 52.318,
-    "radius": 6.552,
-    "travel": 1276.809
+    "backtrack": 0.648,
+    "hops": 60,
+    "longest": 47.187,
+    "radius": 5.95,
+    "travel": 1181.954
   },
   "Horde/Orc,Troll 1-12: Durotar": {
     "backtrack": 0.437,
@@ -154,10 +154,10 @@
     "travel": 680.918
   },
   "Skyborne 1-12: Zephras Isle": {
-    "backtrack": 0.626,
+    "backtrack": 0.624,
     "hops": 38,
-    "longest": 7.703,
+    "longest": 9.521,
     "radius": 1.0,
-    "travel": 111.86
+    "travel": 103.783
   }
 }

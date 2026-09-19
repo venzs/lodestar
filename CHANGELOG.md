@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **A route collects a village before it walks out of one.** The generator took a single quest giver
+  at a time — accept what that NPC offers, walk out to those objectives, walk back, then pick the
+  next giver — so Lakeshire's six quest givers meant six round trips over the same ground. It now
+  gathers every ready quest within twelve map percent of the giver it is already walking to, takes
+  them all, loops the objectives once, and hands everything in on the way past. Which is what the
+  hand-written routes do, and what a person does without thinking about it.
+  Backtracking across the generated routes falls from 50–68% to 43–65%, and three of them —
+  Ashenvale, Hillsbrad and Redridge at 48%, 44% and 43% — now sit inside the hand-written band and
+  below half the routes a person walked. Redridge also walks 37% less far, 1,016% down to 641%.
+  The radius was measured, not guessed: 6, 9, 12, 16 and 22 were each built and linted in full. Six
+  gives the lowest backtracking and twelve the least actual walking; they are within half a point of
+  each other on the first, and twelve is 254 percentage points better on the second, which is the one
+  a player feels in their legs.
+  Capped at twelve quests, well under the client's twenty-slot log. A route that fills the log leaves
+  the player unable to pick anything up, and Leveling's own quest-log warning exists because that is
+  a real thing that happens.
+- The cursor carries the position the batch actually finished at, rather than the ender of whichever
+  quest happened to be picked first. Getting that wrong makes the NEXT hub choice wrong as well, and
+  the error compounds the length of a route.
+- `docs/route-shape.json` is re-recorded, which the previous entry said would be earned by batching
+  rather than accepted without it. Travel is down or flat on every generated route, so the new
+  baseline is a tighter floor than the old one and a slide back toward the old numbers now fails.
+
 - **`/lode share` said the harvest file does not contain your character name. It always has.** The
   harvest keys its contributor block by Name-Realm, so that several sessions from one character can
   be told apart once everything is merged — and the window a contributor reads while deciding whether

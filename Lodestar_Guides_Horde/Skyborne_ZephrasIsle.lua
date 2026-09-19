@@ -25,119 +25,73 @@ step
 
 step
   .goto Zephras Isle,42.1,23.5
-  .turnin 92460 >>Turn in Coming of Age to Rorian the Dayseeker
-  .accept 92461 >>Accept Harmony in Balance (lvl 1) from Rorian the Dayseeker
   .accept 92485 >>Accept A Student of Nature (lvl 2) from Rorian the Dayseeker
   .accept 92464 >>Accept Elemental Unrest (lvl 3) from Rorian the Dayseeker
   .accept 92471 >>Accept Aetheen of the Gales (lvl 4) from Rorian the Dayseeker
-
-step
-  .goto Zephras Isle,43.9,26.0
-  .complete 92461 >>Juvenile Vuldren slain x8
-
-step
-  .complete 92485 >>Read the Folded Parchment then speak with Xyton Silverwind in Thendal Grove.
-
-step
-  .goto Zephras Isle,41.7,23.3
-  .turnin 92485 >>Turn in A Student of Nature to Xyton Silverwind
-
-step
-  .goto Zephras Isle,42.1,23.5
-  .turnin 92461 >>Turn in Harmony in Balance to Rorian the Dayseeker
-
-step
-  .goto Zephras Isle,42.7,23.6
-  .turnin 92471 >>Turn in Aetheen of the Gales to Aetheen of the Gales
-
-step
-  .goto Zephras Isle,47.2,21.9
-  .turnin 92464 >>Turn in Elemental Unrest to Yala Windwatcher
-
-step
-  .xp 3
-
-step
-  .goto Zephras Isle,42.1,23.5
-  .accept 92481 >>Accept A Student of the Arcane (lvl 2) from Rorian the Dayseeker
-
-step
-  .complete 92481 >>Finish A Student of the Arcane
-
-step
-  .goto Zephras Isle,42.1,23.5
-  .turnin 92481 >>Turn in A Student of the Arcane to Rorian the Dayseeker
-
-step
-  .goto Zephras Isle,43.7,24.1
-  .accept 92474 >>Accept Falling With Style (lvl 2) from Myriaal Mistwake
-
-step
-  .goto Zephras Isle,43.3,25.8
-  .complete 92474 >>Finish Falling With Style
-
-step
-  .goto Zephras Isle,42.1,23.5
-  .turnin 92474 >>Turn in Falling With Style to Rorian the Dayseeker
-
-step
-  .goto Zephras Isle,43.8,24.1
-  .accept 94414 >>Accept The Anchors of Zephras (lvl 2) from Halaan Hawk-Eye
-  .complete 94414 >>Finish The Anchors of Zephras
-
-step
-  .goto Zephras Isle,43.8,24.1
-  .turnin 94414 >>Turn in The Anchors of Zephras to Halaan Hawk-Eye
-
-step
-  .xp 4
-
-step
-  .goto Zephras Isle,43.3,24.0
-  .accept 93552 >>Accept Harvesting Windstones (lvl 4)
-
-step
-  .goto Zephras Isle,42.9,28.7
-  .complete 93552 >>Windstone Cluster x15
-
-step
-  .goto Zephras Isle,43.4,24.0
-  .turnin 93552 >>Turn in Harvesting Windstones to Dalia the Collector
-
-step
-  .goto Zephras Isle,43.4,24.8
-  .accept 92462 >>Accept Infestation Investigation (lvl 2) from Elatrell Featherlight
-
-step
-  .goto Zephras Isle,44.4,27.3
-  .complete 92462 >>Pesky Cirrusfly slain x8
-
-step
-  .goto Zephras Isle,43.4,24.8
-  .turnin 92462 >>Turn in Infestation Investigation to Elatrell Featherlight
-
-step
-  .xp 5
-
-step
-  .goto Zephras Isle,43.4,24.9
-  .accept 92463 >>Accept The Cirrusfly Queen (lvl 3)
-
-step
-  .goto Zephras Isle,48.2,27.5
-  .complete 92463 >>Cirrusfly Queen slain
-
-step
-  .goto Zephras Isle,43.4,24.8
-  .turnin 92463 >>Turn in The Cirrusfly Queen to Elatrell Featherlight
 
 step
   .goto Zephras Isle,42.7,24.4
   .accept 92598 >>Accept The Gift of Skysight (lvl 4) from Ventaari Brightwish
 
 step
+  .goto Zephras Isle,43.3,24.0
+  .accept 93552 >>Accept Harvesting Windstones (lvl 4)
+
+step
+  .goto Zephras Isle,43.7,24.1
+  .accept 92474 >>Accept Falling With Style (lvl 2) from Myriaal Mistwake
+  .accept 94414 >>Accept The Anchors of Zephras (lvl 2) from Myriaal Mistwake
+
+step
+  .goto Zephras Isle,43.4,24.9
+  .accept 92463 >>Accept The Cirrusfly Queen (lvl 3)
+
+step
+  .goto Zephras Isle,42.4,25.1
+  .accept 92473 >>Accept Aggressive Encroachment (lvl 4)
+
+step
+  .goto Zephras Isle,47.2,21.9
+  .accept 92469 >>Accept Return to Rorian (lvl 4)
+
+step
   .goto Zephras Isle,48.4,20.4
   .complete 92598 >>Finish The Gift of Skysight
+
+step
+  .goto Zephras Isle,43.8,24.0
+  .complete 94414 >>Finish The Anchors of Zephras
+
+step
+  .goto Zephras Isle,43.3,25.8
+  .complete 92474 >>Finish Falling With Style
+
+step
+  .goto Zephras Isle,42.9,28.7
+  .complete 93552 >>Windstone Cluster x15
+
+step
+  .goto Zephras Isle,39.1,30.3
+  .complete 92473 >>Scrawny Ursera Claw x6
+
+step
+  .goto Zephras Isle,48.2,27.5
+  .complete 92463 >>Cirrusfly Queen slain
+
+step
+  .complete 92485 >>Read the Folded Parchment then speak with Xyton Silverwind in Thendal Grove.
+
+step
+  .goto Zephras Isle,43.4,24.8
+  .turnin 92463 >>Turn in The Cirrusfly Queen to Elatrell Featherlight
+
+step
+  .goto Zephras Isle,43.4,24.0
+  .turnin 93552 >>Turn in Harvesting Windstones to Dalia the Collector
+
+step
+  .goto Zephras Isle,43.8,24.1
+  .turnin 94414 >>Turn in The Anchors of Zephras to Halaan Hawk-Eye
 
 step
   .goto Zephras Isle,42.7,24.4
@@ -145,52 +99,82 @@ step
 
 step
   .goto Zephras Isle,42.4,25.1
-  .accept 92473 >>Accept Aggressive Encroachment (lvl 4)
-
-step
-  .goto Zephras Isle,39.1,30.3
-  .complete 92473 >>Scrawny Ursera Claw x6
-
-step
-  .goto Zephras Isle,42.4,25.1
   .turnin 92473 >>Turn in Aggressive Encroachment (turn-in spot not recorded yet)
 
 step
-  .xp 6
-
-step
   .goto Zephras Isle,42.7,23.6
-  .accept 92470 >>Accept Foul Matriarch (lvl 5)
+  .turnin 92471 >>Turn in Aetheen of the Gales to Aetheen of the Gales
 
 step
-  .complete 92470 >>Ursera Scavenger slain x8, Head of Urs'anah
+  .goto Zephras Isle,42.1,23.5
+  .turnin 92460 >>Turn in Coming of Age to Rorian the Dayseeker
+  .turnin 92474 >>Turn in Falling With Style to Rorian the Dayseeker
+  .turnin 92469 >>Turn in Return to Rorian to Rorian the Dayseeker
 
 step
-  .goto Zephras Isle,42.7,23.6
-  .turnin 92470 >>Turn in Foul Matriarch (turn-in spot not recorded yet)
+  .goto Zephras Isle,41.7,23.3
+  .turnin 92485 >>Turn in A Student of Nature to Xyton Silverwind
+
+step
+  .goto Zephras Isle,47.2,21.9
+  .turnin 92464 >>Turn in Elemental Unrest to Yala Windwatcher
+
+step
+  .xp 5
 
 step
   .goto Zephras Isle,47.2,21.9
   .accept 92465 >>Accept Agitators (lvl 3) from Yala Windwatcher
 
 step
+  .goto Zephras Isle,43.4,24.8
+  .accept 92462 >>Accept Infestation Investigation (lvl 2) from Elatrell Featherlight
+
+step
+  .goto Zephras Isle,42.7,23.6
+  .accept 92470 >>Accept Foul Matriarch (lvl 5)
+
+step
+  .goto Zephras Isle,42.1,23.5
+  .accept 92461 >>Accept Harmony in Balance (lvl 1) from Rorian the Dayseeker
+
+step
+  .goto Zephras Isle,43.9,26.0
+  .complete 92461 >>Juvenile Vuldren slain x8
+
+step
+  .goto Zephras Isle,44.4,27.3
+  .complete 92462 >>Pesky Cirrusfly slain x8
+
+step
   .goto Zephras Isle,46.5,18.9
   .complete 92465 >>Al'Aketh Convert slain x7, Roiling Winds destroyed x6
+
+step
+  .complete 92470 >>Ursera Scavenger slain x8, Head of Urs'anah
 
 step
   .goto Zephras Isle,47.2,21.9
   .turnin 92465 >>Turn in Agitators to Yala Windwatcher
 
 step
-  .xp 7
+  .goto Zephras Isle,43.4,24.8
+  .turnin 92462 >>Turn in Infestation Investigation to Elatrell Featherlight
 
 step
-  .goto Zephras Isle,47.2,21.9
-  .accept 92469 >>Accept Return to Rorian (lvl 4)
+  .goto Zephras Isle,42.7,23.6
+  .turnin 92470 >>Turn in Foul Matriarch (turn-in spot not recorded yet)
 
 step
   .goto Zephras Isle,42.1,23.5
-  .turnin 92469 >>Turn in Return to Rorian to Rorian the Dayseeker
+  .turnin 92461 >>Turn in Harmony in Balance to Rorian the Dayseeker
+
+step
+  .xp 7
+
+step
+  .goto Zephras Isle,42.1,23.5
+  .accept 92481 >>Accept A Student of the Arcane (lvl 2) from Rorian the Dayseeker
 
 step
   .goto Zephras Isle,38.3,30.2
@@ -201,7 +185,14 @@ step
   .complete 92544 >>Al'Aketh Brute slain x6, Al'Aketh Neophyte slain x4, Malduko Cloudcrush slain
 
 step
+  .complete 92481 >>Finish A Student of the Arcane
+
+step
   .goto Zephras Isle,38.3,30.2
   .turnin 92544 >>Turn in Al'Aketh Thugs to Hanaa Nightwind
+
+step
+  .goto Zephras Isle,42.1,23.5
+  .turnin 92481 >>Turn in A Student of the Arcane to Rorian the Dayseeker
 
 ]], "generated")
