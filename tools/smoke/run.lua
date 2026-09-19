@@ -3330,6 +3330,45 @@ try("guide load before the completed list arrives", function()
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = wasProgress
 end)
 
+-- Reconciling must not park on a turn-in for a quest that is not finished.
+--
+-- Resuming ranks candidate steps by "is this quest in the log" and then by distance, and both the
+-- step that kills the mobs and the step that hands the quest back reference the same quest, so both
+-- look held. The turn-in NPC stands in the village and the objective is out in the field, so from
+-- anywhere near town the turn-in is closer -- and the guide tells you to hand in a quest you have
+-- not done.
+try("resume never lands on an unfinished turn-in", function()
+	local wasFlagged, wasLog = stub.flagged, stub.questLog
+	local wasProgress = G.db.char.progress["Horde/Undead 1-5: Deathknell"]
+	local realRace = UnitRace
+	UnitRace = function() return "Undead", "Scourge", 5 end
+
+	-- 363 handed in; 364 accepted but the zombies are not dead yet.
+	stub.flagged = { [363] = true }
+	stub.questLog = { [364] = { title = "The Mindless Ones", complete = false,
+		objectives = { { text = "Mindless Zombie slain: 3/8", finished = false } } } }
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+
+	-- Standing at the quest giver in the village, which is where the turn-in step points and a long
+	-- way from the graveyard the objective is in. This is the position that makes the bug bite.
+	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.308, 0.662
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+
+	local step = G.current.steps[G.stepIndex]
+	local turnin, complete
+	for _, a in ipairs(step.actions) do
+		if a.type == "turnin" and a.questID == 364 then turnin = true end
+		if a.type == "complete" and a.questID == 364 then complete = true end
+	end
+	check(not turnin, ("resumed onto the turn-in for an unfinished quest (step %d)"):format(G.stepIndex))
+	check(complete, ("expected the kill step for 364, got step %d: %s")
+		:format(G.stepIndex, tostring(step.actions[1] and step.actions[1].type)))
+
+	stub.flagged, stub.questLog = wasFlagged, wasLog
+	UnitRace = realRace
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = wasProgress
+end)
+
 -- Every slash verb, with every module both on and off.
 -- A command whose module has been turned off is a standing trap: the handler is still registered
 -- (they are registered once, at first enable, and never unregistered) but the state it reads is

@@ -19,6 +19,10 @@
 - Leveling: **quest log hygiene** — a warning when the twenty-slot log is nearly full that names
   which quests have gone grey, `/lode log` for the full picture, and `/lode log drop <name>` to
   abandon one. Only grey quests are candidates and nothing is ever abandoned without a confirmation.
+- Guide: **resuming never lands on a turn-in for a quest that is not finished.** Ranking candidate
+  steps by distance put the turn-in ahead of the objective — the giver stands in the village, the
+  mobs are out in the field — so resuming near town said "hand in The Mindless Ones" with three of
+  eight zombies dead. A turn-in that is neither already done nor ready to hand over now ranks last.
 - Guide: **the guide no longer reconciles before the client can answer.** For the first seconds after
   entering the world `C_QuestLog.IsQuestFlaggedCompleted` returns false for every quest rather than
   "not yet known". Since this client never hands saved progress back, every login reconciles from

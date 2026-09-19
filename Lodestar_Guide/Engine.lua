@@ -548,8 +548,32 @@ function Guide:ReconcileToLog(guide)
 			end
 		end
 	end
-	-- Resume where the character can actually pick the thread up: a step for a quest already in the
-	-- log beats one they have not started, then whichever is physically closest, then route order.
+	-- Resume where the character can actually pick the thread up: a step they can act on beats one
+	-- they cannot, a quest already in the log beats one they have not started, then whichever is
+	-- physically closest, then route order.
+	--
+	-- "Can act on" is what the distance sort gets wrong on its own. The step that kills the mobs and
+	-- the step that hands the quest back name the same quest, so both look held -- and the turn-in
+	-- is usually the nearer of the two, because the giver stands in the village and the objective is
+	-- out in the field. Ranking on distance alone therefore resumes onto "turn in The Mindless Ones"
+	-- with three of eight zombies dead. A turn-in for a quest that is not finished is not a place
+	-- you can pick anything up: standing on it does nothing at all.
+	--
+	-- Two ways a turn-in is fine: it has already been handed in (the step is still actionable
+	-- because of something else on it, typically the next quest from the same NPC), or the quest is
+	-- sitting complete in the log ready to hand over. Only the third case -- not done and not ready
+	-- -- is a wall. Checking just "is it ready" would call an already-finished turn-in blocking and
+	-- push the resume past the step that hands out the next quest.
+	local function blockedStep(step)
+		for _, a in ipairs(step.actions) do
+			if a.type == "turnin" and a.questID
+				and not self:IsActionComplete(a, nil)
+				and not C_QuestLog.IsComplete(a.questID) then
+				return true
+			end
+		end
+		return false
+	end
 	local best, bestRank
 	for _, c in ipairs(actionable) do
 		local step = guide.steps[c.idx]
@@ -558,7 +582,7 @@ function Guide:ReconcileToLog(guide)
 			local map = self:ResolveMap(step.go.map)
 			if map and self.VectorTo then dist = self:VectorTo(map, step.go.x / 100, step.go.y / 100) end
 		end
-		local rank = (c.held and 0 or 1e7) + (dist or 5e6) + c.idx * 0.001
+		local rank = (blockedStep(step) and 1e8 or 0) + (c.held and 0 or 1e7) + (dist or 5e6) + c.idx * 0.001
 		if not bestRank or rank < bestRank then best, bestRank = c.idx, rank end
 	end
 	return best or math.min(lastProof + 1, #guide.steps), actionable, done, lastProof
