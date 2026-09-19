@@ -4,7 +4,7 @@
 -- beta harvest). Regenerate rather than hand-editing, or the next harvest will overwrite you.
 -- --regen-args: 405 --name "Horde 30-35: Desolace" --faction "Horde" --levels "30-35" --next "Horde 35-40: Stranglethorn Vale" --zone "Desolace" --max-level "37" --min-level "27"
 --
--- 30 quests on uiMapID 405 had a known giver position; 14 carried a prerequisite chain, which is
+-- 31 quests on uiMapID 405 had a known giver position; 15 carried a prerequisite chain, which is
 -- what fixes the order. Quests the data cannot place yet are not in here at all -- smart mode
 -- covers those, and they appear as soon as someone walks past their giver.
 local Guide = _G.Lodestar:GetModule("Guide")
@@ -18,9 +18,40 @@ Guide:RegisterGuide([[
 #note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.
 
 step
-  .goto Desolace,56.3,59.7
-  .accept 1368 >>Accept Gelkis Alliance (lvl 30) from Gurda Wildmane
-  .accept 1367 >>Accept Magram Alliance (lvl 30) from Gurda Wildmane
+  .goto Desolace,52.6,54.4
+  .accept 1434 >>Accept Befouled by Satyr (lvl 25) from Takata Steelblade
+  .accept 1433 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
+
+step
+  .goto Desolace,75.3,19.3
+  .complete 1434 >>Finish Befouled by Satyr
+
+step
+  .goto Desolace,52.2,53.4
+  .turnin 1433 >>Turn in Alliance Relations to Maurin Bonesplitter
+
+step
+  .goto Desolace,52.6,54.4
+  .turnin 1434 >>Turn in Befouled by Satyr to Takata Steelblade
+  .accept 1436 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
+
+step
+  .optional >>Handed in outside this zone, to Keldran
+  .turnin 1436 >>Turn in Alliance Relations to Keldran (not in this zone)
+
+step
+  .goto Desolace,56.2,59.6
+  .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
+
+step
+  .goto Desolace,73.4,41.6
+  .complete 1365 >>Finish Khan Dez'hepah
+
+step
+  .goto Desolace,56.2,59.6
+  .turnin 1365 >>Turn in Khan Dez'hepah to Felgur Twocuts
+  .accept 1368 >>Accept Gelkis Alliance (lvl 30) from Felgur Twocuts
+  .accept 1367 >>Accept Magram Alliance (lvl 30) from Felgur Twocuts
 
 step
   .goto Desolace,36.2,79.2
@@ -41,6 +72,12 @@ step
 step
   .goto Desolace,36.2,79.2
   .turnin 1370 >>Turn in Stealing Supplies to Uthek the Wise
+
+step
+  .xp 31
+
+step
+  .goto Desolace,36.2,79.2
   .accept 1373 >>Accept Ongeku (lvl 30) from Uthek the Wise
 
 step
@@ -69,9 +106,6 @@ step
   .turnin 1380 >>Turn in Khan Hratha to Uthek the Wise
 
 step
-  .xp 31
-
-step
   .goto Desolace,39.5,78.1
   .accept 5821 >>Accept Bodyguard for Hire (lvl 30) from Cork Gizelton
 
@@ -89,15 +123,6 @@ step
 
 step
   .goto Desolace,56.2,59.6
-  .accept 1365 >>Accept Khan Dez'hepah (lvl 30) from Felgur Twocuts
-
-step
-  .goto Desolace,73.4,41.6
-  .complete 1365 >>Finish Khan Dez'hepah
-
-step
-  .goto Desolace,56.2,59.6
-  .turnin 1365 >>Turn in Khan Dez'hepah to Felgur Twocuts
   .accept 1366 >>Accept Centaur Bounty (lvl 30) from Felgur Twocuts
 
 step
@@ -107,19 +132,6 @@ step
 step
   .goto Desolace,56.2,59.6
   .turnin 1366 >>Turn in Centaur Bounty to Felgur Twocuts
-
-step
-  .goto Desolace,52.6,54.4
-  .accept 1436 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
-  .accept 1433 >>Accept Alliance Relations (lvl 30) from Takata Steelblade
-
-step
-  .goto Desolace,52.2,53.4
-  .turnin 1433 >>Turn in Alliance Relations to Maurin Bonesplitter
-
-step
-  .optional >>Handed in outside this zone, to Keldran
-  .turnin 1436 >>Turn in Alliance Relations to Keldran (not in this zone)
 
 step
   .xp 32

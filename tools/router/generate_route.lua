@@ -152,6 +152,9 @@ local function npcName(id)
 end
 
 local quests = {}
+-- Everything placeable in this zone, including what the level window will reject. Kept separately
+-- because the window must not be allowed to sever a chain: see the selection pass below.
+local candidates = {}
 
 -- Classic's class bitmask. A quest with no class field is open to every class.
 --
@@ -364,8 +367,9 @@ for qid in pairs(ids) do
 	local hardMin = (vq and vq.min) or (aq and aq.min)
 	local reachable = not hardMin or hardMin <= END_LEVEL
 	local inRange = reachable and (not lvl or (lvl <= MAX_LEVEL and lvl >= MIN_LEVEL))
-	if gx and allowed and inRange then
-		quests[qid] = {
+	if gx and allowed then
+		candidates[qid] = {
+			inRange = inRange,
 			id = qid, t = title, lvl = lvl, giver = giver, ender = ender,
 			gx = gx, gy = gy, ex = ex or gx, ey = ey or gy,
 			-- Whether that turn-in position is real or borrowed from the giver. "Elmore's Task" is
@@ -390,6 +394,47 @@ for qid in pairs(ids) do
 			min = (vq and vq.min) or (aq and aq.min) or nil,
 			classes = classNames(vq and vq.class),
 		}
+	end
+end
+
+-- Which candidates actually make the route ---------------------------------------------------------
+--
+-- The level window trims a zone's easter eggs and its out-of-range content, and it must not be
+-- allowed to sever a chain. "The Hermit" is level 17 and Duskwood's route floors at 18, so the floor
+-- dropped it -- and the route then went on to offer "Supplies from Darkshire", which the client will
+-- not hand over until The Hermit has been turned in. A step nobody can action is worse than one a few
+-- levels under, so a quest that opens something the route keeps comes back in regardless of the
+-- window.
+--
+-- `prev` is a list of ALTERNATIVES, so only one of them needs pulling in: the one closest to the
+-- window, being the one the player is likeliest to be the right level for. Run to a fixpoint,
+-- because a prerequisite has prerequisites of its own.
+for qid, q in pairs(candidates) do
+	if q.inRange then quests[qid] = q end
+end
+
+local function levelGap(q)
+	if not q or not q.lvl then return 0 end
+	if q.lvl < MIN_LEVEL then return MIN_LEVEL - q.lvl end
+	if q.lvl > MAX_LEVEL then return q.lvl - MAX_LEVEL end
+	return 0
+end
+
+local pulled = true
+while pulled do
+	pulled = false
+	for _, q in pairs(quests) do
+		local satisfied, best = false, nil
+		for _, p in ipairs(q.prev or {}) do
+			if quests[p] then satisfied = true break end
+			if candidates[p] and (not best or levelGap(candidates[p]) < levelGap(candidates[best])) then
+				best = p
+			end
+		end
+		if not satisfied and best then
+			quests[best] = candidates[best]
+			pulled = true
+		end
 	end
 end
 

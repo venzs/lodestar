@@ -4,7 +4,7 @@
 -- beta harvest). Regenerate rather than hand-editing, or the next harvest will overwrite you.
 -- --regen-args: 331 --name "Alliance 20-25: Ashenvale" --faction "Alliance" --levels "20-25" --next "Alliance 25-30: Duskwood" --zone "Ashenvale" --max-level "28" --min-level "17"
 --
--- 34 quests on uiMapID 331 had a known giver position; 24 carried a prerequisite chain, which is
+-- 38 quests on uiMapID 331 had a known giver position; 26 carried a prerequisite chain, which is
 -- what fixes the order. Quests the data cannot place yet are not in here at all -- smart mode
 -- covers those, and they appear as soon as someone walks past their giver.
 local Guide = _G.Lodestar:GetModule("Guide")
@@ -16,6 +16,59 @@ Guide:RegisterGuide([[
 #next Alliance 25-30: Duskwood
 #author Lodestar (generated)
 #note Generated from harvested and ATT data. Order follows the quest chains; positions are where players actually found things.
+
+step
+  .goto Ashenvale,26.2,38.7
+  .accept 970 >>Accept The Tower of Althalaxx (lvl 13) from Delgren the Purifier
+
+step
+  .goto Ashenvale,31.1,30.3
+  .complete 970 >>Finish The Tower of Althalaxx
+
+step
+  .goto Ashenvale,26.2,38.7
+  .turnin 970 >>Turn in The Tower of Althalaxx to Delgren the Purifier
+  .accept 973 >>Accept The Tower of Althalaxx (lvl 13) from Delgren the Purifier
+
+step
+  .goto Ashenvale,25.3,60.7
+  .complete 973 >>Finish The Tower of Althalaxx
+
+step
+  .goto Ashenvale,26.2,38.7
+  .turnin 973 >>Turn in The Tower of Althalaxx to Delgren the Purifier
+  .accept 1010 >>Accept Bathran's Hair (lvl 20) from Delgren the Purifier
+
+step
+  .goto Ashenvale,31.9,22.9
+  .complete 1010 >>Finish Bathran's Hair
+
+step
+  .goto Ashenvale,26.4,38.6
+  .turnin 1010 >>Turn in Bathran's Hair to Orendil Broadleaf
+  .accept 1020 >>Accept Orendil's Cure (lvl 20) from Orendil Broadleaf
+
+step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1020 >>Turn in Orendil's Cure to Pelturas Whitemoon
+  .accept 1033 >>Accept Elune's Tear (lvl 20) from Pelturas Whitemoon
+
+step
+  .goto Ashenvale,46.1,46.3
+  .complete 1033 >>Finish Elune's Tear
+
+step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1033 >>Turn in Elune's Tear to Pelturas Whitemoon
+  .accept 1034 >>Accept The Ruins of Stardust (lvl 20) from Pelturas Whitemoon
+
+step
+  .goto Ashenvale,33.5,67.6
+  .complete 1034 >>Finish The Ruins of Stardust
+
+step
+  .goto Ashenvale,37.4,51.8
+  .turnin 1034 >>Turn in The Ruins of Stardust to Pelturas Whitemoon
 
 step
   .goto Ashenvale,36.6,49.6
@@ -33,6 +86,9 @@ step
 step
   .goto Ashenvale,36.6,49.6
   .turnin 1054 >>Turn in Culling the Threat to Raene Wolfrunner
+
+step
+  .xp 21
 
 step
   .goto Ashenvale,20.3,42.3
@@ -75,9 +131,6 @@ step
   .turnin 1026 >>Turn in Raene's Cleansing to Shael'dryn
 
 step
-  .xp 21
-
-step
   .goto Ashenvale,36.6,49.6
   .accept 1030 >>Accept Raene's Cleansing (lvl 18) from Raene Wolfrunner
 
@@ -104,12 +157,27 @@ step
   .turnin 1046 >>Turn in Raene's Cleansing to Raene Wolfrunner
 
 step
-  .goto Ashenvale,35.8,49.1
-  .accept 1056 >>Accept Journey to Stonetalon Peak (lvl 18) from Faldreas Goeth'Shael
+  .xp 22
 
 step
-  .optional >>Handed in outside this zone, to Keeper Albagorm
-  .turnin 1056 >>Turn in Journey to Stonetalon Peak to Keeper Albagorm (not in this zone)
+  .goto Ashenvale,34.7,48.8
+  .accept 1008 >>Accept The Zoram Strand (lvl 14) from Shindrell Swiftfire
+
+step
+  .goto Ashenvale,10.7,24.2
+  .complete 1008 >>Finish The Zoram Strand
+
+step
+  .goto Ashenvale,34.7,48.8
+  .turnin 1008 >>Turn in The Zoram Strand to Shindrell Swiftfire
+  .accept 1134 >>Accept Pridewings of Stonetalon (lvl 18) from Shindrell Swiftfire
+
+step
+  .complete 1134 >>Finish Pridewings of Stonetalon
+
+step
+  .goto Ashenvale,34.7,48.8
+  .turnin 1134 >>Turn in Pridewings of Stonetalon to Shindrell Swiftfire
 
 step
   .goto Ashenvale,34.9,49.8
@@ -125,53 +193,15 @@ step
   .turnin 1070 >>Turn in On Guard in Stonetalon to Kaela Shadowspear (not in this zone)
 
 step
-  .goto Ashenvale,34.7,48.8
-  .accept 1134 >>Accept Pridewings of Stonetalon (lvl 18) from Shindrell Swiftfire
+  .goto Ashenvale,35.8,49.1
+  .accept 1056 >>Accept Journey to Stonetalon Peak (lvl 18) from Faldreas Goeth'Shael
 
 step
-  .complete 1134 >>Finish Pridewings of Stonetalon
-
-step
-  .goto Ashenvale,34.7,48.8
-  .turnin 1134 >>Turn in Pridewings of Stonetalon to Shindrell Swiftfire
-
-step
-  .xp 22
-
-step
-  .goto Ashenvale,26.4,38.6
-  .accept 1010 >>Accept Bathran's Hair (lvl 20) from Orendil Broadleaf
-
-step
-  .goto Ashenvale,31.9,22.9
-  .complete 1010 >>Finish Bathran's Hair
-
-step
-  .goto Ashenvale,26.4,38.6
-  .turnin 1010 >>Turn in Bathran's Hair to Orendil Broadleaf
-  .accept 1020 >>Accept Orendil's Cure (lvl 20) from Orendil Broadleaf
+  .optional >>Handed in outside this zone, to Keeper Albagorm
+  .turnin 1056 >>Turn in Journey to Stonetalon Peak to Keeper Albagorm (not in this zone)
 
 step
   .goto Ashenvale,37.4,51.8
-  .turnin 1020 >>Turn in Orendil's Cure to Pelturas Whitemoon
-  .accept 1033 >>Accept Elune's Tear (lvl 20) from Pelturas Whitemoon
-
-step
-  .goto Ashenvale,46.1,46.3
-  .complete 1033 >>Finish Elune's Tear
-
-step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1033 >>Turn in Elune's Tear to Pelturas Whitemoon
-  .accept 1034 >>Accept The Ruins of Stardust (lvl 20) from Pelturas Whitemoon
-
-step
-  .goto Ashenvale,33.5,67.6
-  .complete 1034 >>Finish The Ruins of Stardust
-
-step
-  .goto Ashenvale,37.4,51.8
-  .turnin 1034 >>Turn in The Ruins of Stardust to Pelturas Whitemoon
   .accept 1035 >>Accept Fallen Sky Lake (lvl 20) from Pelturas Whitemoon
 
 step
@@ -192,14 +222,17 @@ step
 step
   .goto Ashenvale,53.5,46.2
   .turnin 1027 >>Turn in Raene's Cleansing to Shael'dryn
+
+step
+  .xp 23
+
+step
+  .goto Ashenvale,53.5,46.2
   .accept 1028 >>Accept Raene's Cleansing (lvl 18) from Shael'dryn
 
 step
   .goto Ashenvale,56.4,49.2
   .turnin 1028 >>Turn in Raene's Cleansing
-
-step
-  .xp 23
 
 step
   .goto Ashenvale,49.8,67.2
@@ -239,14 +272,6 @@ step
 step
   .goto Ashenvale,61.9,83.8
   .turnin 8386 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
-  .accept 7921 >>Accept Talismans of Merit (lvl 25) from Alliance Brigadier General
-
-step
-  .complete 7921 >>Finish Talismans of Merit
-
-step
-  .goto Ashenvale,61.9,83.9
-  .turnin 7921 >>Turn in Talismans of Merit to Sentinel Farsong
 
 step
   .goto Ashenvale,26.2,38.9
@@ -267,12 +292,6 @@ step
 step
   .goto Ashenvale,14.8,31.3
   .turnin 1007 >>Turn in The Ancient Statuette to Talen
-
-step
-  .xp 24
-
-step
-  .goto Ashenvale,14.8,31.3
   .accept 1009 >>Accept Ruuzel (lvl 20) from Talen
 
 step
@@ -282,6 +301,9 @@ step
 step
   .goto Ashenvale,14.8,31.3
   .turnin 1009 >>Turn in Ruuzel to Talen
+
+step
+  .xp 24
 
 step
   .goto Ashenvale,34.7,48.8
@@ -308,6 +330,25 @@ step
 step
   .goto Ashenvale,85.3,44.7
   .turnin 1012 >>Turn in Insane Druids to Kayneth Stillwind
+
+step
+  .goto Ashenvale,61.9,83.9
+  .accept 7788 >>Accept Vanquish the Invaders! (lvl 29) from Sentinel Farsong
+
+step
+  .complete 7788 >>Finish Vanquish the Invaders!
+
+step
+  .goto Ashenvale,61.9,83.9
+  .turnin 7788 >>Turn in Vanquish the Invaders! to Sentinel Farsong
+  .accept 7921 >>Accept Talismans of Merit (lvl 25) from Sentinel Farsong
+
+step
+  .complete 7921 >>Finish Talismans of Merit
+
+step
+  .goto Ashenvale,61.9,83.9
+  .turnin 7921 >>Turn in Talismans of Merit to Sentinel Farsong
 
 step
   .xp 25 >>You should be 25 by now. If you are not, the rest of this zone will not be offered to you yet -- finish the optional quests above, or kill your way up, before carrying on.

@@ -81,21 +81,21 @@ step
 
 step
   .goto Redridge Mountains,33.5,49.0
-  .accept 115 >>Accept Shadow Magic (lvl 18) from Marshal Marris
   .accept 19 >>Accept Tharil'zun (lvl 18) from Marshal Marris
-
-step
-  .goto Redridge Mountains,68.3,56.3
-  .complete 115 >>Finish Shadow Magic
+  .accept 115 >>Accept Shadow Magic (lvl 18) from Marshal Marris
 
 step
   .goto Redridge Mountains,69.6,59.7
   .complete 19 >>Finish Tharil'zun
 
 step
+  .goto Redridge Mountains,68.3,56.3
+  .complete 115 >>Finish Shadow Magic
+
+step
   .goto Redridge Mountains,33.5,49.0
-  .turnin 115 >>Turn in Shadow Magic to Marshal Marris
   .turnin 19 >>Turn in Tharil'zun to Marshal Marris
+  .turnin 115 >>Turn in Shadow Magic to Marshal Marris
 
 step
   .goto Redridge Mountains,32.1,48.6

@@ -108,8 +108,8 @@ step
   .goto Hillsbrad Foothills,48.1,59.1
   .accept 505 >>Accept Syndicate Assassins (lvl 26) from Magistrate Henry Maleb
   .accept 512 >>Accept Noble Deaths (lvl 26) from Magistrate Henry Maleb
-  .accept 523 >>Accept Baron's Demise (lvl 30) from Magistrate Henry Maleb
   .accept 537 >>Accept Dark Council (lvl 30) from Magistrate Henry Maleb
+  .accept 523 >>Accept Baron's Demise (lvl 30) from Magistrate Henry Maleb
 
 step
   .goto Hillsbrad Foothills,60.0,9.6
@@ -120,17 +120,17 @@ step
   .complete 512 >>Finish Noble Deaths
 
 step
-  .complete 523 >>Finish Baron's Demise
+  .complete 537 >>Finish Dark Council
 
 step
-  .complete 537 >>Finish Dark Council
+  .complete 523 >>Finish Baron's Demise
 
 step
   .goto Hillsbrad Foothills,48.1,59.1
   .turnin 505 >>Turn in Syndicate Assassins to Magistrate Henry Maleb
-  .turnin 523 >>Turn in Baron's Demise to Magistrate Henry Maleb
-  .turnin 512 >>Turn in Noble Deaths to Magistrate Henry Maleb
   .turnin 537 >>Turn in Dark Council to Magistrate Henry Maleb
+  .turnin 512 >>Turn in Noble Deaths to Magistrate Henry Maleb
+  .turnin 523 >>Turn in Baron's Demise to Magistrate Henry Maleb
 
 step
   .xp 32

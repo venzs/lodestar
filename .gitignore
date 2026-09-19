@@ -23,3 +23,8 @@ tools/pfquest/src/
 # the previous one, so an archived copy is sometimes the only copy left.
 data/beta/*.lua
 !data/beta/archive/
+
+# Files delivered into the repo folder from a Claude session -- patches, exports, scratch output.
+# They are working files that happen to land here, and a `git add -A` will otherwise commit them:
+# a 1,009-line patch of a commit already in this history went in exactly that way.
+Claude outputs/

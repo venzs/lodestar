@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **A level floor no longer severs a quest chain.** `--min-level` exists so a 20-25 route does not
+  open on "Accept CLUCK! (lvl 1) from Chicken", and it was also cutting the opening quests of chains
+  the route goes on to use: The Tower of Althalaxx and The Zoram Strand start at 13 and 14 in an
+  Ashenvale route that floors at 17, so the route offered their later steps and the client refused to
+  hand them over — the same dead step as a mage quest given to a warrior, arrived at from a different
+  direction. A quest that opens something the route keeps is now pulled back in regardless of the
+  window, to a fixpoint, since a prerequisite has prerequisites of its own. `pre` is a list of
+  alternatives rather than requirements, so only the one nearest the window is taken and not all of
+  them. Ashenvale recovers ten steps, Desolace three, and four dead steps become actionable.
+- The honest half of that problem is still open: 37 steps whose prerequisite starts in a different
+  zone (21 of them) or has no giver recorded in any source (11). A route cannot satisfy those, and
+  emitting them as ordinary steps hands the player something the client will refuse. They want to
+  become optional steps that name what they need and where it starts, which is the next piece of
+  work rather than something to quietly drop.
+
 - **A step that says "go and do this" now says where.** 124 steps across the six generated routes
   carried no `.goto` at all — every no-`.goto` warning the guide lint reported, and every one of them
   in a generated route; the hand-written routes had none. The cause was a single line: objective
