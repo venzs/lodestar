@@ -13,6 +13,8 @@ local FOOTER = 52            -- column header (18) + its 2px gap, then the hint 
 local RESTRICTED_NOTICE = "Addon messages are restricted on this realm — showing the guild roster only"
 local RESTRICTED_SHORT = "roster only (addon messages restricted)"
 
+local BOARD_ANCHOR = { point = "CENTER", rel = "CENTER", x = 0, y = 0 }
+
 local board
 local rows = {}
 local offset = 0
@@ -142,8 +144,8 @@ local function createBoard()
 	board:SetScript("OnDragStart", board.StartMoving)
 	board:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
-		local point, _, _, x, y = self:GetPoint(1)
-		Guild.db.profile.board.pos = { point = point or "CENTER", x = x or 0, y = y or 0 }
+		-- The whole anchor: saving the point without its relativePoint moved the board on every login.
+		Lodestar:SaveAnchor(self, Guild.db.profile.board.pos, "CENTER")
 	end)
 	board:SetBackdrop({
 		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
@@ -266,9 +268,7 @@ function Guild:ToggleBoard()
 		board:Hide()
 		return
 	end
-	local pos = self.db.profile.board.pos
-	board:ClearAllPoints()
-	board:SetPoint(pos.point or "CENTER", UIParent, pos.point or "CENTER", pos.x or 0, pos.y or 0)
+	Lodestar:ApplyAnchor(board, self.db.profile.board.pos, UIParent, BOARD_ANCHOR)
 	offset = 0
 	board:Show()
 end

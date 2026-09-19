@@ -200,7 +200,12 @@ function Lodestar:RunProbe()
 	local existing = _G.LodestarProbes
 	if type(existing) == "table" then
 		probe.guideDiag = existing.guideDiag
+		probe.guideDecisions = existing.guideDecisions
 		probe.blocked = existing.blocked
+		-- The session counter is the one number here that means nothing unless it is never reset.
+		probe.sessions = existing.sessions
+		probe.sawPreviousSession = existing.sawPreviousSession
+		probe.sessionStarts = existing.sessionStarts
 	end
 	_G.LodestarProbes = probe
 	self:Say(L["Probe written to LodestarProbes (%d symbols checked, %d missing). Log out or /reload to flush it to disk."], total, missing)

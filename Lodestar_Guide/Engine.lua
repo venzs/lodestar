@@ -43,6 +43,31 @@ function Guide:RegisterGuide(text, source)
 	return guide
 end
 
+-- Why the guide is where it is ------------------------------------------------------------------
+--
+-- Four rounds of this were debugged from saved files written BEFORE the fix being tested had loaded,
+-- and from reading the code. That is how you get four fixes that each reproduce a real bug offline
+-- and none of which is the one the player is hitting.
+--
+-- So the engine now writes down what it decided and what it decided it from, at the moment it
+-- decides: which guides were considered and why each was rejected, what the character looked like to
+-- the filters, what the saved progress said, what the quest log suggested, and which of those won.
+-- `/lode guide why` prints the last one; it is mirrored into LodestarProbes.guideDecisions so it
+-- also survives to disk on the next /reload and can be read without the player transcribing chat.
+local MAX_DECISIONS = 8
+
+function Guide:RecordDecision(kind, data)
+	data.kind = kind
+	data.at = date and date("%Y-%m-%d %H:%M:%S") or nil
+	data.version = Lodestar.version
+	self.decisions = self.decisions or {}
+	tinsert(self.decisions, data)
+	while #self.decisions > MAX_DECISIONS do tremove(self.decisions, 1) end
+	if type(_G.LodestarProbes) ~= "table" then _G.LodestarProbes = {} end
+	_G.LodestarProbes.guideDecisions = self.decisions
+	return data
+end
+
 --- Player descriptors used for guide/step filters (all lower-case).
 function Guide:PlayerFilters()
 	local raceName, raceFile = UnitRace("player")
@@ -107,6 +132,7 @@ local PICK_LEVEL_GRACE = 2   -- levels: auto-pick will load a route starting thi
 function Guide:PickGuide()
 	local pf = self:PlayerFilters()
 	local best, bestScore
+	local considered = {}
 	for _, g in ipairs(self.guides) do
 		local outleveled = g.maxLevel and pf.level > g.maxLevel
 		-- Fail closed on an unknown faction. Listing every guide when we cannot tell is friendly
@@ -130,8 +156,31 @@ function Guide:PickGuide()
 				score = specificity
 			end
 			if score and (not bestScore or score > bestScore) then best, bestScore = g, score end
+			considered[#considered + 1] = { name = g.name, score = score,
+				why = score and "considered" or ("starts " .. ahead .. " levels ahead, past the " .. PICK_LEVEL_GRACE .. "-level grace") }
+		else
+			-- Name the filter that rejected it. "No route for your character" is not a diagnosis, and
+			-- a race or faction string the guide spells differently from the client is invisible
+			-- without this -- which is exactly the failure that leaves a levelling character in smart
+			-- mode wondering why the route it can see in /lode guide list never loads.
+			local why
+			if g.faction ~= "Both" and pf.faction and g.faction ~= pf.faction then
+				why = ("faction: guide is %s, character is %s"):format(tostring(g.faction), tostring(pf.faction))
+			elseif g.classes and not (g.classes[pf.class] or g.classes[pf.className]) then
+				why = ("class: character is %s/%s"):format(tostring(pf.class), tostring(pf.className))
+			elseif g.races and not (g.races[pf.race] or g.races[pf.raceFile]) then
+				why = ("race: character is %s/%s"):format(tostring(pf.race), tostring(pf.raceFile))
+			elseif outleveled then
+				why = ("outlevelled: guide tops out at %d, character is %d"):format(g.maxLevel or -1, pf.level or -1)
+			elseif unknownFaction then
+				why = "the client has not said which faction this character is yet"
+			else
+				why = "did not apply"
+			end
+			considered[#considered + 1] = { name = g.name, why = why }
 		end
 	end
+	self:RecordDecision("pick", { player = pf, guides = considered, chose = best and best.name or nil, guideCount = #self.guides })
 	return best
 end
 
@@ -167,6 +216,17 @@ function Guide:LoadGuide(name, stepIndex)
 	self.finished = nil
 	self.db.char.currentGuide = guide.name
 	local saved = self.db.char.progress[guide.name]
+	local why = { guide = guide.name, steps = #guide.steps, saved = saved, pinned = pinned,
+		player = self:PlayerFilters(), completedKnown = completedKnown(self) }
+	-- Saved progress parked on the LAST step of a route this character never actually finished is
+	-- the clamp at the bottom of this function, not a position. A start suggestion of 40 in a
+	-- 36-step route gets clamped to 36 and written back as progress, and from then on the character
+	-- is pinned to the end of the zone: the window shows the last turn-in forever, and the next
+	-- login reads it as a finished guide and falls through to smart mode. Reconcile instead.
+	if saved and saved >= #guide.steps and not (self.db.char.finished or {})[guide.name] then
+		why.droppedSaved = "saved progress was the last step of a route this character never finished"
+		saved = nil
+	end
 	local synced
 	if not stepIndex then
 		-- Sync to the character, not to the saved position: a character that is mid-way (or has played
@@ -176,7 +236,11 @@ function Guide:LoadGuide(name, stepIndex)
 		-- But a saved step that CANNOT be acted on is not a position, it is a dead end: it parks the
 		-- window on "turn in X" for a quest with three of eight kills done and nothing will ever
 		-- advance it, because the thing it waits for cannot happen from there. Reconcile instead.
-		if saved and self:StepBlocked(guide.steps[saved]) then saved = nil end
+		if saved and self:StepBlocked(guide.steps[saved]) then
+			why.droppedSaved = "saved step cannot be acted on from where it stands"
+			saved = nil
+		end
+		why.suggested, why.openBefore = start, open
 		if not saved then
 			-- No saved progress: this character has never run this guide, so it may be half way
 			-- through the zone already. Resume from what it actually holds rather than from step 1.
@@ -193,8 +257,16 @@ function Guide:LoadGuide(name, stepIndex)
 		end
 	end
 	self.stepIndex = stepIndex or saved or 1
+	why.wanted = self.stepIndex
 	if self.stepIndex < 1 then self.stepIndex = 1 end
-	if self.stepIndex > #guide.steps then self.stepIndex = #guide.steps end
+	if self.stepIndex > #guide.steps then
+		-- Worth writing down rather than quietly correcting: the only way to land here is a start
+		-- suggestion that ran off the end of the route, and that is a bug in the suggestion.
+		why.clamped = true
+		self.stepIndex = #guide.steps
+	end
+	why.chose = self.stepIndex
+	self:RecordDecision("load", why)
 	self.db.char.progress[guide.name] = self.stepIndex
 	if synced and self.stepIndex > 1 then
 		Lodestar:Msg("Synced to step %d of %d from your quest log%s%s.", self.stepIndex, #guide.steps,
@@ -295,6 +367,11 @@ function Guide:FinishGuide(manual)
 	local guide = self.current
 	if not guide then return end
 	self.db.char.progress[guide.name] = #guide.steps
+	-- The record of "this character finished this route". Reaching the last step is not enough on
+	-- its own: LoadGuide clamps an over-eager start suggestion to the last step too, and that used
+	-- to be indistinguishable from this.
+	self.db.char.finished = self.db.char.finished or {}
+	self.db.char.finished[guide.name] = true
 	if guide.next and self.guideByName[guide.next] then
 		Lodestar:Msg("Finished %s — loading %s.", guide.name, guide.next)
 		self:LoadGuide(guide.next, 1)
@@ -890,10 +967,17 @@ local function handleGuideSlash(rest)
 		local n = tonumber(arg)
 		if n then Guide:SetStep(n) Guide:EvaluateStep() else Lodestar:Say("Usage: /lode guide step <number>") end
 	elseif verb == "reset" then
-		if Guide.current then Guide.db.char.progress[Guide.current.name] = 1 Guide:LoadGuide(Guide.current.name, 1) end
+		if Guide.current then
+			local name = Guide.current.name
+			Guide.db.char.progress[name] = 1
+			if Guide.db.char.finished then Guide.db.char.finished[name] = nil end
+			Guide:LoadGuide(name, 1)
+		end
 	elseif verb == "auto" then
 		local g = Guide:PickGuide()
 		if g then Guide:LoadGuide(g.name) else Lodestar:Say("No installed guide fits this character; using smart mode.") Guide:UnloadGuide() end
+	elseif verb == "why" then
+		Guide:PrintWhy()
 	elseif verb == "sync" then
 		if Guide.current then Guide:SyncToQuestLog() else Lodestar:Say("No guide loaded — smart mode is already built from your quest log.") end
 	elseif verb == "smart" or verb == "unload" then
@@ -927,10 +1011,50 @@ function Guide:SetCompletionist(on)
 	self:RefreshStepFrame()
 end
 
+--- `/lode guide why`: the last routing decisions, in the order they were made.
+---
+--- This is the answer to "it's on the wrong quest" that does not require guessing. It says which
+--- guide was chosen and which were rejected and by which filter, what the saved progress was and
+--- whether it was believed, what the quest log suggested, and whether the completed-quest list had
+--- arrived when any of that was decided -- which is the single most common reason for a wrong answer
+--- at login, because for the first seconds the client says "not completed" about everything.
+function Guide:PrintWhy()
+	local list = self.decisions
+	if not (list and #list > 0) then
+		Lodestar:Say("No routing decisions recorded yet. They are written when a guide is picked or loaded.")
+		return
+	end
+	for _, d in ipairs(list) do
+		if d.kind == "pick" then
+			local p = d.player or {}
+			Lodestar:Say("|cffffff7fpick|r %s — level %s %s (%s), %s; %d guide%s installed",
+				d.at or "?", tostring(p.level), tostring(p.race ~= "" and p.race or p.raceFile),
+				tostring(p.class), tostring(p.faction or "faction unknown"), d.guideCount or 0, (d.guideCount == 1) and "" or "s")
+			for _, g in ipairs(d.guides or {}) do
+				Lodestar:Say("    %s%s|r — %s", g.score and "|cff7fff7f" or "|cff999999", g.name, g.why or "?")
+			end
+			Lodestar:Say("    chose: %s", d.chose or "|cffff9933nothing — smart mode|r")
+		elseif d.kind == "load" then
+			Lodestar:Say("|cffffff7fload|r %s — %s (%d steps)", d.at or "?", d.guide or "?", d.steps or 0)
+			Lodestar:Say("    saved progress: %s%s", d.saved and tostring(d.saved) or "none",
+				d.droppedSaved and (" |cffff9933(ignored: " .. d.droppedSaved .. ")|r") or "")
+			Lodestar:Say("    quest log suggested: %s%s", d.suggested and tostring(d.suggested) or "n/a",
+				d.openBefore and d.openBefore > 0 and (", " .. d.openBefore .. " earlier step(s) still open") or "")
+			Lodestar:Say("    started at %s%s%s", tostring(d.chose),
+				d.clamped and (" |cffff5555(clamped from " .. tostring(d.wanted) .. " — the suggestion ran off the end)|r") or "",
+				d.pinned and " (pinned by the caller)" or "")
+			if not d.completedKnown then
+				Lodestar:Say("    |cffff9933the completed-quest list had not arrived yet — this was re-done once it did|r")
+			end
+		end
+	end
+	Lodestar:Say("Also saved to LodestarProbes.guideDecisions (written to disk on /reload or logout).")
+end
+
 function Guide:EnableEngine()
 	if not self.engineSlash then
 		self.engineSlash = true
-		Lodestar:RegisterSlashVerb("guide", handleGuideSlash, "guide window and guide commands: /lode guide list|load|next|prev|reset")
+		Lodestar:RegisterSlashVerb("guide", handleGuideSlash, "guide window and guide commands: /lode guide list|load|next|prev|reset|why")
 	end
 	-- Restore or pick a guide once the world is ready.
 	self:ScheduleTimer(function()
@@ -940,8 +1064,7 @@ function Guide:EnableEngine()
 		-- Keep the character on its guide whatever its level: #levels is deliberately narrower than the
 		-- route (the packs say so) and only steers PickGuide. Only a finished guide with no installed
 		-- #next hands the character back to the auto-pick.
-		local progress = savedGuide and self.db.char.progress[saved]
-		local finished = savedGuide and progress and progress >= #savedGuide.steps
+		local finished = savedGuide and (self.db.char.finished or {})[saved]
 			and not (savedGuide.next and self.guideByName[savedGuide.next])
 		if savedGuide and not finished then
 			self:LoadGuide(saved)

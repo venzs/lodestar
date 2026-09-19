@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+- **Guide: the route was parking on its last step and then forgetting it existed.** Read out of a
+  real WTF folder rather than reasoned about: a level 6 character had `progress` of 36 on the
+  36-step Zephras Isle route, and the previous session's file still had `currentGuide` set while the
+  newer one did not. Nothing had been finished. A start suggestion had run off the end of the route,
+  `LoadGuide`'s clamp pinned it to the last step and wrote that back as progress, and the next login
+  read `progress == #steps` as a finished guide, fell through to auto-pick and cleared
+  `currentGuide`. From there the window was showing **smart mode**, not the route — which is what
+  "it's telling me to pick up a quest I've already done" and "it's telling me to turn in a quest I
+  haven't completed" actually were, and why four fixes to the route engine changed nothing.
+  Completion is now recorded explicitly by `FinishGuide` and nothing else; saved progress sitting on
+  the last step of a route that was never finished is treated as the clamp artifact it is and
+  reconciled instead; and the clamp says so when it fires.
+- **Guide: `/lode guide why`.** The engine now writes down what it decided and what it decided it
+  from, at the moment it decides — every guide considered and the filter that rejected each one, the
+  character as the filters see it, what the saved progress said and whether it was believed, what the
+  quest log suggested, and whether the completed-quest list had arrived yet. It is mirrored into
+  `LodestarProbes.guideDecisions`, so it survives to disk on the next `/reload` and can be read
+  without anyone transcribing chat. Four rounds of this bug were debugged from saved files written
+  *before* the fix under test had loaded; this is the thing that stops that.
+- **Every movable window remembers where it was left.** A WoW anchor is four values, and two of the
+  five movable frames — the XP tracker and the guild board — were saving three of them and throwing
+  the `relativePoint` away. Restoring the same offsets against a different corner puts the window
+  somewhere else; the player drags it back, that spot is saved, and it moves again next login. It
+  reads exactly like "the addon doesn't save its position" while the saved variables look perfectly
+  fine, which is why looking at them twice proved nothing. (In Abhi's file: the tracker saved at
+  `TOPLEFT (271, -290)` and came back as `(-10, -47)` with no point at all.) There is now one
+  implementation in `Core/Anchor.lua`, all five frames use it, `tools/check_anchors.py` fails the
+  build if a sixth rolls its own, and the smoke suite round-trips a drag on each of them — the two
+  frames that were broken were the two with no test.
+- **A session counter, to settle the saved-variable question by measuring it.** One integer that
+  nothing ever resets, written at login: reading 1 on every launch means the client is not handing
+  saved variables back at all; climbing across `/reload` but resetting after a quit means they only
+  survive in memory; climbing across a real relaunch means they work and any "it forgot" is
+  Lodestar's bug. Everything claimed below about this client is inference from file sizes and from
+  which addons happened to be installed when. This is the measurement instead.
+
 - **Saved variables are not coming back on the beta client.** Lodestar's four, and four standalone
   probe addons alongside them, are written faithfully at logout and handed back `nil` at login —
   which threw away the harvest, reset every frame to its default position and restarted guide

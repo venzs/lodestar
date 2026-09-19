@@ -9,6 +9,8 @@ local Guide = Lodestar:GetModule("Guide")
 
 local FormatDuration = Lodestar.FormatDuration
 
+local ARROW_ANCHOR = { point = "CENTER", rel = "CENTER", x = 0, y = 180 }
+
 local arrow                 -- frame
 local target                -- { mapID, x, y, title, subtitle, questID, kind }
 local lastDistance, lastDistanceTime, speed = nil, nil, 0
@@ -269,8 +271,7 @@ end
 --- As in StepFrame: the relativePoint has to be saved with the offsets, or the arrow drifts to a
 --- new spot on every login because the same x/y are measured against a different corner.
 local function savePosition()
-	local point, _, relativePoint, x, y = arrow:GetPoint(1)
-	Guide.db.profile.arrow.pos = { point = point or "CENTER", rel = relativePoint or point or "CENTER", x = x or 0, y = y or 0 }
+	Lodestar:SaveAnchor(arrow, Guide.db.profile.arrow.pos, "CENTER")
 end
 
 local function colorFor(relative)
@@ -452,9 +453,7 @@ function Guide:UpdateArrowFrame()
 		if self.DrawMinimapLine then self:DrawMinimapLine(nil) end
 		return
 	end
-	arrow:ClearAllPoints()
-	local point = cfg.pos.point or "CENTER"
-	arrow:SetPoint(point, UIParent, cfg.pos.rel or point, cfg.pos.x or 0, cfg.pos.y or 180)
+	Lodestar:ApplyAnchor(arrow, cfg.pos, UIParent, ARROW_ANCHOR)
 	arrow:SetScale(cfg.scale or 1)
 	layoutArrow()
 	arrow:Show()

@@ -22,6 +22,8 @@
 local Lodestar = _G.Lodestar
 local Guide = Lodestar:GetModule("Guide")
 
+local STEP_ANCHOR = { point = "TOPRIGHT", rel = "TOPRIGHT", x = -40, y = -200 }
+
 local DEFAULT_WIDTH, MIN_WIDTH, MAX_WIDTH = 360, 260, 520
 local MAX_ACTION_ROWS = 14        -- action rows / smart list rows (including group headers)
 local MAX_UPCOMING = 10           -- matches the maximum of the steps.upcoming option
@@ -115,8 +117,7 @@ end
 --- restoring with SetPoint(point, UIParent, point, ...) measures the same offsets against a
 --- different corner, and the window lands somewhere else on every login.
 local function savePosition()
-	local point, _, relativePoint, x, y = frame:GetPoint(1)
-	cfg().pos = { point = point or "TOPRIGHT", rel = relativePoint or point or "TOPRIGHT", x = x or 0, y = y or 0 }
+	Lodestar:SaveAnchor(frame, cfg().pos, "TOPRIGHT")
 end
 
 local function makeButton(parent, text, width)
@@ -1199,9 +1200,7 @@ function Guide:UpdateStepFrame()
 		frame:Hide()
 		return
 	end
-	frame:ClearAllPoints()
-	local point = c.pos.point or "TOPRIGHT"
-	frame:SetPoint(point, UIParent, c.pos.rel or point, c.pos.x or -40, c.pos.y or -200)
+	Lodestar:ApplyAnchor(frame, c.pos, UIParent, STEP_ANCHOR)
 	frame:SetScale(c.scale or 1)
 	frame:SetBackdropBorderColor(c.locked and 0.4 or 0.3, c.locked and 0.4 or 0.75, c.locked and 0.4 or 1, 0.9)
 	applyWidth(frameWidth())

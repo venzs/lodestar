@@ -24,6 +24,8 @@ jobs:
         run: python3 tools/check_events.py
       - name: Protected-call check
         run: python3 tools/check_protected.py
+      - name: Frame anchor check
+        run: python3 tools/check_anchors.py
       - name: Guide lint
         run: python3 tools/router/lint_guides.py
       - name: Smoke test under the WoW stub

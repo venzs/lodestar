@@ -30,6 +30,8 @@ echo "--- events ---"
 python3 tools/check_events.py
 echo "--- protected calls ---"
 python3 tools/check_protected.py
+echo "--- frame anchors ---"
+python3 tools/check_anchors.py
 echo "--- guides ---"
 python3 tools/router/lint_guides.py
 echo "--- smoke ---"

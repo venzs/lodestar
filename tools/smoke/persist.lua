@@ -278,6 +278,15 @@ elseif MODE == "read" or MODE == "readlegacy" then
 		check(_G.LodestarDB == nil and _G.LodestarShareDB == nil, "the legacy globals were cleared after adoption")
 	end
 
+	-- The session counter: session one wrote 1, so a client that hands saved variables back gives
+	-- the second session 2. This is the test that says whether reading them back works at all --
+	-- on the beta it is an open question, and the answer decides whether half the suite's
+	-- persistence work does anything for a player today or only once Blizzard fixes the client.
+	check(_G.LodestarProbes and _G.LodestarProbes.sessions == 2,
+		"the session counter climbed to 2, got " .. tostring(_G.LodestarProbes and _G.LodestarProbes.sessions))
+	check(_G.LodestarProbes and _G.LodestarProbes.sawPreviousSession == true,
+		"and this session can tell it saw the previous one")
+
 	samePos(G.db.profile.steps.pos, WANT.stepPos, "step frame position after a relog")
 	samePos(G.db.profile.arrow.pos, WANT.arrowPos, "arrow position after a relog")
 

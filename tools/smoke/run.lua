@@ -3330,6 +3330,123 @@ try("guide load before the completed list arrives", function()
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = wasProgress
 end)
 
+-- Parking on the last step is not the same as finishing the route.
+--
+-- Found in Abhi's own saved variables: progress on the 36-step Zephras Isle route sat at 36 for a
+-- level 6 character. Nothing had been finished -- a start suggestion had run off the end of the
+-- route and LoadGuide's clamp wrote the last step back as progress. From then on the window showed
+-- the final turn-in forever, and the NEXT login read "progress == #steps" as a finished guide, fell
+-- through to auto-pick, and cleared currentGuide. He was looking at smart mode's output while I was
+-- debugging the route engine.
+try("the last step reached by a clamp is not a finished guide", function()
+	local NAME = "Horde/Undead 1-5: Deathknell"
+	local wasGuide, wasProgress = G.db.char.currentGuide, G.db.char.progress[NAME]
+	local wasFinished = G.db.char.finished and G.db.char.finished[NAME]
+	local wasFlagged, wasLog = stub.flagged, stub.questLog
+	local realRace = UnitRace
+	UnitRace = function() return "Undead", "Scourge", 5 end
+	local guide = G.guideByName[NAME]
+
+	-- A character at the start of the zone, whose saved progress claims the very last step.
+	stub.flagged, stub.questLog = {}, {}
+	G.db.char.finished = {}
+	G.db.char.progress[NAME] = #guide.steps
+	G:LoadGuide(NAME)
+	check(G.stepIndex < #guide.steps,
+		("saved progress at the last step of an unfinished route is not believed, landed on %d of %d")
+			:format(G.stepIndex, #guide.steps))
+	check(not G.finished, "and the guide is not shown as finished")
+
+	-- The same number, but this time the character really did finish: FinishGuide said so.
+	G.db.char.progress[NAME] = #guide.steps
+	G.db.char.finished[NAME] = true
+	G:LoadGuide(NAME)
+	check(G.stepIndex == #guide.steps,
+		"a route the character actually finished still resumes at its last step, got " .. tostring(G.stepIndex))
+
+	-- And FinishGuide is what writes that down.
+	G.db.char.finished = {}
+	G:LoadGuide(NAME, 1)
+	G:FinishGuide(false)
+	check(G.db.char.finished[NAME] == true, "FinishGuide records the completion")
+
+	-- Deathknell has a #next and it is installed, so finishing it chains straight on.
+	check(G.current and G.current.name == "Horde/Undead 5-12: Tirisfal Glades",
+		"and chains to the next route in the pack, on " .. tostring(G.current and G.current.name))
+
+	-- `/lode guide reset` takes the completion back off, or a route could never be run twice.
+	G:LoadGuide(NAME, 1)
+	stub.slash("/lode guide reset")
+	check(not G.db.char.finished[NAME], "resetting the guide clears the completion record")
+
+	G.db.char.finished[NAME] = wasFinished or nil
+	stub.flagged, stub.questLog = wasFlagged, wasLog
+	UnitRace = realRace
+	G.db.char.currentGuide = wasGuide
+	G.db.char.progress[NAME] = wasProgress
+end)
+
+-- Every movable window remembers where it was left, including the half of the anchor that is easy
+-- to drop. Two of the five frames were saving the point and the offsets and throwing the
+-- relativePoint away; the guide window and the arrow had tests, the XP tracker and the guild board
+-- did not, and those were the two that were broken.
+try("every movable frame round-trips its whole anchor", function()
+	local frames = {
+		{ name = "XP tracker", frame = _G.LodestarXPFrame,
+			redraw = function() Lodestar:GetModule("Leveling"):UpdateXPFrame() end },
+		{ name = "guild board", frame = _G.LodestarGuildBoard,
+			redraw = function() local B = Lodestar:GetModule("Guild") B:ToggleBoard() B:ToggleBoard() end },
+		{ name = "guide window", frame = _G.LodestarGuideFrame, redraw = function() G:UpdateStepFrame() end },
+		{ name = "arrow", frame = _G.LodestarArrow, redraw = function() G:UpdateArrowFrame() end },
+	}
+	for _, f in ipairs(frames) do
+		if f.frame then
+			-- An anchor whose point and relativePoint differ, which is what dragging actually leaves.
+			f.frame:ClearAllPoints()
+			f.frame:SetPoint("BOTTOMRIGHT", UIParent, "TOPLEFT", 317, -529)
+			local stop = f.frame.GetScript and f.frame:GetScript("OnDragStop")
+			if stop then stop(f.frame) end
+			f.frame:ClearAllPoints()
+			f.redraw()
+			local p, _, rel, x, y = f.frame:GetPoint(1)
+			check(p == "BOTTOMRIGHT" and rel == "TOPLEFT" and x == 317 and y == -529,
+				("%s comes back where it was left, got %s/%s %s,%s"):format(f.name, tostring(p), tostring(rel), tostring(x), tostring(y)))
+		end
+	end
+end)
+
+-- The engine writes down why it is where it is. Four rounds of this were debugged blind.
+try("the engine records the decision that put it on a step", function()
+	local NAME = "Horde/Undead 1-5: Deathknell"
+	local realRace = UnitRace
+	UnitRace = function() return "Undead", "Scourge", 5 end
+	G.decisions = nil
+	_G.LodestarProbes = nil
+	G.db.char.progress[NAME] = nil
+	G:LoadGuide(NAME)
+	local last = G.decisions and G.decisions[#G.decisions]
+	check(last and last.kind == "load" and last.guide == NAME, "the load is recorded")
+	check(last and last.chose == G.stepIndex, "with the step it actually chose")
+	check(last and type(last.player) == "table" and last.player.race == "undead",
+		"and what the character looked like to the filters: " .. tostring(last and last.player and last.player.race))
+	check(type(_G.LodestarProbes) == "table" and _G.LodestarProbes.guideDecisions == G.decisions,
+		"mirrored into the probe table so it reaches disk on the next /reload")
+
+	-- PickGuide records the ones it turned down and why, which is the question "there is a route for
+	-- my character right there in the list, why is it not loading?".
+	G:PickGuide()
+	local pick
+	for i = #G.decisions, 1, -1 do if G.decisions[i].kind == "pick" then pick = G.decisions[i] break end end
+	check(pick and #pick.guides > 0, "the pick is recorded with every guide it considered")
+	local rejected
+	for _, g in ipairs(pick and pick.guides or {}) do
+		if g.why and g.why:find("race:") then rejected = g break end
+	end
+	check(rejected, "and names the filter that rejected each one")
+	UnitRace = realRace
+	G.db.char.progress[NAME] = nil
+end)
+
 -- A guide step with no .goto must still point somewhere if the addon knows where to go.
 --
 -- Three of the thirty-six Zephras steps carry a quest but no position, because nobody has recorded

@@ -50,3 +50,31 @@ function Lodestar:SavedTable(name)
 	if type(t) ~= "table" then t = {} _G[name] = t end
 	return t
 end
+
+--- Count this session, and say whether the previous one's count came back.
+---
+--- Everything written above about what this client does with saved variables is inference from file
+--- sizes and from which addons happened to be installed when. This is the measurement instead. It
+--- is one integer that nothing in the suite ever resets, written into LodestarProbes at login:
+---
+---   * it reads 1 on every launch  -> the client is not handing saved variables back from disk
+---   * it climbs across /reload but resets after a real quit -> the table only survives in memory
+---   * it climbs across a full quit and relaunch -> saved variables work, and any "it forgot where
+---     the window was" is a bug in Lodestar, not in the client
+---
+--- The third case is the one that matters, because it decides whether the frame-anchor and guide
+--- progress work is load-bearing or just correct-for-later. `sessionStarts` keeps the last few login
+--- times so a relaunch can be told from a /reload by the gap between them, which is the distinction
+--- the earlier probes kept getting wrong.
+local MAX_STARTS = 12
+
+function Lodestar:CountSession()
+	local probes = self:SavedTable("LodestarProbes")
+	local previous = tonumber(probes.sessions)
+	probes.sessions = (previous or 0) + 1
+	probes.sawPreviousSession = previous ~= nil
+	probes.sessionStarts = type(probes.sessionStarts) == "table" and probes.sessionStarts or {}
+	tinsert(probes.sessionStarts, date and date("%Y-%m-%d %H:%M:%S") or "?")
+	while #probes.sessionStarts > MAX_STARTS do tremove(probes.sessionStarts, 1) end
+	return probes.sessions, probes.sawPreviousSession
+end

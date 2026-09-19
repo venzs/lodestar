@@ -57,6 +57,11 @@ Guide.defaults = {
 	char = {
 		currentGuide = nil,          -- guide name
 		progress = {},               -- [guideName] = step index
+		finished = {},               -- [guideName] = true, set ONLY by FinishGuide. Reaching the last
+		                             -- step is not the same as finishing: a start suggestion that
+		                             -- overshoots is clamped to the last step, and inferring "done"
+		                             -- from that silently dropped the character into smart mode on
+		                             -- the next login with no way to tell why.
 		recording = nil,             -- active recording (see Recorder.lua)
 		recordings = {},             -- [name] = text
 		lastTrainedLevel = nil,      -- level at the last class trainer visit (trainer suggestions)

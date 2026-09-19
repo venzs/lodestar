@@ -10,6 +10,10 @@ local STRIP_HEIGHT = 14         -- extra height for the strip line (same small f
 local TURNIN_DELAY = 1          -- QUEST_LOG_UPDATE bursts collapse into one scan per second
 local SEP = "  |cff666666·|r  "
 
+-- Where the tracker sits before anyone drags it. Kept beside the defaults it mirrors in
+-- Leveling.lua so the two cannot drift apart unnoticed.
+local XP_ANCHOR = { point = "TOP", rel = "TOP", x = 0, y = -120 }
+
 local session -- see ResetXPSession
 local samples = {} -- { t = GetTime(), xp = gained } for the rolling window
 local frame
@@ -211,10 +215,10 @@ end
 
 -- Frame ---------------------------------------------------------------------------
 
+--- The whole anchor, through the shared helper. This used to save the point and the offsets and
+--- throw the relativePoint away, which is why the tracker reappeared somewhere new on every login.
 local function savePosition()
-	local db = Leveling.db.profile.xp
-	local point, _, _, x, y = frame:GetPoint(1)
-	db.pos = { point = point or "TOP", x = x or 0, y = y or 0 }
+	Lodestar:SaveAnchor(frame, Leveling.db.profile.xp.pos, "TOP")
 end
 
 local function fillTooltip(tooltip)
@@ -346,8 +350,7 @@ function Leveling:UpdateXPFrame(level)
 		frame:Hide()
 		return
 	end
-	frame:ClearAllPoints()
-	frame:SetPoint(db.pos.point or "TOP", UIParent, db.pos.point or "TOP", db.pos.x or 0, db.pos.y or -120)
+	Lodestar:ApplyAnchor(frame, db.pos, UIParent, XP_ANCHOR)
 	frame:SetScale(db.scale or 1)
 	frame:EnableMouse(true)
 	frame:SetBackdropBorderColor(db.locked and 0.4 or 0.3, db.locked and 0.4 or 0.75, db.locked and 0.4 or 1, 0.8)
