@@ -3409,6 +3409,52 @@ try("the last step reached by a clamp is not a finished guide", function()
 	G.db.char.progress[NAME] = wasProgress
 end)
 
+-- The export a contributor pastes back.
+--
+-- The file route asks someone to /reload, then find a file in a folder the client will not name for
+-- them, then attach it. Each step loses people and the middle one loses most of them. This is the
+-- same information as a string they can copy out of a box, with no reload, because it reads the
+-- live table rather than waiting for the client to write one.
+try("a session's recordings export to a string that round-trips", function()
+    local LD = _G.LibStub and _G.LibStub("LibDeflate", true) or _G.LibDeflate
+    check(LD ~= nil, "LibDeflate loaded from Libs.xml")
+    if not LD then return end
+
+    local db = G:HarvestDB()
+    db.npcs[900001] = { map = 2521, x = 45.25, y = 21.9, exact = true, name = "Yala Windwatcher" }
+    db.objects = db.objects or {}
+    db.objects[900002] = { map = 2521, x = 10.5, y = 80.25 }
+    db.quests[900003] = { t = "Test", giver = 900001, ender = 900001 }
+    db.taxi[900004] = { map = 2521, x = 50.0, y = 50.0 }
+    db.levels[7] = 4900
+
+    local rows = G:HarvestRows()
+    local kinds = {}
+    for _, r in ipairs(rows) do kinds[r:sub(1, 1)] = (kinds[r:sub(1, 1)] or 0) + 1 end
+    for _, k in ipairs({ "n", "o", "q", "f", "l" }) do
+        check((kinds[k] or 0) > 0, "the export carries " .. k .. " rows")
+    end
+    -- Quest titles and objective text are deliberately NOT in it: the databases already carry them
+    -- for the old world, and for new content one contributor supplies them once. Sending them from
+    -- everybody is most of the bytes for almost none of the value.
+    local joined = table.concat(rows, ";")
+    check(not joined:find("Yala Windwatcher", 1, true), "and not the NPC names, which are not the scarce part")
+    check(not joined:find("Test", 1, true), "nor quest titles")
+
+    local text, count = G:ExportHarvest()
+    check(type(text) == "string" and text:find("^LODE1:"), "the string is tagged with its format: " .. tostring(text and text:sub(1, 12)))
+    check(count == #rows, "and reports how many recordings went in")
+
+    -- Round trip through exactly what the importer will do.
+    local payload = text:match("^LODE%d+:[^:]*:(.+)$")
+    check(payload ~= nil, "the payload is separable from the header")
+    local back = LD:DecompressDeflate(LD:DecodeForPrint(payload))
+    check(back == joined, "and decodes back to precisely what went in")
+    check(#text < #joined, ("compressed: %d chars from %d"):format(#text, #joined))
+
+    db.npcs[900001], db.objects[900002], db.quests[900003], db.taxi[900004], db.levels[7] = nil, nil, nil, nil, nil
+end)
+
 -- Smart mode keeps offering a quest this character can never take.
 --
 -- The route fix was not enough: smart mode builds its own list from the harvest and the databases,

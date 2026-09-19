@@ -81,21 +81,22 @@ playing with this installed.
 
 Your session is recorded automatically. To send it back:
 
-  1. Type /lode share in game. It opens a window with these same steps in it,
-     which you can select and copy.
-  2. Type /reload. The file is only written on /reload or logout, so a copy
-     taken before that is stale.
-  3. Search your World of Warcraft folder for:  Lodestar_Guide.lua
-     (it is under WTF\\Account\\<your account>\\SavedVariables\\ -- searching is
-     easier than hunting, because the client will not tell an addon the
-     account folder's name)
-  4. Send that one file to:
+  1. Type  /lode export
+  2. Ctrl+A, Ctrl+C in the window that opens.
+  3. Paste it to:
 
          ${CONTACT}
 
-It contains NPC and object positions, quest ids, titles, objective text, flight
-points and XP per level. It does NOT contain your character name, gold, gear,
-bags, guild, friends, chat, or anything you typed.
+That is the whole thing. No reload, no looking for files. If the paste is long,
+Discord turns it into an attachment by itself.
+
+It contains NPC and object positions, which NPC gives and ends which quest,
+flight point positions and the XP each level costs. It does NOT contain your
+character name, gold, gear, bags, guild, friends, chat, or anything you typed --
+and not quest text either, which the addon already has.
+
+If you would rather send the whole recording as a file, /lode share explains
+where it is. The export above is the same positions in a shorter form.
 
 If you would rather not, /lode harvest off turns the recording off entirely and
 everything else keeps working. /lode share also has a "remind me" toggle in the

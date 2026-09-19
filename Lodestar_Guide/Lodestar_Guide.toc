@@ -23,6 +23,7 @@ Data.lua
 QuestTips.lua
 Harvest.lua
 Share.lua
+Export.lua
 Smart.lua
 Engine.lua
 StepFrame.lua

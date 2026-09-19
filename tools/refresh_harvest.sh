@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Fold a play session's harvest back into the shipped database, and rebuild what depends on it.
 #
-#   tools/refresh_harvest.sh <path to SavedVariables/Lodestar_Guide.lua> [more.lua ...]
+#   tools/refresh_harvest.sh <SavedVariables/Lodestar_Guide.lua | a pasted export.txt> [more ...]
+#
+# Both are accepted and told apart by content. Most contributions arrive as a pasted `/lode export`
+# string, because that costs the contributor a copy and a paste; a saved-variable file is the fuller
+# version for anyone willing to go and find it.
 #
 # This is the loop that makes the suite better the more anyone plays. A session records NPC
 # positions, quest givers and enders, objective spots, flight points and XP; the client writes that
@@ -19,7 +23,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [ $# -lt 1 ]; then
-  echo "usage: tools/refresh_harvest.sh <SavedVariables/Lodestar_Guide.lua> [more.lua ...]" >&2
+  echo "usage: tools/refresh_harvest.sh <SavedVariables/Lodestar_Guide.lua | pasted-export.txt> [more ...]" >&2
   exit 2
 fi
 
@@ -33,10 +37,19 @@ for src in "$@"; do
   fi
   n=$((n + 1))
   out="data/beta/scan-${stamp}-${n}.json"
-  lua5.1 tools/pfquest/sv_to_json.lua "$src" > "$out"
-  # An export with no quests is a session that harvested nothing, or a saved-variable file the
-  # client handed back empty. Keeping it would add a dated file that says nothing.
-  if ! grep -q '"quests"' "$out"; then
+  # Two shapes arrive. A saved-variable file is what someone sends when they went and found it; a
+  # pasted /lode export is what most people send, because it costs them a copy and a paste and no
+  # file browsing at all. Tell them apart by looking, not by asking whoever runs this to remember.
+  if head -c 4000 "$src" | grep -q "LODE[0-9]*:"; then
+    echo "refresh_harvest: $src looks like a pasted export"
+    python3 tools/pfquest/import_paste.py "$src" > "$out"
+  else
+    lua5.1 tools/pfquest/sv_to_json.lua "$src" > "$out"
+  fi
+  # Nothing worth keeping: a session that harvested nothing, or a saved-variable file the client
+  # handed back empty. A pasted export may legitimately carry no quest links while still carrying
+  # NPC positions, so both are checked.
+  if ! grep -qE '"(quests|npcs)"' "$out"; then
     echo "refresh_harvest: $src carried no quests; dropping $out"
     rm -f "$out"
     n=$((n - 1))

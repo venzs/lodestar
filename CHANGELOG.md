@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **`/lode export` — a contributor's session as one block of text to paste.** The file route asked
+  someone to `/reload`, then find `Lodestar_Guide.lua` inside `WTF\Account\<THEIR ACCOUNT>\SavedVariables\`,
+  a folder the client will not name for an addon, and attach it. Every step loses people and the
+  middle one loses most of them. This is the same positions as a string: Ctrl+A, Ctrl+C, paste. No
+  reload either, because it reads the live table rather than waiting for the client to write one,
+  and Discord turns a long paste into an attachment by itself.
+  Only what is scarce goes in. Quest titles and objective text are already in the shipped databases,
+  and for new content one contributor supplies them once; sending them from everybody is most of the
+  bytes for almost none of the value. What no database has is where an NPC actually stands, which
+  NPC gives and ends which quest, and where the flight points are. A 266-row session compresses from
+  5,900 characters to 2,600.
+- `tools/pfquest/import_paste.py` is the other end: it reimplements LibDeflate's print encoding and
+  raw DEFLATE in Python, so the importer has no runtime dependency on the addon. It survives chat
+  decoration around the paste (a DEFLATE stream carries its own end marker, so trailing text is
+  ignored rather than truncating the payload), several pastes in one file, and a channel copied
+  wholesale — and gives an actionable message for a truncated paste, a newer export format, or text
+  that is not an export at all. `refresh_harvest.sh` takes either shape and tells them apart by
+  looking.
+- LibDeflate 1.0.2 is bundled unmodified under `Lodestar/Libs/LibDeflate/` with its zlib licence and
+  a notice, in the same manner as the pfQuest and ATT data.
+
 - **A quest this character can never take stops being suggested — everywhere.** Fixing the route was
   not enough: smart mode builds its own list, and by every eligibility test "A Student of the Arcane"
   *is* available — not completed, not in the log, and carrying no class or race restriction, because

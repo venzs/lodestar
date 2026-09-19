@@ -308,6 +308,15 @@ function Guide:HarvestShareInfo()
 	local lines = {
 		"Lodestar — sending your harvested world data",
 		"",
+		"THE EASY WAY: type  /lode export",
+		"",
+		"That opens a box with everything you have recorded, as one block of text.",
+		"Ctrl+A, Ctrl+C, and paste it to " .. Lodestar.CONTACT .. " . No reload, no",
+		"hunting for files. If it is long, Discord turns the paste into an attachment",
+		"by itself.",
+		"",
+		"THE FILE WAY, if you would rather send the whole thing:",
+		"",
 		("This session's file holds %d quests, %d NPCs (%d with an exact position), %d objects,")
 			:format(sum.quests, sum.npcs, sum.positions, sum.objects),
 		("%d flight points and %d level XP values. Client build %s.")
@@ -350,7 +359,7 @@ function Guide:MaybeNudgeShare(placedThisSession)
 	if nudged or self.db.profile.harvest.nudge == false then return end
 	if (placedThisSession or 0) < NUDGE_AT then return end
 	nudged = true
-	Lodestar:Msg("You have recorded |cffffffff%d|r new positions this session — these are places no public database has. |cffffff7f/lode share|r explains how to send them (it takes about a minute).",
+	Lodestar:Msg("You have recorded |cffffffff%d|r new positions this session — places no public database has. |cffffff7f/lode export|r puts them in a box to copy and paste (about ten seconds).",
 		placedThisSession)
 end
 
@@ -358,7 +367,8 @@ function Guide:EnableShare()
 	Lodestar:RegisterCommHandler("H", onDelta)
 	if not self.shareSlash then
 		self.shareSlash = true
-		Lodestar:RegisterSlashVerb("share", function() self:HarvestShareInfo() end, "where your harvested world data is saved, and what is in it")
+		Lodestar:RegisterSlashVerb("share", function() self:HarvestShareInfo() end, "how to send back what you have recorded")
+		Lodestar:RegisterSlashVerb("export", function() self:ShowHarvestExport() end, "your recordings as one block of text, ready to paste")
 		Lodestar:RegisterTooltipProvider(function(tooltip)
 			if not self:IsEnabled() then return end
 			local sum = self:HarvestSummary()

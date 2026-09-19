@@ -1,0 +1,11 @@
+LibDeflate 1.0.2-release — bundled unmodified.
+
+    Source:    https://github.com/SafeteeWoW/LibDeflate
+    Author:    Haoqian He (SafeteeWoW)
+    Copyright: (C) 2018-2021 Haoqian He
+    Licence:   zlib (see LICENSE.txt in this folder)
+
+Used by Lodestar_Guide/Export.lua to compress a session's harvested positions into a string short
+enough to paste into a chat message. The zlib licence asks that the origin not be misrepresented and
+that altered versions be marked as such: this copy is byte-for-byte upstream's, and the notice above
+and LICENSE.txt travel with it in every package.
