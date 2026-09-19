@@ -120,8 +120,8 @@ If you would rather not send even that, delete the first line of the paste
 (it begins with "c") and everything else still imports.
 
 If you would rather send the whole recording as a file, /lode share explains
-where it is. That file is the fuller version and DOES record your character
-name, for the same grouping reason.
+where it is. That file is the fuller version and carries the same id, on the
+same terms -- no character name in it either.
 
 If you would rather not, /lode harvest off turns the recording off entirely and
 everything else keeps working. /lode share also has a "remind me" toggle in the

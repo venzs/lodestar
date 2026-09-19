@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- **The harvest file carries the id too, not a character name.** The previous entry corrected
+  `/lode share` to admit that the file recorded one; this removes the reason to. The harvest keys its
+  contributor block by the same hash the pasted export sends, which leaves one statement to keep true
+  instead of two that can drift apart — and means a contributor who sends a file one week and a paste
+  the next arrives as one person rather than two. The hash itself moved to `Core/Utils.lua`, because
+  two implementations of "who is this" eventually disagree about it.
+  The reason to do it now rather than later is November 4. Among a handful of friends, "we record
+  your character name" is nothing. Among strangers arriving at a launch it is a different
+  conversation, and not one worth having during launch week.
+  The smoke test pins this through the code rather than against a copied-out string: it looks the
+  contributor up *by* the hash and separately asserts the name is absent as a key. That line has now
+  been wrong twice in opposite directions, and a test that compares a sentence to a hard-coded
+  sentence cannot tell a true claim from a decorative one.
+- Scans already in `data/beta/` still carry name keys from before this, so anyone who harvested on
+  both sides of the change counts twice in the merge until those age out. Left alone deliberately:
+  rewriting recorded contributions so a number reads better is not a habit worth starting.
+
 - **A route collects a village before it walks out of one.** The generator took a single quest giver
   at a time — accept what that NPC offers, walk out to those objectives, walk back, then pick the
   next giver — so Lakeshire's six quest givers meant six round trips over the same ground. It now

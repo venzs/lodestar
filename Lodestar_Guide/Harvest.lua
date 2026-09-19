@@ -271,12 +271,18 @@ function Guide:HarvestBindDB() return ensureDB() end
 
 --- Credit the character playing right now, so the offline merge can weight and attribute a harvest.
 local function noteContributor()
-	local name = Lodestar.player and Lodestar.player.fullName
-	if type(name) ~= "string" or name == "" then return end
-	local c = db.meta.contributors[name]
+	-- Keyed by a hash of Name-Realm rather than the name itself. Everything the attribution is for
+	-- -- weighting a position three people saw against one somebody saw three times, telling a
+	-- covered zone from a zone one player walked twice -- works exactly the same on an id, and it
+	-- means the file a contributor hands over, and the database it is merged into, carry no
+	-- character names at all. The same id is what `/lode export` sends, so a contributor who uses
+	-- both routes is one contributor and not two.
+	local id = Lodestar.ContributorID(Lodestar.player and Lodestar.player.fullName)
+	if not id then return end
+	local c = db.meta.contributors[id]
 	if type(c) ~= "table" then
 		c = { first = time(), sessions = 0 }
-		db.meta.contributors[name] = c
+		db.meta.contributors[id] = c
 	end
 	c.faction = plain(UnitFactionGroup("player")) or c.faction
 	local race = plain(select(2, UnitRace("player")))

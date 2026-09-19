@@ -1914,7 +1914,13 @@ end)
 try("harvest share", function()
 	local sum = G:HarvestSummary()
 	check(sum.quests > 0 and sum.npcs > 0 and sum.taxi >= 3 and sum.positions > 0, "summary counts the world data")
-	local me = G:HarvestDB().meta.contributors["Venz-ClassicBetaPvP2"]
+	-- Keyed by the hash, and checked THROUGH the hash rather than against a copied-out constant, so
+	-- this fails if the two sides ever stop agreeing on what a contributor's id is. The character
+	-- name must not appear as a key at all: that is the promise /lode share makes.
+	local id = Lodestar.ContributorID("Venz-ClassicBetaPvP2")
+	local me = G:HarvestDB().meta.contributors[id]
+	check(G:HarvestDB().meta.contributors["Venz-ClassicBetaPvP2"] == nil,
+		"the harvest is not keyed by the character name")
 	check(sum.contributors == 1 and me, "the logged-in character is recorded as a contributor, got " .. sum.contributors)
 	check(me and me.class == "WARRIOR" and me.race == "Scourge" and me.faction == "Horde" and me.level and me.first and me.last and (me.sessions or 0) >= 1, "contributor row filled in")
 	check(G:HarvestDB().meta.v == 1 and G:HarvestDB().meta.build == "69893", "meta carries the format version and the client build")
@@ -1937,17 +1943,17 @@ try("harvest share", function()
 		"and says to search for it, since the client will not tell an addon the account folder")
 	check(b:find("/reload", 1, true) ~= nil, "and to /reload before copying it")
 	check(b:find(Lodestar.CONTACT, 1, true) ~= nil, "and where to send it")
-	-- This used to assert the box said "not: your character name". The file has always contained it
-	-- -- the harvest keys its contributor block by Name-Realm so one character's sessions can be told
-	-- apart -- so the test was holding a false promise in place, which is worse than not testing the
-	-- line at all. It pins the true statement now, and pins the old wording's ABSENCE so it cannot
-	-- quietly return.
-	check(b:find("character's name, race, class", 1, true) ~= nil,
-		"the box says the file records the character name, which it does")
-	check(b:find("not: your character name", 1, true) == nil,
-		"and no longer claims otherwise")
-	check(b:find("What is not: gold, gear", 1, true) ~= nil,
-		"while still naming what it genuinely leaves out")
+	-- This line has been wrong twice, in opposite directions, so it is pinned against the CODE and
+	-- not just against itself: the box must name an id, and the harvest must actually be keyed by
+	-- one. A test that only compares the sentence to a hard-coded sentence cannot tell the
+	-- difference between the claim being true and the claim being a decoration.
+	check(b:find("short id built from your character name", 1, true) ~= nil,
+		"the box says the file carries an id rather than the name")
+	check(b:find("What is not: your character name itself", 1, true) ~= nil,
+		"and names the character name as something it leaves out")
+	local key = next(G:HarvestDB().meta.contributors or {})
+	check(key == nil or key:match("^%x+$") ~= nil,
+		"and the harvest really is keyed by that id, not a name: " .. tostring(key))
 
 	-- The nudge fires once, only past the threshold, and never twice.
 	local beforeNudge = #stub.chat

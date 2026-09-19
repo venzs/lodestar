@@ -103,6 +103,29 @@ function Lodestar.ShortName(fullName)
 	return name .. "-" .. realm
 end
 
+--- A short, stable id for a contributor, derived from "Name-Realm".
+---
+--- The harvest needs to tell one contributor's sessions apart -- to weight a position seen by three
+--- people differently from one seen three times by the same person, and to see whether a zone is
+--- genuinely covered or covered by one player twice. A name does that, and so does a hash of one,
+--- and the hash is what travels: `/lode share`, the README and the packaged INSTALL.txt can then all
+--- say the harvest carries no character name and be plainly true, in the file as well as the paste.
+---
+--- It is a stable pseudonym, not anonymity. Anyone holding a short list of candidate names can hash
+--- them and compare, and nothing here pretends otherwise. What it buys is that a harvest handed
+--- around a Discord, or bundled into the shipped database, does not have names sitting in it.
+---
+--- djb2 in plain arithmetic: Lua 5.1 has no bitwise operators and the `bit` library is not available
+--- everywhere this runs. Kept under 2^31 so string.format("%x") is safe.
+function Lodestar.ContributorID(fullName)
+	if type(fullName) ~= "string" or fullName == "" then return nil end
+	local h = 5381
+	for i = 1, #fullName do
+		h = (h * 33 + fullName:byte(i)) % 2147483647
+	end
+	return ("%08x"):format(h)
+end
+
 --- NPC/creature id from a unit GUID, nil for players.
 function Lodestar.NpcIDFromGUID(guid)
 	if not guid then return nil end

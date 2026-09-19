@@ -95,15 +95,9 @@ end
 ---
 --- About fifty characters against a part's twenty-four thousand. Anyone who would rather send
 --- nothing at all can delete this row from the paste and every other row still imports.
-local function stableID(s)
-	-- djb2 in plain arithmetic: Lua 5.1 has no bitwise operators, and WoW's `bit` library is not
-	-- available to the smoke stub. Kept under 2^31 so string.format("%x") is safe everywhere.
-	local h = 5381
-	for i = 1, #s do
-		h = (h * 33 + s:byte(i)) % 2147483647
-	end
-	return ("%08x"):format(h)
-end
+--- The hash itself lives in Core/Utils, because the saved-variable harvest keys its contributors by
+--- the same value. Two implementations would drift, and a contributor who sent a file one week and a
+--- paste the next would arrive as two people.
 ---
 --- Deliberately NOT a format bump. The importer checks the header version for exact equality, so
 --- raising it would reject every export from a contributor still on the current build -- and this
@@ -128,7 +122,9 @@ local function identityRow()
 	-- character has one ID wherever their data arrives from. The hash is hex, so it cannot contain a
 	-- comma or a semicolon and nothing needs escaping.
 	local full = realm ~= "" and (name .. "-" .. realm:gsub("%s+", "")) or name
-	return ("c%s,%s,%s,%s,%d,%d"):format(stableID(full), race or "?", class or "?", faction or "?",
+	local id = Lodestar.ContributorID(full)
+	if not id then return nil end
+	return ("c%s,%s,%s,%s,%d,%d"):format(id, race or "?", class or "?", faction or "?",
 		tonumber(level) or 0, (time and time()) or 0)
 end
 

@@ -9,8 +9,8 @@ Discord. That is where the routes come from: Forever's new zones are in no publi
 position the arrow knows about was recorded by somebody playing with this installed. It takes about
 ten seconds and sends positions, your race, class and level, and a short id derived from your
 character name so one person's sessions can be told apart — not the name itself, and no gold, gear,
-bags, guild, friends or chat. (The saved-variable file `/lode share` describes is the fuller version
-and *does* record the character name, for the same reason.)
+bags, guild, friends or chat. The saved-variable file `/lode share` describes is the fuller version
+and carries the same id, on the same terms.
 
 | Addon | What it does |
 |---|---|

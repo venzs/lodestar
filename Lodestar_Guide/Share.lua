@@ -336,17 +336,17 @@ function Guide:HarvestShareInfo()
 		"",
 		"        " .. Lodestar.CONTACT,
 		"",
-		-- This said the file did not contain your character name. It always has: the harvest keys
-		-- its contributor block by Name-Realm so several sessions from one character can be told
-		-- apart when everything is merged. Saying otherwise to somebody deciding whether to send it
-		-- is the one thing this window must not do.
+		-- This once claimed the file held no character name while the harvest was quietly keying its
+		-- contributor block by Name-Realm. Rather than keep rewording the sentence, the harvest keys
+		-- by a hash now, so the promise is true of the file exactly as it is of the paste -- and
+		-- there is one statement to keep true instead of two that can drift apart.
 		"What is in it: NPC and object positions, quest ids, titles, objective text,",
-		"flight points, XP per level, and your character's name, race, class and",
-		"level -- the name so that several sessions from one character can be told",
-		"apart once everything is merged together.",
-		"What is not: gold, gear, bags, guild, friends, chat, or anything you typed.",
-		"/lode harvest off stops the recording entirely and every other part of",
-		"Lodestar keeps working.",
+		"flight points, XP per level, and your race, class and level alongside a",
+		"short id built from your character name, so that several sessions from one",
+		"character can be told apart once everything is merged together.",
+		"What is not: your character name itself, gold, gear, bags, guild, friends,",
+		"chat, or anything you typed. /lode harvest off stops the recording entirely",
+		"and every other part of Lodestar keeps working.",
 	}
 	Lodestar:ShowCopyBox(table.concat(lines, "\n"), "Sending your harvest")
 	Lodestar:Say("Harvest: |cffffffff%d|r quests, |cffffffff%d|r NPCs (%d placed), |cffffffff%d|r flight points. Instructions are in the window — |cffff9933/reload first|r.",
