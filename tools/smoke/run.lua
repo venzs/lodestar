@@ -3330,6 +3330,62 @@ try("guide load before the completed list arrives", function()
 	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = wasProgress
 end)
 
+-- Saved progress pointing at a step that cannot be acted on.
+--
+-- Taken from a real session: guide progress saved as step 29 of the Zephras route, which is
+-- "Turn in Foul Matriarch", with quest 92470 accepted and the scavengers not yet killed. Saved
+-- progress is normally trusted and never stepped backwards over -- that is what stops the guide
+-- dragging a player back over work they skipped on purpose -- so the window sat on a turn-in
+-- nothing could ever satisfy. A saved step that is a dead end is not a position.
+try("saved progress on a dead-end step is not trusted", function()
+	local GUIDE = "Skyborne 1-12: Zephras Isle"
+	if not G.guideByName[GUIDE] then check(false, "the Zephras route is not registered") return end
+	local wasFlagged, wasLog = stub.flagged, stub.questLog
+	local wasProgress, wasCurrent = G.db.char.progress[GUIDE], G.db.char.currentGuide
+	local realRace = UnitRace
+	UnitRace = function() return "Skyborne", "Skyborne", 99 end
+	stub.level = 5
+
+	-- Find the accept / complete / turn-in trio for 92470 rather than hard-coding indices, so the
+	-- test keeps meaning something after the route is regenerated from new harvest data.
+	local steps = G.guideByName[GUIDE].steps
+	local acceptAt, completeAt, turninAt
+	for i, step in ipairs(steps) do
+		for _, a in ipairs(step.actions) do
+			if a.questID == 92470 then
+				if a.type == "accept" then acceptAt = acceptAt or i
+				elseif a.type == "complete" then completeAt = completeAt or i
+				elseif a.type == "turnin" then turninAt = turninAt or i end
+			end
+		end
+	end
+	check(acceptAt and completeAt and turninAt, "the route still has accept/complete/turnin for 92470")
+
+	-- Carrying it, not finished.
+	stub.flagged = {}
+	stub.questLog = { [92470] = { title = "Foul Matriarch", complete = false,
+		objectives = { { text = "Ursera Scavenger slain: 2/8", finished = false } } } }
+	G.db.char.progress[GUIDE] = turninAt
+
+	G:LoadGuide(GUIDE)
+	check(G.stepIndex ~= turninAt,
+		("stayed on the turn-in at step %d for a quest with 2 of 8 done"):format(turninAt))
+	check(G.stepIndex == completeAt,
+		("expected the kill step %d, got %d"):format(completeAt, G.stepIndex))
+
+	-- Once it IS complete, the turn-in is exactly where it should be, and saved progress is trusted
+	-- again -- the rule must not fire on every turn-in step.
+	stub.questLog[92470].complete = true
+	G.db.char.progress[GUIDE] = turninAt
+	G:LoadGuide(GUIDE)
+	check(G.stepIndex == turninAt, ("a ready turn-in is kept, got %d"):format(G.stepIndex))
+
+	stub.flagged, stub.questLog = wasFlagged, wasLog
+	UnitRace = realRace
+	G.db.char.progress[GUIDE] = wasProgress
+	G.db.char.currentGuide = wasCurrent
+end)
+
 -- Reconciling must not park on a turn-in for a quest that is not finished.
 --
 -- Resuming ranks candidate steps by "is this quest in the log" and then by distance, and both the

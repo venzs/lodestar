@@ -19,6 +19,11 @@
 - Leveling: **quest log hygiene** — a warning when the twenty-slot log is nearly full that names
   which quests have gone grey, `/lode log` for the full picture, and `/lode log drop <name>` to
   abandon one. Only grey quests are candidates and nothing is ever abandoned without a confirmation.
+- Guide: **saved progress pointing at a dead-end step is no longer trusted.** Saved progress is
+  never stepped backwards over — that is what stops the guide dragging you back over work you
+  skipped deliberately — but a saved step that hands in a quest you are carrying and have not
+  finished is not a position, it is a dead end that nothing can ever advance. Those now reconcile
+  instead. A quest that is not in your log at all still counts as a deliberate skip and is left be.
 - Guide: **resuming never lands on a turn-in for a quest that is not finished.** Ranking candidate
   steps by distance put the turn-in ahead of the objective — the giver stands in the village, the
   mobs are out in the field — so resuming near town said "hand in The Mindless Ones" with three of

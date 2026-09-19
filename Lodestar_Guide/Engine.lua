@@ -172,6 +172,11 @@ function Guide:LoadGuide(name, stepIndex)
 		-- Sync to the character, not to the saved position: a character that is mid-way (or has played
 		-- without the guide) lands on the step after the last one its completed quests account for.
 		local start, _, open = self:SuggestStartIndex(guide)
+		-- Saved progress is normally the player's real position and is never stepped backwards over.
+		-- But a saved step that CANNOT be acted on is not a position, it is a dead end: it parks the
+		-- window on "turn in X" for a quest with three of eight kills done and nothing will ever
+		-- advance it, because the thing it waits for cannot happen from there. Reconcile instead.
+		if saved and self:StepBlocked(guide.steps[saved]) then saved = nil end
 		if not saved then
 			-- No saved progress: this character has never run this guide, so it may be half way
 			-- through the zone already. Resume from what it actually holds rather than from step 1.
@@ -521,6 +526,28 @@ end
 --- the order they played it, and quests they are still carrying would be stranded behind them).
 ---
 --- Returns startIndex, actionable ({ idx, held }), done (set), lastProof.
+--- True when a step is a dead end: it wants a quest handed in that the character is CARRYING and
+--- has not finished. Nothing that happens while standing there can advance it, and the step that
+--- would finish the quest is somewhere else entirely.
+---
+--- Deliberately narrow. A turn-in already handed in is fine -- the step is still live because of
+--- something else on it, usually the next quest the same NPC gives out. A quest sitting complete in
+--- the log is fine, that is exactly what the step is for. And a quest that is not in the log at all
+--- is NOT a dead end: the player skipped it on purpose, and dragging them back to a quest they
+--- chose not to take is its own bug. Only "carrying it, not finished" is a wall.
+function Guide:StepBlocked(step)
+	if not (step and step.actions) then return false end
+	for _, a in ipairs(step.actions) do
+		if a.type == "turnin" and a.questID
+			and C_QuestLog.IsOnQuest(a.questID)
+			and not C_QuestLog.IsComplete(a.questID)
+			and not self:IsActionComplete(a, nil) then
+			return true
+		end
+	end
+	return false
+end
+
 function Guide:ReconcileToLog(guide)
 	local pf = self:PlayerFilters()
 	local actionable, done = {}, {}
@@ -558,22 +585,6 @@ function Guide:ReconcileToLog(guide)
 	-- out in the field. Ranking on distance alone therefore resumes onto "turn in The Mindless Ones"
 	-- with three of eight zombies dead. A turn-in for a quest that is not finished is not a place
 	-- you can pick anything up: standing on it does nothing at all.
-	--
-	-- Two ways a turn-in is fine: it has already been handed in (the step is still actionable
-	-- because of something else on it, typically the next quest from the same NPC), or the quest is
-	-- sitting complete in the log ready to hand over. Only the third case -- not done and not ready
-	-- -- is a wall. Checking just "is it ready" would call an already-finished turn-in blocking and
-	-- push the resume past the step that hands out the next quest.
-	local function blockedStep(step)
-		for _, a in ipairs(step.actions) do
-			if a.type == "turnin" and a.questID
-				and not self:IsActionComplete(a, nil)
-				and not C_QuestLog.IsComplete(a.questID) then
-				return true
-			end
-		end
-		return false
-	end
 	local best, bestRank
 	for _, c in ipairs(actionable) do
 		local step = guide.steps[c.idx]
@@ -582,7 +593,7 @@ function Guide:ReconcileToLog(guide)
 			local map = self:ResolveMap(step.go.map)
 			if map and self.VectorTo then dist = self:VectorTo(map, step.go.x / 100, step.go.y / 100) end
 		end
-		local rank = (blockedStep(step) and 1e8 or 0) + (c.held and 0 or 1e7) + (dist or 5e6) + c.idx * 0.001
+		local rank = (self:StepBlocked(step) and 1e8 or 0) + (c.held and 0 or 1e7) + (dist or 5e6) + c.idx * 0.001
 		if not bestRank or rank < bestRank then best, bestRank = c.idx, rank end
 	end
 	return best or math.min(lastProof + 1, #guide.steps), actionable, done, lastProof
