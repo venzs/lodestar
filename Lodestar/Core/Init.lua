@@ -36,7 +36,7 @@ local defaults = {
 -- One constant, in one place, because it appears in /lode share, in the packaged INSTALL.txt and in
 -- the addon listing, and three copies of an invite link is three chances for one of them to rot.
 -- Change it here and tools/package.sh picks it up.
-Lodestar.CONTACT = "Discord: (link not set yet -- edit Lodestar.CONTACT in Lodestar/Core/Init.lua)"
+Lodestar.CONTACT = "https://discord.gg/dpAVzhyMC"
 
 function Lodestar:OnInitialize()
 	-- Saved.lua explains why these are not called LodestarDB and LodestarProbeDB any more.
