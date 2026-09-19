@@ -25,7 +25,7 @@ step
 
 step
   .goto Tirisfal Glades,32.3,63.6
-  .complete 364,1 >>Kill 8 Mindless and Wretched Zombies in the graveyard north-east of the chapel (lvl 1-2)
+  .complete 364 >>Kill 8 Mindless and Wretched Zombies in the graveyard north-east of the chapel (lvl 1-2)
 
 step
   .goto Tirisfal Glades,30.8,66.2
@@ -56,6 +56,15 @@ step
   .goto Tirisfal Glades,30.8,66.2
   .class Warlock
   .accept 3099 >>Accept Tainted Scroll (warlock) from Sarvis
+
+-- Undead Paladin is new on Forever, so its scroll is a quest no database has: not pfQuest, which
+-- predates it, and not ATT. Named without an id and without a position rather than guessed at --
+-- an arrow pointing at a guess is worse than no arrow, and a wrong quest id would have the engine
+-- waiting forever for something that never completes. The id arrives the first time a paladin
+-- accepts it with Lodestar running, and then this becomes an ordinary .accept step.
+step
+  .class Paladin
+  .text >>Ask Shadow Priest Sarvis for your class scroll too — Undead Paladin is new on Forever and its quest is not in any database yet, so Lodestar cannot point at it. Taking it while this is running is what records it for everyone else.
 
 step
   .goto Tirisfal Glades,30.9,66.1
@@ -91,6 +100,13 @@ step
   .class Warlock
   .turnin 3099 >>Turn in Tainted Scroll to Maximillion and train
   .train
+
+-- The other half of the same gap: no .goto either, because Deathknell's paladin trainer is new on
+-- Forever and nothing records where they stand. A position invented to fill the line would send
+-- every Undead paladin to the wrong corner of the village with confidence.
+step
+  .class Paladin
+  .text >>Hand your scroll back to the paladin trainer and train. They are new on Forever, so Lodestar does not know their name or where they stand yet — walking up to them is what puts them on the map.
 
 step
   .goto Tirisfal Glades,32.8,61.8

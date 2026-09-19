@@ -406,8 +406,19 @@ end
 
 function Guide:PrevStep()
 	if not self.current then cycleSmart(-1) return end
-	self.stepFlags[self.stepIndex - 1] = nil
-	self:SetStep(self.stepIndex - 1)
+	-- Walk back PAST steps this character cannot see. Going forward already filters -- NextStep runs
+	-- EvaluateStep, which skips them -- and the window's list filters too, but going back did not: it
+	-- simply decremented the index. So `<` from an Undead paladin's step landed on the warlock's
+	-- scroll, a step they can neither action nor make sense of, and the one before that on the mage's.
+	--
+	-- Never past the first step: if step 1 itself does not apply there is nowhere further back to go,
+	-- and refusing to move at all is better than silently landing somewhere arbitrary.
+	local pf = self:PlayerFilters()
+	local i = self.stepIndex - 1
+	while i > 1 and not stepApplies(self.current.steps[i], pf) do i = i - 1 end
+	if i < 1 then return end
+	self.stepFlags[i] = nil
+	self:SetStep(i)
 end
 
 --- Which guide follows this one for THIS character, or nil.

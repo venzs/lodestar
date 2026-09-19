@@ -1911,6 +1911,60 @@ try("travel hints", function()
 	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.308, 0.662
 end)
 
+-- Class filtering, evaluated against a class the stub is not.
+--
+-- The stub has always answered "Warrior" to UnitClass, so every class-gated step in every pack was
+-- only ever checked against a warrior -- and a filter that is only ever asked about one class is not
+-- really being tested. Undead Paladin is a Forever combination, so this is precisely the case that
+-- turns up with new players rather than an exotic one.
+try("class-gated steps filter for a class the stub is not", function()
+	local G = Lodestar:GetModule("Guide")
+	local realUnitClass, realClass = _G.UnitClass, Lodestar.player.class
+	local realCurrent, realIndex, realFlags = G.current, G.stepIndex, G.stepFlags
+	_G.UnitClass = function() return "Paladin", "PALADIN", 2 end
+	Lodestar.player.class = "PALADIN"
+
+	local dk
+	for _, g in ipairs(G.guides or {}) do
+		if g.name and g.name:find("Deathknell") then dk = g break end
+	end
+	check(dk ~= nil, "the Deathknell guide is loaded")
+	if dk then
+		local pf = G:PlayerFilters()
+		check(pf.class == "paladin", "the filters see a paladin: " .. tostring(pf.class))
+		local others, own = 0, 0
+		for _, st in ipairs(dk.steps) do
+			if st.classes then
+				if st.classes.paladin then
+					if G:StepApplies(st, pf) then own = own + 1 end
+				elseif G:StepApplies(st, pf) then
+					others = others + 1
+				end
+			end
+		end
+		check(others == 0, "no other class's step applies to a paladin, got " .. others)
+		check(own > 0, "and the paladin's own steps do, got " .. own)
+
+		-- Going BACK filters as well. It did not: NextStep runs EvaluateStep and skips what does not
+		-- apply, while PrevStep merely decremented the index -- so `<` from a paladin's step landed
+		-- on the warlock's scroll, which they can neither action nor make sense of.
+		local target
+		for i, st in ipairs(dk.steps) do
+			if st.classes and st.classes.paladin then target = i break end
+		end
+		if target and target > 1 then
+			G.current, G.stepIndex, G.stepFlags = dk, target, {}
+			G:PrevStep()
+			local landed = dk.steps[G.stepIndex]
+			check(landed and G:StepApplies(landed, pf),
+				"going back lands on a step this paladin can see, not another class's (step " .. tostring(G.stepIndex) .. ")")
+		end
+	end
+
+	_G.UnitClass, Lodestar.player.class = realUnitClass, realClass
+	G.current, G.stepIndex, G.stepFlags = realCurrent, realIndex, realFlags
+end)
+
 try("harvest share", function()
 	local sum = G:HarvestSummary()
 	check(sum.quests > 0 and sum.npcs > 0 and sum.taxi >= 3 and sum.positions > 0, "summary counts the world data")

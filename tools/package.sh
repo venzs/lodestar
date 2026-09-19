@@ -59,10 +59,18 @@ done
 # and neither did the export rewrite sitting next to it. A build should be able to name itself
 # without anyone touching a tracked file.
 #
-# Written through a temporary file rather than `sed -i`, whose in-place flag differs between GNU and
-# BSD and would fail on exactly the machines this script exists to run on.
+# awk rather than sed, and a temporary file rather than `sed -i` whose in-place flag differs between
+# GNU and BSD. The line ending is carried across deliberately: .gitattributes pins TOCs to CRLF
+# because the client reads them and every other addon on disk ships CRLF, and `sed 's/^## Version:.*/
+# .../'` quietly drops the \r from that ONE line, since `.*` stops at the newline and takes the
+# carriage return with it. The result is a file with 30 CRLF lines and one LF line -- exactly the
+# "stray rewrite silently changing how the client parses ## SavedVariables" that .gitattributes
+# exists to prevent, and invisible in every diff.
 find "$STAGE" -name '*.toc' | while read -r toc; do
-  sed "s/^## Version:.*/## Version: ${VERSION}/" "$toc" > "$toc.tmp" && mv "$toc.tmp" "$toc"
+  awk -v v="$VERSION" '
+    /^## Version:/ { cr = (substr($0, length($0)) == "\r") ? "\r" : ""; print "## Version: " v cr; next }
+    { print }
+  ' "$toc" > "$toc.tmp" && mv "$toc.tmp" "$toc"
 done
 
 cat > "$STAGE/INSTALL.txt" <<TXT

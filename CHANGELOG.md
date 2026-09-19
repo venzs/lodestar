@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- **Going back through a guide no longer walks onto another class's step.** `<` decremented the step
+  index and did nothing else. Forward navigation has always filtered — `NextStep` runs
+  `EvaluateStep`, which skips what does not apply — and the window's own list filters, so going back
+  was the one blind path. An Undead paladin pressing back from their scroll landed on the warlock's,
+  then the mage's, then the priest's: steps they can neither action nor make sense of. It now walks
+  back past them, and refuses to move rather than land somewhere arbitrary if the first step itself
+  does not apply.
+- **The smoke stub has always answered "Warrior" to `UnitClass`.** Every class-gated step in every
+  pack had therefore only ever been evaluated against a warrior, and a filter that is only ever asked
+  about one class is not really being tested — which is why this survived. There is now a case that
+  plays an Undead Paladin: it asserts that no other class's step applies, that the paladin's own do,
+  and that walking back off a paladin step lands somewhere a paladin can see. Run against the old
+  code it fails on exactly the step that was reported from live play — *"going back lands on a step
+  this paladin can see, not another class's (step 9)"* — step 9 being the warlock's scroll.
+- **Deathknell: The Mindless Ones waits for both kinds of zombie.** The step read `.complete 364,1`,
+  which watches objective 1 only; the quest has two, Mindless Zombies and Wretched Zombies, counted
+  separately. Eight of the first turned the step green and sent the player to Shadow Priest Sarvis
+  with the second still at zero. Checked the other two guides using the same indexed form and both
+  are correct — Dun Morogh and Tirisfal each cover their second objective with a `.buy` step — so
+  this was one bad step rather than a pattern worth rewriting.
+- **Deathknell names the Undead Paladin gap instead of ignoring it.** The five class scrolls there
+  are one per class the Undead could be in vanilla; a Forever paladin gets a sixth that no database
+  has. The two new steps carry no quest id and no position on purpose: a wrong id leaves the engine
+  waiting forever for something that never completes, and an invented position sends every paladin
+  confidently to the wrong corner of the village. They say what to ask for, and note that taking it
+  is what puts it on the map.
+
 - **The harvest file carries the id too, not a character name.** The previous entry corrected
   `/lode share` to admit that the file recorded one; this removes the reason to. The harvest keys its
   contributor block by the same hash the pasted export sends, which leaves one statement to keep true
