@@ -137,12 +137,31 @@ end
 
 -- Loading ------------------------------------------------------------------------------------------
 
+--- Run `fn` once the client can answer "has this quest been finished?" honestly.
+---
+--- For the first seconds after entering the world, C_QuestLog.IsQuestFlaggedCompleted answers FALSE
+--- for every quest rather than "not yet known" -- the server's completed list has not landed. Any
+--- code that reconciles against the quest log in that window concludes the character has done
+--- nothing. Smart.lua's CompletedQuestsReady carries its own grace timer, so this always fires
+--- eventually, including for a genuinely new character who really has finished nothing.
+function Guide:WhenCompletedReady(fn)
+	if not self.CompletedQuestsReady or self:CompletedQuestsReady() then return fn() end
+	self:ScheduleTimer(function() self:WhenCompletedReady(fn) end, 1)
+end
+
+local function completedKnown(self)
+	return not self.CompletedQuestsReady or self:CompletedQuestsReady()
+end
+
 function Guide:LoadGuide(name, stepIndex)
 	local guide = name and self.guideByName[name]
 	if not guide then
 		if name then Lodestar:Say("No guide called %s.", tostring(name)) end
 		return false
 	end
+	-- Whether the CALLER pinned a step. `stepIndex` is reassigned by the reconcile below, so asking
+	-- "was one given?" afterwards always answers yes and any guard built on it never fires.
+	local pinned = stepIndex ~= nil
 	self.current = guide
 	self.stepFlags = {}
 	self.finished = nil
@@ -182,6 +201,21 @@ function Guide:LoadGuide(name, stepIndex)
 	self:EvaluateStep(true)
 	self:RefreshStepFrame()
 	self:ArrowOnEvent("LODESTAR_STEP_CHANGED")
+
+	-- On this client saved progress never comes back, so every login reconciles from scratch -- and
+	-- the login is exactly when the completed list is missing. A reconcile done in that window puts
+	-- the character back near the start of the zone and sends them at quests they finished hours
+	-- ago. Redo it once the client can answer; the second pass announces where it landed, so the
+	-- correction is visible rather than a window that silently changes under you.
+	if not pinned and not completedKnown(self) then
+		local token = (self.reconcileToken or 0) + 1
+		self.reconcileToken = token
+		self:WhenCompletedReady(function()
+			if self.reconcileToken ~= token or self.current ~= guide then return end
+			self.db.char.progress[guide.name] = nil
+			self:LoadGuide(guide.name)
+		end)
+	end
 	return true
 end
 

@@ -19,6 +19,12 @@
 - Leveling: **quest log hygiene** — a warning when the twenty-slot log is nearly full that names
   which quests have gone grey, `/lode log` for the full picture, and `/lode log drop <name>` to
   abandon one. Only grey quests are candidates and nothing is ever abandoned without a confirmation.
+- Guide: **the guide no longer reconciles before the client can answer.** For the first seconds after
+  entering the world `C_QuestLog.IsQuestFlaggedCompleted` returns false for every quest rather than
+  "not yet known". Since this client never hands saved progress back, every login reconciles from
+  scratch — in exactly that window — so the guide concluded the character had done nothing and sent
+  them back at quests they had already finished. It now redoes the reconcile once the completed list
+  lands, and says where it moved to.
 - Guide: auto-pick **fails closed on an unknown faction**. `UnitFactionGroup` can answer nil early in
   the login, and a nil switched the faction filter off entirely rather than narrowing it — so an
   Alliance character could be auto-loaded onto a Horde route on the other continent. Listing is

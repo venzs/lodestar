@@ -3269,6 +3269,67 @@ try("every settings option", function()
 	check(#failures == 0, ("%d of %d settings entries failed: %s"):format(#failures, seen, table.concat(failures, " | ")))
 end)
 
+-- Loading a guide before the server's completed-quest list has arrived.
+--
+-- This is the login path on Forever, every time: the client does not hand saved variables back, so
+-- there is never any saved progress, so LoadGuide always reconciles against the quest log to work
+-- out where the character is. Reconciling asks IsQuestFlaggedCompleted per quest -- and for the
+-- first seconds after entering the world that answers FALSE for everything rather than "not yet
+-- known". Nothing looks finished, so the guide parks on an early step and starts telling the player
+-- to go and do quests they finished hours ago.
+try("guide load before the completed list arrives", function()
+	local wasGuide, wasProgress = G.db.char.currentGuide, G.db.char.progress["Horde/Undead 1-5: Deathknell"]
+	local wasFlagged, wasLog = stub.flagged, stub.questLog
+	local realRace = UnitRace
+	UnitRace = function() return "Undead", "Scourge", 5 end
+
+	-- A character that has finished the first four steps: 363 and 364 turned in, 3901 in the log.
+	stub.flagged = { [363] = true, [364] = true }
+	stub.questLog = { [3901] = { title = "Rattling the Rattlecages", complete = false,
+		objectives = { { text = "Scattered Bones: 0/8", finished = false } } } }
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+
+	-- With the list loaded, reconciliation gets this right.
+	stub.completedNotLoaded = false
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+	local settled = G.stepIndex
+	check(settled >= 4, "with the completed list loaded it resumes past the finished steps, at " .. settled)
+
+	-- Now the same character, logging in, before the list lands. This is what actually happens.
+	-- ResetCompletedReady is what PLAYER_ENTERING_WORLD does: the readiness flag latches true once
+	-- the list has been seen and only a fresh entry into the world clears it, so a test that skips
+	-- this is testing a session that never logged in.
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+	stub.completedNotLoaded = true
+	G:ResetCompletedReady()
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+	-- It may well guess wrong for a moment -- showing something beats an empty window -- but it must
+	-- not SETTLE there.
+	stub.advance(2)
+	stub.completedNotLoaded = false   -- the server's list arrives
+	stub.advance(3)
+	check(G.stepIndex == settled,
+		("once the list arrives it must correct itself to step %d, sat at %d")
+			:format(settled, G.stepIndex))
+
+	-- And if the list never arrives at all, it must still settle rather than retrying forever: a
+	-- character that genuinely has finished nothing is indistinguishable from one the client has not
+	-- answered for yet, and CompletedQuestsReady's grace is what breaks the tie.
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = nil
+	G:ResetCompletedReady()
+	stub.completedNotLoaded = true
+	G:LoadGuide("Horde/Undead 1-5: Deathknell")
+	stub.advance(30)
+	check(type(G.stepIndex) == "number" and G.stepIndex >= 1, "it settles on a step even if the list never lands: " .. tostring(G.stepIndex))
+
+	stub.completedNotLoaded = false
+	G:ResetCompletedReady()
+	stub.flagged, stub.questLog = wasFlagged, wasLog
+	UnitRace = realRace
+	G.db.char.currentGuide = wasGuide
+	G.db.char.progress["Horde/Undead 1-5: Deathknell"] = wasProgress
+end)
+
 -- Every slash verb, with every module both on and off.
 -- A command whose module has been turned off is a standing trap: the handler is still registered
 -- (they are registered once, at first enable, and never unregistered) but the state it reads is

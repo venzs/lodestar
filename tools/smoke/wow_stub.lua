@@ -556,9 +556,16 @@ stub.flagged = {}
 C_QuestLog.GetNumQuestLogEntries = function() local n = 0 for _ in pairs(stub.questLog) do n = n + 1 end return n, n end
 C_QuestLog.GetInfo = function(i) local n = 0 for id, q in pairs(stub.questLog) do n = n + 1 if n == i then return { questID = id, title = q.title, isHeader = false, isHidden = false } end end end
 C_QuestLog.IsOnQuest = function(id) return stub.questLog[id] ~= nil end
-C_QuestLog.IsQuestFlaggedCompleted = function(id) return stub.flagged[id] == true end
--- The real client answers this only once the server has sent the completed list, which lands a
--- moment AFTER entering the world. stub.completedNotLoaded models that window.
+-- Both of these go quiet in the same window. Until the server's completed list lands -- a moment
+-- AFTER entering the world -- the real client answers IsQuestFlaggedCompleted FALSE for everything,
+-- not "I do not know". The stub used to answer truthfully from stub.flagged the whole time, which
+-- made the harness more honest than the client it stands in for: any code that asked "has this been
+-- finished?" during login passed here and got a confident wrong answer in game.
+C_QuestLog.IsQuestFlaggedCompleted = function(id)
+	if stub.completedNotLoaded then return false end
+	return stub.flagged[id] == true
+end
+-- stub.completedNotLoaded models that window.
 C_QuestLog.GetAllCompletedQuestIDs = function()
 	local out = {}
 	if stub.completedNotLoaded then return out end
