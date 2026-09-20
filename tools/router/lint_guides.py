@@ -462,7 +462,17 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
                             # sub-quests): the prerequisite is in the log, so only warn
                             g.warn(a.line, f"accept {a.quest} ({title}): prerequisite {in_progress[0]} ({quests.get(in_progress[0], {}).get('t', '?')}) is only in progress here (turned in later)")
                         elif later:
-                            g.error(a.line, f"accept {a.quest} ({title}): prerequisite {later[0]} ({quests.get(later[0], {}).get('t', '?')}) is turned in later in this guide")
+                            # A prerequisite ATT supplied and pfQuest did not is a hint, not a
+                            # constraint. ATT's sourceQuests encode "you had probably done this",
+                            # include alternatives, and are occasionally just reversed: it claims
+                            # 46 (Bounty on Murlocs) needs 39 (Deliver Thomas' Report), when Guard
+                            # Thomas gives 46 on the first visit and 39 is the follow-up afterwards.
+                            # Erroring on that would demand a rewrite of a route that is correct.
+                            detail = f"accept {a.quest} ({title}): prerequisite {later[0]} ({quests.get(later[0], {}).get('t', '?')}) is turned in later in this guide"
+                            if q.get("preFromATT"):
+                                g.warn(a.line, detail + " -- but that prerequisite is ATT's, not pfQuest's; verify before reordering")
+                            else:
+                                g.error(a.line, detail)
                         elif st.optional:
                             # The route already knows. A generated route marks a quest optional and
                             # names what it needs ("Needs Armed and Ready, which starts in Stormwind
