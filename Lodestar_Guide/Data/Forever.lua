@@ -766,3 +766,4 @@ F.levels[10]=7600
 F.levels[11]=8800
 F.levels[12]=10100
 F.levels[13]=11400
+F.levels[20]=23200

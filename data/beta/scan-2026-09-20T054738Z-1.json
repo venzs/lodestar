@@ -1,0 +1,25 @@
+{
+ "builds": [
+  "69913"
+ ],
+ "levels": {
+  "20": 23200
+ },
+ "meta": {
+  "contributors": {
+   "6c4530c4": {
+    "class": "SHAMAN",
+    "faction": "Horde",
+    "first": 1789882724,
+    "last": 1789882724,
+    "level": 20,
+    "race": "Tauren",
+    "sessions": 1
+   }
+  }
+ },
+ "npcs": {},
+ "objects": {},
+ "quests": {},
+ "taxi": {}
+}
