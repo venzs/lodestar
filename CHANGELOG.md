@@ -2,6 +2,153 @@
 
 ## Unreleased
 
+- **The route regeneration step had never once run.** `refresh_harvest.sh` carried its own copy of
+  the loop in `tools/router/regen.sh`, and the copy was missing the two things that make it work: the
+  `eval` around the generator call, and the `else` branch. Every `--regen-args` line contains a
+  quoted guide name, so unquoted expansion reached the generator as mangled arguments and it died at
+  `generate_route.lua:401`; with nothing on the failure path the script printed not one word and
+  carried on to the verify step. All seven generated routes failed that way on every run the script
+  has ever had. The merge half worked, so harvest data accumulated in `Data/Forever.lua` while no
+  route was ever rebuilt from it -- which is half of the only property this suite has that a
+  hand-written guide pack cannot copy. It had already cost something: four routes were out of sync
+  with their own generator, and Ashenvale differed in content rather than formatting, accepting
+  Reception from Tyrande where the generator now emits On Guard in Stonetalon. `refresh_harvest.sh`
+  now calls `regen.sh` instead of holding a second copy of it. Two copies of one job and the second
+  one missing the rules is the third time this project has paid for that exact shape.
+- **All seven generated routes rebuilt from the current generator**, which is what the seasonal
+  filter, the curated overlay and the objective-position work actually produce. Route shape is
+  unmoved by it -- generated routes still double back 54% on average against 42% hand-written --
+  because this is a staleness fix, not an ordering one.
+- **A wider batching radius does not fix Desolace, and makes every other route worse.** Sweeping
+  `HUB_RADIUS` over all seven generated routes: mean backtracking 53.3% at 8, 54.1% at the shipped
+  12, then 55.5, 56.1, 56.3, 57.0 and 58.6% out to 36. Desolace reads 65/64/65/65/65/63/75% across
+  the same sweep, which is noise rather than a trend. Nothing changed in the generator as a result;
+  the value is the fourth hypothesis about this zone being ruled out cheaply instead of expensively,
+  and `CLAUDE.md` now records it as refuted rather than as the open idea.
+- **The cross-session persistence suite passed without running.** `persist.lua` drives four child
+  sessions through `os.execute`, which under a native Windows Lua is cmd.exe: no `rm`, no
+  `mkdir -p`, and no way to execute a `lua5.1` that is a shell shim on PATH. cmd answered 0 to a
+  command line it never ran, so all four sessions reported success with nothing whatsoever written
+  to disk -- the file exited 0 having tested precisely nothing. The driver now re-invokes `arg[-1]`,
+  the interpreter actually running it, branches its mkdir and rm on `package.config`, and checks
+  that session one's saved-variable files exist rather than believing an exit status. An exit code
+  from a shell that did not run the program is indistinguishable from success.
+- **The harvest no longer carries a character name anywhere.** Three scan files in `data/beta/` were
+  still keyed by `Venz Dru-ClassicBetaPvP2` -- a character and realm -- while `Core/Utils.lua`, the
+  README, the packaged `INSTALL.txt` and an explicit smoke assertion all promise a hash and nothing
+  else. Neither import path can produce that shape any more, so this was residue from before the
+  rename rather than a live leak, and it never reached the shipped `Forever.lua`. Re-keyed by
+  loading `Lodestar.ContributorID` and calling it, so there is still exactly one definition of what
+  a contributor's id is. The privacy statement has been wrong twice before; this was the third, in
+  data rather than in code.
+- **XP cost for level 20**, from the first pasted export by someone other than the author.
+
+- **The linter checks a guide's name against the levels it actually carries.** The band in the name
+  is what a player picking a route reads; `#levels` is what the engine uses, and four Horde guides
+  disagree. Two disagree the same way: "Horde 25-30: Ashenvale" carries 24-26 and "Horde 25-30:
+  Thousand Needles" carries 27-29, so a level-25 Horde player is offered two routes both claiming
+  25-30 — one that ends before they reach it and one that has not started. Hillsbrad and Stonetalon
+  both say 20-25 and carry 20-23. The half-open spelling is deliberately still allowed, because it is
+  a convention and not a mistake: five guides across both factions name 12-20 and carry 12-19,
+  meaning "from 12 until 20", and flagging those would bury the four real ones under five nobody
+  should act on. Names are left as they are — what to call the bands is a product decision, and the
+  warning is there so it is a decision rather than a drift.
+- **The linter follows a neutral race's faction-scoped `#next`.** `#next Horde: <guide>` was parsed
+  and then dropped, so Zephras Isle had no successor as far as the linter was concerned — which
+  switched off every chain check that route had: whether its `#next` names a guide that exists, and
+  whether a quest it accepts is ever turned in downstream. Zephras Isle is the one Forever-new
+  starting zone, so the route most likely to be wrong was the one least verified. The addon itself
+  always understood the directive; only the checker did not. Both branches now count as successors,
+  the same union the linter already used for Duskwood's three predecessors. No new warnings — the
+  Skyborne chain turns out to be correct — but it is now checked rather than assumed.
+- **Generated routes no longer send anyone to a holiday NPC who is not there.** Hillsbrad was routing
+  four seasonal quests: two Hallow's End (The Power of Pine, Crashing the Wickerman Festival, both
+  from Sergeant Hartman) and two Winter Veil (You're a Mean One…). Forever launches on November 4 and
+  Hallow's End ends on the 1st, so on day one every player following that route would have walked to
+  an empty patch of Southshore and been told to talk to nobody. Nothing else would have caught them:
+  the level filter cannot, because pfQuest says level 60 while ATT says 25 and the generator prefers
+  ATT, so they arrive looking like ordinary level-25 content; the giver check cannot either, because
+  Hartman has a real recorded position and simply is not standing in it for fifty weeks of the year.
+  pfQuest's `event` flag is the one honest signal and covers 342 quests, 34 of them at level 35 or
+  below — Winter Veil presents, the Scourge Invasion, the Lunar Festival — so this keeps a whole
+  class of dead step out of every zone rather than patching two lines out of one. Hillsbrad drops
+  from 86 steps to 75 and walks slightly less far.
+- **A curated position overlay, for the coordinates no generated source can ever hold.** Everything
+  in `Data/` is generated — Vanilla from pfQuest, ATT from AllTheThings, Forever from player
+  harvests — which leaves no home for a position that has no spawn row to harvest: the Scrying Bowl
+  only exists once you use the Phial of Scrying, the Ghost-o-plasm ghosts are summoned rather than
+  spawned. `Data/Curated.lua` is the one hand-maintained file, every entry naming its source and the
+  date it was taken, with `approx` marking a position derived from prose rather than read off a map.
+  It merges **last and gap-fill only**, so a hand-typed coordinate always loses to a generated one
+  and an entry self-expires: the day upstream learns the position, the curated one stops being
+  consulted and can be deleted without changing any behaviour. Seeded from wowhead's Forever branch
+  with the Scrying Bowl, which was the single missing object behind *both* Darkshore warnings, and
+  with the Valley of Bones spot that finally gives Ghost-o-plasm Round Up an arrow.
+  The no-override rule is written out three times — the addon, the route generator, the linter —
+  because they are three languages reading one file, and a linter checking guides against data the
+  addon does not have is how a route passes lint and points at nothing in game. The smoke test pins
+  the rule against a synthetic overlay rather than the shipped file: the first version asserted that
+  some object still held its pfQuest coordinate, which proves nothing while no curated entry targets
+  that object, and it survived the rule being inverted.
+- **The linter understands quests that start from an item.** Twelve steps warned "the giver has no
+  position in the data" and not one was a defect: they are item- and object-started quests —
+  Ursangous's Paw off an elite bear, the Aged Envelope from Benedict's Chest, Captain Sander's
+  Treasure Map as a rare murloc drop, the Tome of Divinity in a paladin's bags. There is no giver
+  standing anywhere, so asking where the giver stands has no answer, and the warning was reporting
+  the question rather than a fault. It now resolves the starting item's own sources — the mobs that
+  drop it, the objects that hold it, the vendors that sell it — and checks that the step's `.goto`
+  is in a zone where the item can actually be got. Zones, not coordinates, on purpose: a gnoll that
+  drops the Gold Pickup Schedule spawns all over Elwynn, so the nearest spawn could be most of a
+  zone away with nothing wrong, and turning an unverifiable warning into a confident distance error
+  would be worse than leaving it alone. Eight of the twelve now verify; the remaining four say
+  something true and specific instead ("starts from Tome of Divinity, which has no recorded source").
+- **A turn-in for a quest you never picked up now says so too.** The sibling of the entry below, and
+  the likelier of the two: skipping a quest is ordinary play, where a half-watched objective was a
+  bug in one guide. `StepBlocked` deliberately does not cover it — it asks whether a quest being
+  *carried* is unfinished — so skip the accept and the turn-in afterwards is neither complete (that
+  needs it turned in) nor blocked (that needs it in the log). The route parked on it silently, at an
+  NPC with nothing to say, and the only way out was to press `>` again without being told to. It is
+  not auto-skipped, for the same reason the blocked case is not reconciled around: quietly stepping
+  over a turn-in would also step over the ones a player merely has not got to yet.
+  The message reads the quest title only if the client already holds it. `questName` asks the server
+  for one it does not have, which fires QUEST_DATA_LOAD_RESULT and comes back round as another
+  evaluate — right when the name is the point, wrong for an advisory line that should not start a
+  round trip to phrase itself. It bit exactly where it was least wanted: a quest the player is not
+  carrying is the case where the title is least likely to be cached, so this was the one message
+  almost guaranteed to trigger a load. It surfaced as an unrelated window test losing its banner,
+  which is the only reason it was found at all.
+- **A step that cannot be handed in yet now says what is missing.** `StepBlocked` — a turn-in for a
+  quest you are carrying and have not finished — existed already, but only two callers ever asked it:
+  restoring saved progress, and ranking where to resume. Advancing forward never did, which is why
+  the Deathknell bug below walked a player to Shadow Priest Sarvis and left him there with no
+  explanation. It now names the outstanding objectives in chat, once per step. Said out loud rather
+  than reconciled around on purpose: moving the player back is the obvious fix and a trap, because
+  the step behind is the one `EvaluateStep` just judged complete, so the next quest event would
+  advance onto the blocked step again and the two would ping-pong — a failure this file has been
+  through before. This is the general fix; the guide fix below is the specific one.
+- **The linter now catches a `.complete` that watches fewer objectives than the quest has.** The
+  Deathknell bug was authorable because nothing checked for it: `.complete 364,1` on a two-objective
+  quest is syntactically perfect and silently asserts something false. Partial tracking is worse than
+  none — a step with no `.complete` waits for the quest to go complete on its own, while one that
+  watches half of it goes green early and the route advances. The rule counts rather than maps:
+  pfQuest stores objectives as an unordered bag of ids and the client's index order is its own, so
+  naming *which* objective is missing would be a guess dressed as a fact. Two rules keep it quiet —
+  an un-indexed `.complete <id>` covers the whole quest, and a `.buy` of one of the quest's own
+  objective items counts as covering one, since Beer Basted Boar Ribs wants a Rhapsody Malt from the
+  inn and no amount of walking will drop one. Without that second rule it fires on both of the tree's
+  buy-backed collect quests, which is how a warning nobody can act on joins the pile people stop
+  reading. It is silent on all 23 guides today and fires on exactly the line that was reported from
+  live play.
+- **Parser no longer carries a second, weaker copy of "does this step apply".** Nothing in the addon
+  called `Parser.StepApplies` — Engine has always used its own, the guide window asks Engine, and
+  `Parser.GuideApplies` had no caller at all — but two smoke tests did, so the suite was pointed at
+  the copy that does not run while the copy that does went unchecked. The two had already drifted:
+  Engine also skips a step whose only job is accepting a quest this character cannot be given, the
+  rule that stops a route pointing a paladin at a warlock's scroll, and Parser's did not. A second
+  implementation missing a rule is not dead weight, it is a trap — the next caller picks whichever
+  name it finds and inherits a filter that looks complete. Both are gone and the tests moved onto
+  Engine's, where they now drive the completionist toggle and a stubbed bag rather than passing
+  arguments to a function no player ever reaches.
 - **Going back through a guide no longer walks onto another class's step.** `<` decremented the step
   index and did nothing else. Forward navigation has always filtered — `NextStep` runs
   `EvaluateStep`, which skips what does not apply — and the window's own list filters, so going back
