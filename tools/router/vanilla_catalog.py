@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import math
 import os
 import re
 import sys
@@ -82,8 +83,14 @@ class ZoneFrame:
 # pfQuest zone id -> frame. Astrolabe-era WorldMapArea numbers (yards); approximate.
 try:
     from .map_frames import AREA_TO_UIMAP, FRAMES as CLIENT_FRAMES
+    from . import taxi_routes
+    from .world import MapFrame, TAXI_SPEED
+    from .model import MapPos
 except ImportError:  # run as a script rather than a module
     from map_frames import AREA_TO_UIMAP, FRAMES as CLIENT_FRAMES  # type: ignore
+    import taxi_routes  # type: ignore
+    from world import MapFrame, TAXI_SPEED  # type: ignore
+    from model import MapPos  # type: ignore
 
 
 ZONE_FRAMES: dict[int, ZoneFrame] = {
@@ -137,15 +144,89 @@ ZONE_FRAMES: dict[int, ZoneFrame] = {
     11: ZoneFrame("Wetlands", 0, 18561.66, 13324.32, 4135.26, 2756.25),
 }
 
-# Flight masters of the 1-30 world (npc id -> node name); only nodes inside the loaded frames are used.
+# NPC ids that sell a flight. Only the ids: the names that used to sit beside them came from
+# memory and three of them were wrong -- 1387 "Stormwind" is Thysta, the Grom'gol wind rider master
+# (Horde, on the other continent's list), 2299 "Lakeshire" is Borgus Stoutarm at Morgan's Vigil in
+# the Burning Steppes, and 931 "Sentinel Hill" is Ariena Stormfeather, whom pfQuest places 114 yards
+# from the Lakeshire flight point rather than in Westfall. The name a guide says to fly to now comes
+# from the client's TaxiNodes, and taxi_network() reports any id here that is not standing on one.
+#
+# Still hand-typed because no client table links a creature to a taxi node: DB2 knows where the
+# flight points are, not who takes the money. This covers the 1-30 world, not all ~60 of them.
 FLIGHT_MASTERS = {
-    3310: "Orgrimmar", 3615: "The Crossroads", 16227: "Ratchet", 10378: "Camp Taurajo", 2995: "Thunder Bluff",
-    2226: "The Sepulcher", 4551: "Undercity", 2389: "Tarren Mill", 12616: "Splintertree Post", 3305: "Grom'gol",
-    4312: "Orgrimmar", 1387: "Stormwind", 1573: "Ironforge", 523: "Thelsamar", 931: "Sentinel Hill",
-    2409: "Southshore", 1571: "Menethil Harbor", 2432: "Refuge Pointe", 3841: "Auberdine", 4407: "Astranaar",
-    2851: "Darkshire", 2299: "Lakeshire", 4267: "Stonetalon Peak", 4314: "Sun Rock Retreat", 2861: "Booty Bay",
-    6026: "Freewind Post", 4321: "Theramore", 3838: "Rut'theran Village", 4319: "Darnassus",
+    523, 931, 1387, 1571, 1573, 2226, 2299, 2389, 2409, 2432, 2851, 2861, 2995,
+    3305, 3310, 3615, 3838, 3841, 4267, 4312, 4314, 4319, 4321, 4407, 4551, 6026,
+    10378, 12616, 16227,
 }
+
+# Flight master NPCs, by the name the guide says to fly to. Kept because pfQuest has no role for
+# them: TaxiNodes says where the flight points are, not which creature sells the ride. The node a
+# name belongs to is matched by position rather than by string, which is also how this list gets
+# checked - a name here that is nowhere near a taxi node is reported by taxi_network().
+FLIGHT_MASTER_MAX_YARDS = 25.0  # matches land within 10; 25 leaves room for a re-recorded position
+
+
+def npc_world(n) -> "tuple[int, float, float] | None":
+    """A catalog NPC's (map, x%, y%) in world yards, or None if no client rectangle covers its map.
+
+    Only the client's own frames are used. The Astrolabe-era ZONE_FRAMES fallback stores an offset
+    and a size rather than two corners and does not share the client's sign conventions, so mixing
+    the two here would put an NPC in the wrong hemisphere; a miss just leaves the flight point
+    without an NPC attached, which costs nothing but discoverability in that one zone."""
+    key = n["map"]
+    ui = key if key in CLIENT_FRAMES else AREA_TO_UIMAP.get(key)
+    if ui not in CLIENT_FRAMES:
+        return None
+    _name, cont, x0, y0, x1, y1 = CLIENT_FRAMES[ui]
+    wx, wy = MapFrame(ui, x0, y0, x1, y1, cont).to_world(MapPos(ui, n["x"], n["y"]))
+    return cont, wx, wy
+
+
+def taxi_network(faction: str, npcs: dict) -> "tuple[list, dict]":
+    """Every flight point this faction can select, plus the flying time between each reachable pair.
+
+    Both halves come from the client (tools/wowdb/import_taxi.py). Before this, `flights` held only
+    the hand-listed flight masters that happened to stand in the zone being routed and
+    `flight_seconds` was always empty, so travel_options() priced a flight as a straight line at
+    TAXI_SPEED -- roughly 40% short, because a flight path bends and usually changes griffon
+    somewhere in the middle.
+
+    Distant nodes are emitted too, even though the player has not discovered them: the planner only
+    adds a node to known_flights when it walks a hub that contains its flight master, so listing
+    them cannot make it fly somewhere it has not been. It only means the destination exists once it
+    has."""
+    if faction not in ("Horde", "Alliance"):
+        return [], {}
+    nodes = taxi_routes.nodes(faction)
+    conts = taxi_routes.continents()
+    node_npc: dict[int, int] = {}
+    unmatched: list[str] = []
+    for nid in sorted(FLIGHT_MASTERS):
+        n = npcs.get(nid)
+        if not n:
+            continue
+        w = npc_world(n)
+        if w is None:
+            continue
+        cont, wx, wy = w
+        near = [(math.dist((wx, wy), (nx, ny)), i) for i, (_s, _p, nx, ny) in nodes.items()
+                if conts[i] == cont]
+        d, i = min(near, default=(math.inf, 0))
+        if d <= FLIGHT_MASTER_MAX_YARDS and i not in node_npc:
+            node_npc[i] = nid
+        elif d != math.inf:
+            unmatched.append(f"{n.get('name', nid)} ({nid}): nearest {faction} taxi node "
+                             f"({nodes[i][0]}) is {d:.0f} yd away")
+    for u in unmatched:
+        print(f"  flight master not at a taxi node: {u}", file=sys.stderr)
+
+    flights = [{"name": s, "npc_id": node_npc.get(i, 0), "map": p.map, "x": round(p.x, 2), "y": round(p.y, 2)}
+               for i, (s, p, _x, _y) in sorted(nodes.items(), key=lambda kv: kv[1][0])]
+    secs = {}
+    for (a, b), yards in taxi_routes.route_yards(faction).items():
+        secs[f"{nodes[a][0]} -> {nodes[b][0]}"] = round(yards / TAXI_SPEED, 1)
+    return flights, secs
+
 
 # Quest flags/ids that are not part of a leveling route (seasonal, max-level, PvP).
 SEASONAL_TITLES = ("Winter's Presents", "Raptor Replacement", "A Donation of", "Treats for Greatfather", "Stolen Winter Veil",
@@ -431,11 +512,7 @@ def build(data, zones: list[int], faction: str, race: str, levels: tuple[int, in
             add_npc(nid, "flightmaster")
         if nid in trainers:
             add_npc(nid, f"trainer:{trainers[nid]}")
-    flights = []
-    for nid, name in FLIGHT_MASTERS.items():
-        n = npcs.get(nid)
-        if n and "flightmaster" in n["roles"]:
-            flights.append({"name": name, "npc_id": nid, "map": n["map"], "x": n["x"], "y": n["y"]})
+    flights, flight_seconds = taxi_network(faction, npcs)
 
     # grind spots: hostile mobs with several positions in the primary zone
     grind = []
@@ -510,6 +587,7 @@ def build(data, zones: list[int], faction: str, race: str, levels: tuple[int, in
         "npcs": sorted(npcs.values(), key=lambda n: n["id"]),
         "quests": quests,
         "flights": flights,
+        "flight_seconds": flight_seconds,
         "grind_spots": grind,
     }
 
