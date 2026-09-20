@@ -81,6 +81,18 @@ class ZoneFrame:
 
 # pfQuest zone id -> frame. Astrolabe-era WorldMapArea numbers (yards); approximate.
 ZONE_FRAMES: dict[int, ZoneFrame] = {
+    # Forever's new maps. Size is measured, not guessed: the addon asks the client for
+    # C_Map.GetMapWorldSize when it builds a trail grid (Lodestar_Guide/Trails.lua:gridFor) and
+    # stores the result as cells of CELL_YARDS = 20, so nx/ny in a harvested LodestarScanDB.trails
+    # record invert straight back to yards. Both archives in data/beta/archive agree at
+    # nx=278, ny=185 for uiMap 2521, giving 5560 x 3700 (+/- 20, the rounding to whole cells).
+    #
+    # The offsets are NOT known -- nothing has recorded where Zephras sits on a continent, and the
+    # island is self-contained, so no route crosses its edge. They only shift coordinates, and
+    # MapFrame.to_world shifts both ends of a distance equally, so every within-zone number here is
+    # correct regardless. A route that ever leaves this map by measured travel would not be.
+    2521: ZoneFrame("Zephras Isle", 1, 0.0, 0.0, 5560.0, 3700.0),
+
     # Kalimdor
     331: ZoneFrame("Ashenvale", 1, 15366.76, 8126.93, 5766.73, 3843.72),
     16: ZoneFrame("Azshara", 1, 20343.90, 7458.18, 5070.89, 3381.23),
