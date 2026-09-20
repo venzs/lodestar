@@ -33,15 +33,37 @@ CELL_YARDS = 150.0         # detour factors are learned per (cell, cell) pair
 
 @dataclass
 class MapFrame:
+    """A map's world rectangle, as UiMapAssignment stores it: two opposite corners, not an origin
+    and a size, and in world axes rather than map axes.
+
+    The two do not line up the way the names suggest. World X runs south to north and world Y runs
+    east to west, while a map percentage runs left to right and top to bottom, so the map's
+    horizontal axis is world Y and its vertical axis is world X, and both run backwards:
+
+        world x = x1 - (x1 - x0) * map y%
+        world y = y1 - (y1 - y0) * map x%
+
+    Getting this wrong is not a rotation that cancels out of a distance. It attaches the rectangle's
+    height to the map's horizontal axis, so every distance inside a zone is computed with the zone's
+    width and height exchanged -- 50% wrong on a leg across Durotar, which is 5288 yards wide and
+    3525 tall. Thirteen flight masters whose position is known from two independent sources (pfQuest
+    percentages and the client's TaxiNodes world coordinates) agree to within 9 yards under this
+    formula and are 33 to 5710 yards apart under the other one."""
     map: int
-    x0: float   # world x at map (0%, 0%)
-    y0: float
-    x1: float   # world x at (100%, 100%)
+    x0: float   # world x at the south edge; world x grows north, so this is the BOTTOM of the map
+    y0: float   # world y at the east edge; world y grows west, so this is the RIGHT of the map
+    x1: float
     y1: float
     continent: int = 0
 
     def to_world(self, p: MapPos) -> tuple[float, float]:
-        return (self.x0 + (self.x1 - self.x0) * p.x / 100.0, self.y0 + (self.y1 - self.y0) * p.y / 100.0)
+        return (self.x1 - (self.x1 - self.x0) * p.y / 100.0,
+                self.y1 - (self.y1 - self.y0) * p.x / 100.0)
+
+    def to_map(self, x: float, y: float) -> tuple[float, float]:
+        """Inverse of to_world: world yards -> (map x%, map y%)."""
+        return ((self.y1 - y) / (self.y1 - self.y0) * 100.0,
+                (self.x1 - x) / (self.x1 - self.x0) * 100.0)
 
 
 @dataclass

@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import math
 import os
 import random
 import shutil
@@ -25,9 +26,10 @@ from tools.router.cost import CostModel                             # noqa: E402
 from tools.router.emit import GuideHeader, emit, hub_actions        # noqa: E402
 from tools.router.laps import LapEntry, calibrate, steps_from_lap   # noqa: E402
 from tools.router.luabin import find_lua                             # noqa: E402
-from tools.router.model import StepKind                             # noqa: E402
+from tools.router.model import MapPos, StepKind                      # noqa: E402
 from tools.router.router import PlannerConfig, plan_two_pass        # noqa: E402
 from tools.router.validate import replay                            # noqa: E402
+from tools.router.world import MapFrame                              # noqa: E402
 
 EXAMPLE = os.path.join(HERE, "..", "examples", "deathknell.json")
 
@@ -168,6 +170,35 @@ def test_vanilla_deathknell():
     assert DEATHKNELL_QUESTS <= turned, f"not turned in: {DEATHKNELL_QUESTS - turned}"
     text = emit(GuideHeader(name="Test 1-6: Deathknell", faction="Horde", races=["Undead"], levels=(1, 6)), steps, cat)
     assert ".goto Tirisfal Glades," in text
+
+
+def test_map_frame_orientation():
+    """A map percentage runs left-to-right and top-to-bottom; the client's rectangle runs south-to-
+    north and east-to-west. So the map's horizontal extent is the rectangle's y span and its
+    vertical extent is the x span, and swapping them computes every distance inside a zone with the
+    zone's width and height exchanged.
+
+    Checked against the Astrolabe-era hand table, which is an independent source and stores width
+    and height the way a map does. 44 of its 46 zones match the client to within a yard that way
+    round and none of them match the other way; the two that differ (Mulgore, Eastern Plaguelands)
+    are wrong in the hand table by 20% and 11%, hence the loose tolerance."""
+    from tools.router.map_frames import AREA_TO_UIMAP, FRAMES
+    from tools.router.vanilla_catalog import ZONE_FRAMES
+    checked, wrong = 0, []
+    for z, hand in ZONE_FRAMES.items():
+        ui = z if z in FRAMES else AREA_TO_UIMAP.get(z)
+        if ui not in FRAMES:
+            continue
+        _n, cont, x0, y0, x1, y1 = FRAMES[ui]
+        f = MapFrame(ui, x0, y0, x1, y1, cont)
+        across = math.dist(f.to_world(MapPos(ui, 0, 50)), f.to_world(MapPos(ui, 100, 50)))
+        down = math.dist(f.to_world(MapPos(ui, 50, 0)), f.to_world(MapPos(ui, 50, 100)))
+        checked += 1
+        if abs(across - hand.width) > 0.25 * hand.width or abs(down - hand.height) > 0.25 * hand.height:
+            wrong.append(f"{hand.name}: map is {across:.0f}x{down:.0f} yd, hand table says "
+                         f"{hand.width:.0f}x{hand.height:.0f}")
+    assert checked >= 40, f"only {checked} zones cross-checked"
+    assert not wrong, "map frame axes are swapped: " + "; ".join(wrong)
 
 
 if __name__ == "__main__":

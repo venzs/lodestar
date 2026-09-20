@@ -452,6 +452,9 @@ def build(data, zones: list[int], faction: str, race: str, levels: tuple[int, in
         grind.append({"name": e.get("n", f"npc {nid}"), "map": c[0], "x": c[1], "y": c[2],
                       "mob_level_min": lmin, "mob_level_max": lmax, "density": 1.0})
 
+    # Frames are world rectangles in the UiMapAssignment convention -- see world.MapFrame, whose
+    # to_world() maps the map's horizontal axis onto world y and its vertical axis onto world x.
+    #
     # Frames: the client's own rectangles where it has them, the Astrolabe-era hand table only for
     # anything it does not. They agree to within a yard on 44 of 46 shared zones, so this is not a
     # rewrite -- it is the two that disagree (Mulgore is 20% larger than the hand table said, and
@@ -476,8 +479,15 @@ def build(data, zones: list[int], faction: str, race: str, levels: tuple[int, in
         if ui in CLIENT_FRAMES:
             name, cont, x0, y0, x1, y1 = CLIENT_FRAMES[ui]
             put(area, ZONE_FRAMES[area].name if area in ZONE_FRAMES else name, cont, x0, y0, x1, y1)
+    # The hand table stores an Astrolabe rectangle: an offset on the continent map plus a width
+    # (east-west) and a height (north-south). A MapFrame is two world corners with world x running
+    # north and world y running west, so width belongs on the y axis and height on the x axis --
+    # which is exactly how the client's own numbers came out, and why 44 of these 46 match it to
+    # within a yard when compared that way round. The offsets are Astrolabe's continent frame, not
+    # world coordinates, so a converted frame gets distances inside the zone right and its absolute
+    # position wrong. Harmless today: the client covers all 46, so nothing reaches this loop.
     for z, f in ZONE_FRAMES.items():
-        put(z, f.name, f.continent, f.x_off, f.y_off, f.x_off + f.width, f.y_off + f.height)
+        put(z, f.name, f.continent, f.y_off, f.x_off, f.y_off + f.height, f.x_off + f.width)
 
     # start: explicit, else the giver of the lowest-level quest without prerequisites
     if start:
