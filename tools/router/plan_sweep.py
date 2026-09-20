@@ -16,13 +16,16 @@ The minutes are the cost model's opinion, not a measurement: every constant in c
 that laps.py is meant to re-fit from a recorded run. Compare zones against each other, and the same
 zone before and after a change; do not read the absolute number as a promise.
 
-Needs the real interpreter path for LuaJIT on Windows, where `lua5.1` on PATH may be a shell shim.
+The interpreter comes from luabin.find_lua(), which follows the lua5.1 shim on PATH to the real
+LuaJIT rather than assuming one developer's install path.
 """
 import json, os, re, subprocess, sys, glob
-LUA = "C:/Users/abhin/AppData/Local/Programs/LuaJIT/bin/luajit.exe"
-TMP = os.environ["TEMP"] + "/lode"
 sys.path.insert(0, "tools/router")
 import lint_guides
+from luabin import find_lua
+
+LUA = find_lua()
+TMP = os.environ["TEMP"] + "/lode"
 
 rows = []
 for path in sorted(glob.glob("Lodestar_Guides_*/*.lua")):

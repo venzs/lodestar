@@ -24,6 +24,7 @@ from tools.router.catalog import load                               # noqa: E402
 from tools.router.cost import CostModel                             # noqa: E402
 from tools.router.emit import GuideHeader, emit, hub_actions        # noqa: E402
 from tools.router.laps import LapEntry, calibrate, steps_from_lap   # noqa: E402
+from tools.router.luabin import find_lua                             # noqa: E402
 from tools.router.model import StepKind                             # noqa: E402
 from tools.router.router import PlannerConfig, plan_two_pass        # noqa: E402
 from tools.router.validate import replay                            # noqa: E402
@@ -115,9 +116,11 @@ def test_emit_parses_with_lua():
     replay(steps, cat, world, cm, start)
     text = emit(GuideHeader(name="Test 1-6: Deathknell", faction="Horde", races=["Undead"], levels=(1, 6)), steps, cat)
     assert text.startswith("#guide Test 1-6: Deathknell\n")
-    lua = shutil.which("lua5.1") or shutil.which("lua")
+    lua = find_lua()
     if not lua:
-        print("  (lua not found, skipping parser check)")
+        # A skip that prints and passes is how this check spent its life doing nothing: shutil.which
+        # could not see the lua5.1 shim on PATH, so the branch below never ran. Say so loudly.
+        print("  WARNING: no Lua interpreter found, guide was NOT parsed (set $LUA)")
         return
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
         f.write(text)
@@ -128,13 +131,6 @@ def test_emit_parses_with_lua():
         assert "order OK" in out.stdout
     finally:
         os.unlink(path)
-
-
-if __name__ == "__main__":
-    for name, fn in list(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            fn()
-            print("ok", name)
 
 
 # --- real data: Deathknell from Data/Vanilla.lua ----------------------------------------------------------
@@ -172,3 +168,13 @@ def test_vanilla_deathknell():
     assert DEATHKNELL_QUESTS <= turned, f"not turned in: {DEATHKNELL_QUESTS - turned}"
     text = emit(GuideHeader(name="Test 1-6: Deathknell", faction="Horde", races=["Undead"], levels=(1, 6)), steps, cat)
     assert ".goto Tirisfal Glades," in text
+
+
+if __name__ == "__main__":
+    # At the bottom on purpose: this block runs where it is written, so anything defined below it
+    # is invisible to globals() and never runs. test_vanilla_deathknell sat below it and had never
+    # been executed once.
+    for name, fn in list(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            fn()
+            print("ok", name)
