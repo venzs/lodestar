@@ -21,7 +21,42 @@ local ROOT = arg and arg[0] and arg[0]:match("^(.*)tools[/\\]smoke[/\\]persist%.
 if ROOT == "" then ROOT = "./" end
 
 local MODE = arg and arg[1]
-local SVDIR = (arg and arg[2]) or (os.getenv("TMPDIR") or "/tmp") .. "/lodestar-persist"
+
+-- A native Windows Lua hands os.execute to cmd.exe, which has no `rm`, no `mkdir -p`, and cannot
+-- execute a shell shim named `lua5.1` sitting on PATH. package.config's separator is the honest
+-- signal for which shell system() will reach: "\\" only for a build that goes to cmd, "/" for an
+-- MSYS build under Git Bash, where the POSIX branch is the right one. The failure was silent --
+-- cmd answered 0 to a command line it never ran, so all four sessions below reported success
+-- without a single one having started, and the file wrote nothing to disk to show for it.
+local WINDOWS = package.config:sub(1, 1) == "\\"
+
+--- Forward slashes and no trailing one, so a path from %TEMP% concatenates like a POSIX one.
+local function slashes(p) return (p:gsub("\\", "/"):gsub("/+$", "")) end
+
+local TMPROOT = slashes(os.getenv("TMPDIR") or (WINDOWS and (os.getenv("TEMP") or os.getenv("TMP"))) or "/tmp")
+local SVDIR = (arg and arg[2]) or TMPROOT .. "/lodestar-persist"
+
+--- mkdir -p, for a shell that may be cmd. Parents included, an existing directory is not an error.
+local function makeDir(dir)
+	if WINDOWS then
+		local win = dir:gsub("/", "\\")
+		os.execute(('if not exist "%s" mkdir "%s"'):format(win, win))
+	else
+		os.execute("mkdir -p '" .. dir .. "'")
+	end
+end
+
+--- An empty directory, whatever was there before. Session one must not inherit the last run's
+--- file: a value that stopped surviving would still be read back, and the test would pass on it.
+local function resetDir(dir)
+	if WINDOWS then
+		local win = dir:gsub("/", "\\")
+		os.execute(('if exist "%s" rd /s /q "%s"'):format(win, win))
+	else
+		os.execute("rm -rf '" .. dir .. "'")
+	end
+	makeDir(dir)
+end
 
 -- Saved variables by owning addon, exactly as the TOCs declare them.
 local SAVED = {
@@ -44,16 +79,28 @@ local LEGACY = {
 -- reference and prove nothing about what actually round-trips through the file.
 -- ---------------------------------------------------------------------------------------------
 if not MODE then
-	os.execute("rm -rf " .. SVDIR .. " && mkdir -p " .. SVDIR)
-	local lua = "lua5.1"
+	resetDir(SVDIR)
+	-- The interpreter that is running this, never the name "lua5.1": on Windows that name is a
+	-- shell shim cmd cannot execute, and cmd then reports success for not executing it.
+	local lua = (arg and arg[-1]) or "lua5.1"
 	local function run(mode)
-		local cmd = ("%s %stools/smoke/persist.lua %s %s"):format(lua, ROOT, mode, SVDIR)
+		local cmd = ('"%s" "%stools/smoke/persist.lua" %s "%s"'):format(lua, ROOT, mode, SVDIR)
+		-- cmd strips one layer of quotes from the whole command line before parsing it.
+		if WINDOWS then cmd = '"' .. cmd .. '"' end
 		local ok, how, code = os.execute(cmd)
 		-- Lua 5.1 returns the raw exit status; 5.2+ returns ok, "exit", code.
 		if ok == true or ok == 0 then return 0 end
 		return (type(code) == "number" and code) or 1
 	end
 	if run("write") ~= 0 then print("persist: session one failed") os.exit(1) end
+	-- Do not take the exit code's word for it. The whole point of session one is a file on disk, and
+	-- a shell that says "fine" without running anything leaves the three reads below with nothing to
+	-- read and nothing to disagree with -- which is how this file spent a while passing vacuously.
+	for addon in pairs(SAVED) do
+		local f = io.open(SVDIR .. "/" .. addon .. ".lua", "r")
+		if not f then print("persist: session one wrote no saved variables for " .. addon) os.exit(1) end
+		f:close()
+	end
 	if run("read") ~= 0 then print("persist: session two failed") os.exit(1) end
 	-- And the upgrade path: the same data sitting under the names Lodestar used before
 	-- Core/Saved.lua renamed them has to be adopted, not silently started over.
@@ -207,7 +254,8 @@ local function serialize(out, value, indent)
 end
 
 local function writeSavedVariables()
-	os.execute("mkdir -p " .. SVDIR .. " " .. SVDIR .. "/legacy")
+	makeDir(SVDIR)
+	makeDir(SVDIR .. "/legacy")
 	for addon, names in pairs(SAVED) do
 		local out = { "\n" }
 		for _, name in ipairs(names) do
