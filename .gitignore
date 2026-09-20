@@ -31,3 +31,7 @@ data/beta/*.txt
 # They are working files that happen to land here, and a `git add -A` will otherwise commit them:
 # a 1,009-line patch of a commit already in this history went in exactly that way.
 Claude outputs/
+
+# Client DB2 exports, pulled per build by tools/wowdb/fetch.sh. Large, rederivable and
+# Blizzard's data rather than ours; what gets committed is what the importers generate.
+tools/wowdb/src/

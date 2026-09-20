@@ -80,19 +80,13 @@ class ZoneFrame:
 
 
 # pfQuest zone id -> frame. Astrolabe-era WorldMapArea numbers (yards); approximate.
-ZONE_FRAMES: dict[int, ZoneFrame] = {
-    # Forever's new maps. Size is measured, not guessed: the addon asks the client for
-    # C_Map.GetMapWorldSize when it builds a trail grid (Lodestar_Guide/Trails.lua:gridFor) and
-    # stores the result as cells of CELL_YARDS = 20, so nx/ny in a harvested LodestarScanDB.trails
-    # record invert straight back to yards. Both archives in data/beta/archive agree at
-    # nx=278, ny=185 for uiMap 2521, giving 5560 x 3700 (+/- 20, the rounding to whole cells).
-    #
-    # The offsets are NOT known -- nothing has recorded where Zephras sits on a continent, and the
-    # island is self-contained, so no route crosses its edge. They only shift coordinates, and
-    # MapFrame.to_world shifts both ends of a distance equally, so every within-zone number here is
-    # correct regardless. A route that ever leaves this map by measured travel would not be.
-    2521: ZoneFrame("Zephras Isle", 1, 0.0, 0.0, 5560.0, 3700.0),
+try:
+    from .map_frames import AREA_TO_UIMAP, FRAMES as CLIENT_FRAMES
+except ImportError:  # run as a script rather than a module
+    from map_frames import AREA_TO_UIMAP, FRAMES as CLIENT_FRAMES  # type: ignore
 
+
+ZONE_FRAMES: dict[int, ZoneFrame] = {
     # Kalimdor
     331: ZoneFrame("Ashenvale", 1, 15366.76, 8126.93, 5766.73, 3843.72),
     16: ZoneFrame("Azshara", 1, 20343.90, 7458.18, 5070.89, 3381.23),
@@ -458,9 +452,32 @@ def build(data, zones: list[int], faction: str, race: str, levels: tuple[int, in
         grind.append({"name": e.get("n", f"npc {nid}"), "map": c[0], "x": c[1], "y": c[2],
                       "mob_level_min": lmin, "mob_level_max": lmax, "density": 1.0})
 
-    frames = [{"map": z, "x0": f.x_off, "y0": f.y_off, "x1": f.x_off + f.width, "y1": f.y_off + f.height, "continent": f.continent}
-              for z, f in ZONE_FRAMES.items()]
-    map_names = {str(z): f.name for z, f in ZONE_FRAMES.items()}
+    # Frames: the client's own rectangles where it has them, the Astrolabe-era hand table only for
+    # anything it does not. They agree to within a yard on 44 of 46 shared zones, so this is not a
+    # rewrite -- it is the two that disagree (Mulgore is 20% larger than the hand table said, and
+    # every distance computed in it was wrong by that much) and the maps that were never in it.
+    #
+    # Emitted under BOTH ids a coordinate might carry. pfQuest writes an old area id into c[0] and
+    # the harvest writes a uiMapID, and after Data.lua merges the sources both arrive in the same
+    # slot; a frame table that knows only one of them fails on whichever source it does not.
+    frames, map_names, seen = [], {}, set()
+
+    def put(key, name, continent, x0, y0, x1, y1):
+        if key in seen:
+            return
+        seen.add(key)
+        frames.append({"map": key, "x0": x0, "y0": y0, "x1": x1, "y1": y1, "continent": continent})
+        if name:
+            map_names[str(key)] = name
+
+    for ui, (name, cont, x0, y0, x1, y1) in CLIENT_FRAMES.items():
+        put(ui, name, cont, x0, y0, x1, y1)
+    for area, ui in AREA_TO_UIMAP.items():
+        if ui in CLIENT_FRAMES:
+            name, cont, x0, y0, x1, y1 = CLIENT_FRAMES[ui]
+            put(area, ZONE_FRAMES[area].name if area in ZONE_FRAMES else name, cont, x0, y0, x1, y1)
+    for z, f in ZONE_FRAMES.items():
+        put(z, f.name, f.continent, f.x_off, f.y_off, f.x_off + f.width, f.y_off + f.height)
 
     # start: explicit, else the giver of the lowest-level quest without prerequisites
     if start:
