@@ -324,6 +324,7 @@ step
   .accept 6134 >>Accept Ghost-o-plasm Round Up (lvl 34) from Hornizz Brimbuzzle
 
 step
+  .goto Desolace,64.0,90.0
   .complete 6134 >>Finish Ghost-o-plasm Round Up
 
 step

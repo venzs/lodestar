@@ -147,7 +147,7 @@ step
   .complete 92462 >>Pesky Cirrusfly slain x8
 
 step
-  .goto Zephras Isle,46.5,18.9
+  .goto Zephras Isle,45.9,19.2
   .complete 92465 >>Al'Aketh Convert slain x7, Roiling Winds destroyed x6
 
 step

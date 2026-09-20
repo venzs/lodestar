@@ -466,13 +466,13 @@ step
   .accept 262 >>Accept The Shadowy Figure (lvl 20) from Sven Yorgen
 
 step
+  .goto Duskwood,7.8,34.1
+  .accept 95 >>Accept Sven's Revenge (lvl 20) from Sven Yorgen
+
+step
   .optional >>Needs Armed and Ready, which starts in Stormwind City
   .goto Duskwood,7.8,34.1
   .accept 55 >>Accept Morbent Fel (lvl 20) from Sven Yorgen
-
-step
-  .goto Duskwood,7.8,34.1
-  .accept 95 >>Accept Sven's Revenge (lvl 20) from Sven Yorgen
 
 step
   .optional >>Needs Armed and Ready, which starts in Stormwind City

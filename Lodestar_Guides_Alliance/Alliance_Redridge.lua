@@ -39,6 +39,11 @@ step
   .accept 143 >>Accept Messenger to Westfall (lvl 14) from Magistrate Solomon
 
 step
+  .optional >>Needs Messenger to Westfall, which starts in Westfall
+  .goto Redridge Mountains,30.0,44.5
+  .accept 145 >>Accept Messenger to Darkshire (lvl 18) from Magistrate Solomon
+
+step
   .goto Redridge Mountains,29.7,44.3
   .accept 91 >>Accept Solomon's Law (lvl 17) from Bailiff Conacher
 
@@ -64,16 +69,8 @@ step
   .accept 2282 >>Accept Alther's Mill (lvl 16) from Lucius
 
 step
-  .goto Redridge Mountains,21.9,46.3
-  .accept 34 >>Accept An Unwelcome Guest (lvl 18) from Martie Jainrose
-
-step
   .goto Redridge Mountains,22.7,43.8
   .accept 92 >>Accept Redridge Goulash (lvl 15) from Chef Breanna
-
-step
-  .goto Redridge Mountains,16.0,49.3
-  .complete 34 >>Finish An Unwelcome Guest
 
 step
   .optional >>Needs Yorus Barleybrew, which starts in Stormwind City
@@ -128,6 +125,10 @@ step
   .turnin 143 >>Turn in Messenger to Westfall to Gryan Stoutmantle (not in this zone)
 
 step
+  .optional >>Handed in outside this zone, to Lord Ello Ebonlocke
+  .turnin 145 >>Turn in Messenger to Darkshire to Lord Ello Ebonlocke (not in this zone)
+
+step
   .goto Redridge Mountains,29.7,44.3
   .turnin 91 >>Turn in Solomon's Law to Bailiff Conacher
 
@@ -152,10 +153,6 @@ step
   .turnin 2282 >>Turn in Alther's Mill to Lucius
 
 step
-  .goto Redridge Mountains,21.9,46.3
-  .turnin 34 >>Turn in An Unwelcome Guest to Martie Jainrose
-
-step
   .goto Redridge Mountains,22.7,43.8
   .turnin 92 >>Turn in Redridge Goulash to Chef Breanna
 
@@ -163,9 +160,8 @@ step
   .xp 22
 
 step
-  .class Warrior
-  .goto Redridge Mountains,26.6,44.7
-  .accept 1702 >>Accept The Shieldsmith (lvl 20) from Yorus Barleybrew
+  .goto Redridge Mountains,21.9,46.3
+  .accept 34 >>Accept An Unwelcome Guest (lvl 18) from Martie Jainrose
 
 step
   .goto Redridge Mountains,26.3,46.6
@@ -174,6 +170,11 @@ step
 step
   .goto Redridge Mountains,27.7,47.4
   .accept 150 >>Accept Murloc Poachers (lvl 20) from Dockmaster Baren
+
+step
+  .class Warrior
+  .goto Redridge Mountains,26.6,44.7
+  .accept 1702 >>Accept The Shieldsmith (lvl 20) from Yorus Barleybrew
 
 step
   .goto Redridge Mountains,31.0,47.3
@@ -191,18 +192,17 @@ step
 
 step
   .goto Redridge Mountains,33.5,49.0
-  .accept 115 >>Accept Shadow Magic (lvl 18) from Marshal Marris
   .accept 19 >>Accept Tharil'zun (lvl 18) from Marshal Marris
-
-step
-  .optional >>Needs Messenger to Westfall, which starts in Westfall
-  .goto Redridge Mountains,30.0,44.5
-  .accept 145 >>Accept Messenger to Darkshire (lvl 18) from Magistrate Solomon
+  .accept 115 >>Accept Shadow Magic (lvl 18) from Marshal Marris
 
 step
   .class Rogue
   .goto Redridge Mountains,28.1,52.3
   .accept 2358 >>Accept Horns of Nez'ra (lvl 16) from Arantir
+
+step
+  .goto Redridge Mountains,16.0,49.3
+  .complete 34 >>Finish An Unwelcome Guest
 
 step
   .goto Redridge Mountains,23.7,35.2
@@ -242,8 +242,8 @@ step
 
 step
   .goto Redridge Mountains,33.5,49.0
-  .turnin 115 >>Turn in Shadow Magic to Marshal Marris
   .turnin 19 >>Turn in Tharil'zun to Marshal Marris
+  .turnin 115 >>Turn in Shadow Magic to Marshal Marris
 
 step
   .goto Redridge Mountains,32.1,48.6
@@ -259,8 +259,12 @@ step
   .turnin 122 >>Turn in Underbelly Scales to Verner Osgood
 
 step
-  .optional >>Handed in outside this zone, to Lord Ello Ebonlocke
-  .turnin 145 >>Turn in Messenger to Darkshire to Lord Ello Ebonlocke (not in this zone)
+  .goto Redridge Mountains,27.7,47.4
+  .turnin 150 >>Turn in Murloc Poachers to Dockmaster Baren
+
+step
+  .goto Redridge Mountains,26.3,46.6
+  .turnin 386 >>Turn in What Comes Around... to Guard Berton
 
 step
   .optional >>Handed in outside this zone, to Furen Longbeard
@@ -268,12 +272,8 @@ step
   .turnin 1702 >>Turn in The Shieldsmith to Furen Longbeard (not in this zone)
 
 step
-  .goto Redridge Mountains,26.3,46.6
-  .turnin 386 >>Turn in What Comes Around... to Guard Berton
-
-step
-  .goto Redridge Mountains,27.7,47.4
-  .turnin 150 >>Turn in Murloc Poachers to Dockmaster Baren
+  .goto Redridge Mountains,21.9,46.3
+  .turnin 34 >>Turn in An Unwelcome Guest to Martie Jainrose
 
 step
   .class Rogue

@@ -71,13 +71,13 @@ step
   .accept 1008 >>Accept The Zoram Strand (lvl 14) from Shindrell Swiftfire
 
 step
+  .goto Ashenvale,34.9,49.8
+  .accept 1070 >>Accept On Guard in Stonetalon (lvl 17) from Sentinel Thenysil
+
+step
   .optional >>Needs Update for Sentinel Thenysil, which starts in Stonetalon Mountains
   .goto Ashenvale,34.9,49.8
   .accept 1081 >>Accept Reception from Tyrande (lvl 17) from Sentinel Thenysil
-
-step
-  .goto Ashenvale,34.9,49.8
-  .accept 1070 >>Accept On Guard in Stonetalon (lvl 17) from Sentinel Thenysil
 
 step
   .goto Ashenvale,35.8,49.1
@@ -113,12 +113,12 @@ step
   .turnin 1008 >>Turn in The Zoram Strand to Shindrell Swiftfire
 
 step
-  .optional >>Handed in outside this zone, to Tyrande Whisperwind
-  .turnin 1081 >>Turn in Reception from Tyrande to Tyrande Whisperwind (not in this zone)
-
-step
   .optional >>Handed in outside this zone, to Kaela Shadowspear
   .turnin 1070 >>Turn in On Guard in Stonetalon to Kaela Shadowspear (not in this zone)
+
+step
+  .optional >>Handed in outside this zone, to Tyrande Whisperwind
+  .turnin 1081 >>Turn in Reception from Tyrande to Tyrande Whisperwind (not in this zone)
 
 step
   .optional >>Handed in outside this zone, to Keeper Albagorm

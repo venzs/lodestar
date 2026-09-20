@@ -4,7 +4,7 @@
 -- beta harvest). Regenerate rather than hand-editing, or the next harvest will overwrite you.
 -- --regen-args: 267 --name "Alliance 30-35: Hillsbrad Foothills" --faction "Alliance" --levels "30-35" --zone "Hillsbrad Foothills" --max-level "36" --min-level "22"
 --
--- 33 quests on uiMapID 267 had a known giver position; 22 carried a prerequisite chain, which is
+-- 29 quests on uiMapID 267 had a known giver position; 20 carried a prerequisite chain, which is
 -- what fixes the order. Quests the data cannot place yet are not in here at all -- smart mode
 -- covers those, and they appear as soon as someone walks past their giver.
 local Guide = _G.Lodestar:GetModule("Guide")
@@ -25,19 +25,8 @@ step
   .accept 555 >>Accept Soothing Turtle Bisque (lvl 28) from Chef Jessen
 
 step
-  .optional >>Needs The Ensorcelled Parchment, which this route does not cover
-  .goto Hillsbrad Foothills,50.6,57.1
-  .accept 554 >>Accept Stormpike's Deciphering (lvl 28) from Loremaster Dibbs
-
-step
-  .optional >>Needs Encrypted Letter, which this route does not cover
-  .goto Hillsbrad Foothills,50.6,57.1
-  .accept 514 >>Accept Letter to Stormpike (lvl 30) from Loremaster Dibbs
-
-step
-  .goto Hillsbrad Foothills,50.0,57.3
-  .accept 8373 >>Accept The Power of Pine (lvl 25) from Sergeant Hartman
-  .accept 1658 >>Accept Crashing the Wickerman Festival (lvl 25) from Sergeant Hartman
+  .goto Hillsbrad Foothills,50.3,59.0
+  .accept 659 >>Accept Hints of a New Plague? (lvl 30) from Phin Odelic
 
 step
   .goto Hillsbrad Foothills,49.5,58.7
@@ -56,6 +45,21 @@ step
   .optional >>Needs Further Mysteries, which starts in Ironforge
   .goto Hillsbrad Foothills,48.1,59.1
   .accept 537 >>Accept Dark Council (lvl 30) from Magistrate Henry Maleb
+
+step
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
+  .accept 523 >>Accept Baron's Demise (lvl 30) from Magistrate Henry Maleb
+
+step
+  .optional >>Needs The Ensorcelled Parchment, which this route does not cover
+  .goto Hillsbrad Foothills,50.6,57.1
+  .accept 554 >>Accept Stormpike's Deciphering (lvl 28) from Loremaster Dibbs
+
+step
+  .optional >>Needs Encrypted Letter, which this route does not cover
+  .goto Hillsbrad Foothills,50.6,57.1
+  .accept 514 >>Accept Letter to Stormpike (lvl 30) from Loremaster Dibbs
 
 step
   .goto Hillsbrad Foothills,49.4,55.5
@@ -91,17 +95,15 @@ step
   .complete 505 >>Finish Syndicate Assassins
 
 step
-  .complete 8373 >>Finish The Power of Pine
-
-step
-  .complete 1658 >>Finish Crashing the Wickerman Festival
-
-step
   .complete 555 >>Finish Soothing Turtle Bisque
 
 step
   .optional >>Needs Further Mysteries, which starts in Ironforge
   .complete 537 >>Finish Dark Council
+
+step
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .complete 523 >>Finish Baron's Demise
 
 step
   .goto Hillsbrad Foothills,52.4,56.0
@@ -116,9 +118,16 @@ step
   .turnin 514 >>Turn in Letter to Stormpike to Prospector Stormpike (not in this zone)
 
 step
-  .goto Hillsbrad Foothills,50.0,57.3
-  .turnin 8373 >>Turn in The Power of Pine to Sergeant Hartman
-  .turnin 1658 >>Turn in Crashing the Wickerman Festival to Sergeant Hartman
+  .goto Hillsbrad Foothills,51.5,58.4
+  .turnin 536 >>Turn in Down the Coast to Lieutenant Farren Orinelle
+
+step
+  .goto Hillsbrad Foothills,51.9,58.7
+  .turnin 555 >>Turn in Soothing Turtle Bisque to Chef Jessen
+
+step
+  .optional >>Handed in outside this zone, to Quae
+  .turnin 659 >>Turn in Hints of a New Plague? to Quae (not in this zone)
 
 step
   .goto Hillsbrad Foothills,49.5,58.7
@@ -139,36 +148,24 @@ step
   .turnin 537 >>Turn in Dark Council to Magistrate Henry Maleb
 
 step
-  .goto Hillsbrad Foothills,51.5,58.4
-  .turnin 536 >>Turn in Down the Coast to Lieutenant Farren Orinelle
-
-step
-  .goto Hillsbrad Foothills,51.9,58.7
-  .turnin 555 >>Turn in Soothing Turtle Bisque to Chef Jessen
+  .optional >>Needs Assassin's Contract, which this route does not cover
+  .goto Hillsbrad Foothills,48.1,59.1
+  .turnin 523 >>Turn in Baron's Demise to Magistrate Henry Maleb
 
 step
   .goto Hillsbrad Foothills,49.4,55.5
   .turnin 565 >>Turn in Bartolo's Yeti Fur Cloak to Bartolo Ginsetti
 
 step
-  .xp 31
+  .xp 32
 
 step
   .goto Hillsbrad Foothills,49.5,58.7
   .accept 504 >>Accept Crushridge Warmongers (lvl 30) from Marshal Redpath
 
 step
-  .goto Hillsbrad Foothills,50.3,59.0
-  .accept 659 >>Accept Hints of a New Plague? (lvl 30) from Phin Odelic
-
-step
   .goto Hillsbrad Foothills,51.5,58.4
   .accept 559 >>Accept Farren's Proof (lvl 25) from Lieutenant Farren Orinelle
-
-step
-  .optional >>Needs Assassin's Contract, which this route does not cover
-  .goto Hillsbrad Foothills,48.1,59.1
-  .accept 523 >>Accept Baron's Demise (lvl 30) from Magistrate Henry Maleb
 
 step
   .goto Hillsbrad Foothills,42.7,69.2
@@ -179,28 +176,12 @@ step
   .complete 504 >>Finish Crushridge Warmongers
 
 step
-  .optional >>Needs Assassin's Contract, which this route does not cover
-  .complete 523 >>Finish Baron's Demise
-
-step
   .goto Hillsbrad Foothills,51.5,58.4
   .turnin 559 >>Turn in Farren's Proof to Lieutenant Farren Orinelle
 
 step
-  .optional >>Handed in outside this zone, to Quae
-  .turnin 659 >>Turn in Hints of a New Plague? to Quae (not in this zone)
-
-step
   .goto Hillsbrad Foothills,49.5,58.7
   .turnin 504 >>Turn in Crushridge Warmongers to Marshal Redpath
-
-step
-  .optional >>Needs Assassin's Contract, which this route does not cover
-  .goto Hillsbrad Foothills,48.1,59.1
-  .turnin 523 >>Turn in Baron's Demise to Magistrate Henry Maleb
-
-step
-  .xp 32
 
 step
   .goto Hillsbrad Foothills,51.5,58.4
@@ -234,47 +215,19 @@ step
 
 step
   .goto Hillsbrad Foothills,43.2,20.5
-  .accept 8399 >>Accept Fight for Warsong Gulch (lvl 29) from Alliance Brigadier General
   .accept 8374 >>Accept Claiming Arathi Basin (lvl 29) from Alliance Brigadier General
-
-step
-  .optional >>Needs Stolen Winter Veil Treats, which starts in Orgrimmar
-  .goto Hillsbrad Foothills,39.9,11.8
-  .accept 6983 >>Accept You're a Mean One... (lvl 30) from Strange Snowman
-
-step
-  .optional >>Needs Stolen Winter Veil Treats, which this route does not cover
-  .goto Hillsbrad Foothills,39.9,11.8
-  .accept 7043 >>Accept You're a Mean One... (lvl 30) from Strange Snowman
-
-step
-  .optional >>Needs Stolen Winter Veil Treats, which starts in Orgrimmar
-  .goto Hillsbrad Foothills,44.6,7.7
-  .complete 6983 >>Finish You're a Mean One...
-
-step
-  .optional >>Needs Stolen Winter Veil Treats, which this route does not cover
-  .goto Hillsbrad Foothills,44.6,7.7
-  .complete 7043 >>Finish You're a Mean One...
-
-step
-  .complete 8399 >>Finish Fight for Warsong Gulch
+  .accept 8399 >>Accept Fight for Warsong Gulch (lvl 29) from Alliance Brigadier General
 
 step
   .complete 8374 >>Finish Claiming Arathi Basin
 
 step
-  .optional >>Handed in outside this zone, to Kaymard Copperpinch
-  .turnin 6983 >>Turn in You're a Mean One... to Kaymard Copperpinch (not in this zone)
-
-step
-  .optional >>Handed in outside this zone, to Wulmort Jinglepocket
-  .turnin 7043 >>Turn in You're a Mean One... to Wulmort Jinglepocket (not in this zone)
+  .complete 8399 >>Finish Fight for Warsong Gulch
 
 step
   .goto Hillsbrad Foothills,43.2,20.5
-  .turnin 8399 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
   .turnin 8374 >>Turn in Claiming Arathi Basin to Alliance Brigadier General
+  .turnin 8399 >>Turn in Fight for Warsong Gulch to Alliance Brigadier General
   .accept 8384 >>Accept Claiming Arathi Basin (lvl 29) from Alliance Brigadier General
   .accept 8404 >>Accept Fight for Warsong Gulch (lvl 29) from Alliance Brigadier General
 
@@ -299,21 +252,10 @@ step
   .turnin 603 >>Turn in Ansirem's Key to Catelyn the Blade (not in this zone)
 
 step
-  .xp 34
-
-step
-  .optional >>Needs Down the Scarlet Path, which starts in Desolace
-  .goto Hillsbrad Foothills,51.5,58.4
-  .accept 1053 >>Accept In the Name of the Light (lvl 34) from Raleigh the Devout
-
-step
-  .optional >>Needs Down the Scarlet Path, which starts in Desolace
-  .complete 1053 >>Finish In the Name of the Light
-
-step
-  .optional >>Needs Down the Scarlet Path, which starts in Desolace
-  .goto Hillsbrad Foothills,51.5,58.4
-  .turnin 1053 >>Turn in In the Name of the Light to Raleigh the Devout
+  .optional >>Needs The Windwatcher, which starts in The Barrens
+  .class Warrior
+  .goto Hillsbrad Foothills,79.3,7.0
+  .accept 1712 >>Accept Cyclonian (lvl 30) from Bath'rah the Windwatcher
 
 step
   .optional >>Needs The Manor, Ravenholdt, which this route does not cover
@@ -324,8 +266,8 @@ step
 step
   .optional >>Needs The Windwatcher, which starts in The Barrens
   .class Warrior
-  .goto Hillsbrad Foothills,79.3,7.0
-  .accept 1712 >>Accept Cyclonian (lvl 30) from Bath'rah the Windwatcher
+  .goto Hillsbrad Foothills,68.8,27.2
+  .complete 1712 >>Finish Cyclonian
 
 step
   .optional >>Needs The Manor, Ravenholdt, which this route does not cover
@@ -336,8 +278,8 @@ step
 step
   .optional >>Needs The Windwatcher, which starts in The Barrens
   .class Warrior
-  .goto Hillsbrad Foothills,68.8,27.2
-  .complete 1712 >>Finish Cyclonian
+  .goto Hillsbrad Foothills,79.3,7.0
+  .turnin 1712 >>Turn in Cyclonian to Bath'rah the Windwatcher
 
 step
   .optional >>Needs The Manor, Ravenholdt, which this route does not cover
@@ -346,10 +288,7 @@ step
   .turnin 6701 >>Turn in Syndicate Emblems to Ravenholdt Guard
 
 step
-  .optional >>Needs The Windwatcher, which starts in The Barrens
-  .class Warrior
-  .goto Hillsbrad Foothills,79.3,7.0
-  .turnin 1712 >>Turn in Cyclonian to Bath'rah the Windwatcher
+  .xp 34
 
 step
   .class Warrior
@@ -388,6 +327,20 @@ step
   .class Warrior
   .goto Hillsbrad Foothills,79.3,7.0
   .turnin 1792 >>Turn in Whirlwind Weapon to Bath'rah the Windwatcher
+
+step
+  .optional >>Needs Down the Scarlet Path, which starts in Desolace
+  .goto Hillsbrad Foothills,51.5,58.4
+  .accept 1053 >>Accept In the Name of the Light (lvl 34) from Raleigh the Devout
+
+step
+  .optional >>Needs Down the Scarlet Path, which starts in Desolace
+  .complete 1053 >>Finish In the Name of the Light
+
+step
+  .optional >>Needs Down the Scarlet Path, which starts in Desolace
+  .goto Hillsbrad Foothills,51.5,58.4
+  .turnin 1053 >>Turn in In the Name of the Light to Raleigh the Devout
 
 step
   .xp 35

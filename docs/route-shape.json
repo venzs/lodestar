@@ -28,11 +28,11 @@
     "travel": 1135.211
   },
   "Alliance 20-25: Redridge Mountains": {
-    "backtrack": 0.427,
+    "backtrack": 0.432,
     "hops": 57,
     "longest": 54.644,
-    "radius": 1.231,
-    "travel": 641.283
+    "radius": 1.425,
+    "travel": 640.779
   },
   "Alliance 20-25: Wetlands": {
     "backtrack": 0.58,
@@ -49,11 +49,11 @@
     "travel": 1880.771
   },
   "Alliance 30-35: Hillsbrad Foothills": {
-    "backtrack": 0.439,
-    "hops": 61,
+    "backtrack": 0.472,
+    "hops": 55,
     "longest": 68.702,
-    "radius": 1.015,
-    "travel": 618.924
+    "radius": 2.471,
+    "travel": 606.734
   },
   "Alliance/Dwarf,Gnome 1-12: Dun Morogh": {
     "backtrack": 0.252,
@@ -119,11 +119,11 @@
     "travel": 612.268
   },
   "Horde 30-35: Desolace": {
-    "backtrack": 0.648,
-    "hops": 60,
+    "backtrack": 0.64,
+    "hops": 61,
     "longest": 47.187,
     "radius": 5.95,
-    "travel": 1181.954
+    "travel": 1246.998
   },
   "Horde/Orc,Troll 1-12: Durotar": {
     "backtrack": 0.437,
@@ -154,10 +154,10 @@
     "travel": 680.918
   },
   "Skyborne 1-12: Zephras Isle": {
-    "backtrack": 0.624,
+    "backtrack": 0.626,
     "hops": 38,
     "longest": 9.521,
     "radius": 1.0,
-    "travel": 103.783
+    "travel": 103.278
   }
 }
