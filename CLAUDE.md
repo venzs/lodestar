@@ -15,6 +15,8 @@ tools/router/regen.sh [frag]   # rebuild generated routes from their own --regen
 tools/router/lint_guides.py    # guide lint alone
 tools/package.sh [version]     # build dist/Lodestar-<v>.zip (stamps the STAGED tocs, never source)
 tools/refresh_harvest.sh       # import a /lode export paste -> merge -> regen
+tools/wowdb/fetch.sh           # client DB2 tables -> tools/wowdb/src (gitignored), then
+                               # import_maps.py (map rectangles), import_taxi.py (flight network)
 ```
 
 Needs `bash`, `lua5.1`, `luacheck`, `python3`, `git`. On Windows use Git Bash — every script here is
@@ -76,6 +78,14 @@ never completes. Where the data does not know, say so in `.text` and let the har
 **A test that passes proves nothing until you have seen it fail.** Revert the fix, watch the test go
 red, restore. This has caught a vacuous test at least once: a "does not overwrite" assertion that
 passed happily with the rule inverted, because nothing in the file targeted the object it checked.
+
+**A map percentage is not a world coordinate.** World x runs south to north and world y east to
+west, so a map's horizontal axis is world *y* and its vertical axis is world *x*, and both run
+backwards. Reading a UiMapAssignment rectangle the obvious way swaps every zone's width and height,
+which does not cancel out of a distance — 50% wrong on a leg across Durotar. `world.MapFrame` is the
+one place that converts; `test_map_frame_orientation` pins it against the Astrolabe hand table.
+`generate_route.lua` sidesteps the question by working in raw percent, which assumes zones are
+square — a different approximation, not this bug.
 
 **Measure before building.** Several plausible fixes this project nearly shipped were rejected by
 measurement first — Desolace's backtracking had three wrong hypotheses, and a plan to name the zone
