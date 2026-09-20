@@ -1911,6 +1911,99 @@ try("travel hints", function()
 	stub.playerMap.map, stub.playerMap.x, stub.playerMap.y = 18, 0.308, 0.662
 end)
 
+-- Advancing onto a turn-in the client will refuse should SAY so rather than sit there.
+--
+-- This is the shape that reached live play: a `.complete` watching one objective of a two-objective
+-- quest goes green on the first counter, the next step is the turn-in, and the window reads "hand in
+-- The Mindless Ones" with eight wretched zombies still alive. StepBlocked could always see it; only
+-- saved progress and resume-ranking ever asked.
+try("a blocked turn-in names what is still missing", function()
+	local G = Lodestar:GetModule("Guide")
+	local realCurrent, realIndex, realFlags, realSaid = G.current, G.stepIndex, G.stepFlags, G.blockedSaid
+	stub.questLog[364] = { title = "The Mindless Ones", complete = false, objectives = {
+		{ text = "Mindless Zombie slain 8/8", finished = true },
+		{ text = "Wretched Zombie slain 0/8", finished = false },
+	} }
+
+	local dk
+	for _, g in ipairs(G.guides or {}) do
+		if g.name and g.name:find("Deathknell") then dk = g break end
+	end
+	check(dk ~= nil, "Deathknell is loaded")
+	local turnin
+	if dk then
+		for i, st in ipairs(dk.steps) do
+			for _, a in ipairs(st.actions) do
+				if a.type == "turnin" and a.questID == 364 then turnin = i break end
+			end
+			if turnin then break end
+		end
+	end
+	check(turnin ~= nil, "the Mindless Ones turn-in step is findable")
+	if turnin then
+		check(G:StepBlocked(dk.steps[turnin]), "and the engine already sees it as blocked")
+		G.current, G.stepIndex, G.stepFlags, G.blockedSaid = dk, turnin, {}, nil
+		local before = #stub.chat
+		G:EvaluateStep()
+		local said = table.concat(stub.chat, "\n", before + 1, #stub.chat)
+		check(said:find("not finished", 1, true) ~= nil, "it says the quest is not finished")
+		check(said:find("Wretched Zombie", 1, true) ~= nil,
+			"and names the objective still outstanding rather than just complaining")
+		-- EvaluateStep runs on every quest event; a line repeated per kill teaches people to stop
+		-- reading Lodestar's chat.
+		local before2 = #stub.chat
+		G:EvaluateStep()
+		local again = table.concat(stub.chat, "\n", before2 + 1, #stub.chat)
+		check(again:find("not finished", 1, true) == nil, "and does not repeat it on the next event")
+	end
+
+	stub.questLog[364] = nil
+	G.current, G.stepIndex, G.stepFlags, G.blockedSaid = realCurrent, realIndex, realFlags, realSaid
+end)
+
+-- The likelier sibling: landing on a turn-in for a quest that was never picked up.
+--
+-- Skipping a quest is ordinary play -- "i just skipped them" is how this was reported -- and the
+-- turn-in step afterwards is neither complete (that needs it turned in) nor blocked (that needs it
+-- in the log), so the route parks on it at an NPC with nothing to say and never explains why.
+try("a turn-in for a quest never picked up says so", function()
+	local G = Lodestar:GetModule("Guide")
+	local realCurrent, realIndex, realFlags, realSaid = G.current, G.stepIndex, G.stepFlags, G.blockedSaid
+
+	local dk
+	for _, g in ipairs(G.guides or {}) do
+		if g.name and g.name:find("Deathknell") then dk = g break end
+	end
+	local turnin
+	if dk then
+		for i, st in ipairs(dk.steps) do
+			for _, a in ipairs(st.actions) do
+				if a.type == "turnin" and a.questID == 364 then turnin = i break end
+			end
+			if turnin then break end
+		end
+	end
+	check(turnin ~= nil, "the Mindless Ones turn-in step is findable")
+	if turnin then
+		-- Not in the log at all, and not turned in: exactly the state a skipped accept leaves.
+		stub.questLog[364] = nil
+		check(not G:StepBlocked(dk.steps[turnin]),
+			"StepBlocked correctly does NOT cover this -- it asks about a quest being carried")
+		G.current, G.stepIndex, G.stepFlags, G.blockedSaid = dk, turnin, {}, nil
+		local before = #stub.chat
+		G:EvaluateStep()
+		local said = table.concat(stub.chat, "\n", before + 1, #stub.chat)
+		check(said:find("not on", 1, true) ~= nil, "it says the player is not on the quest")
+		check(said:find("skip this step", 1, true) ~= nil, "and says how to get past it")
+		local before2 = #stub.chat
+		G:EvaluateStep()
+		local again = table.concat(stub.chat, "\n", before2 + 1, #stub.chat)
+		check(again:find("not on", 1, true) == nil, "and does not repeat it on the next event")
+	end
+
+	G.current, G.stepIndex, G.stepFlags, G.blockedSaid = realCurrent, realIndex, realFlags, realSaid
+end)
+
 -- Class filtering, evaluated against a class the stub is not.
 --
 -- The stub has always answered "Warrior" to UnitClass, so every class-gated step in every pack was
@@ -2355,8 +2448,29 @@ step
 	check(P.StepText(s[6]) == "Train new skills at Shan Stillwell", "train text names the trainer: " .. P.StepText(s[6]))
 	check(s[7].requireItems and s[7].requireItems[1] == 6948, "item filter parsed")
 	check(s[8].optional and s[8].optionalReason == nil and s[8].actions[1].text == "Camp by the inn", "bare optional")
-	check(P.StepApplies(s[3], "warrior", "undead", false) == false and P.StepApplies(s[3], "warrior", "undead", true) == true, "Parser.StepApplies honours completionist")
-	check(P.StepApplies(s[7], "warrior", "undead", false, function() return false end) == false and P.StepApplies(s[7], "warrior", "undead", false, function() return true end), "Parser.StepApplies honours item filters")
+	-- .optional and .item are checked against Engine's filter, not Parser's.
+	--
+	-- These two used to call Parser.StepApplies, a second copy of the rule that nothing in the addon
+	-- ran and that was missing Engine's "quest this character cannot be given" check. The tests
+	-- passed and told us nothing about what a player actually sees. Parser's copy is gone; these ask
+	-- the function the guide window and step advance both use.
+	do
+		local G = Lodestar:GetModule("Guide")
+		local pf = G:PlayerFilters()
+		local wasCompletionist = G.db.profile.steps.completionist
+		G.db.profile.steps.completionist = false
+		check(G:StepApplies(s[3], pf) == false, "an .optional step is hidden outside completionist mode")
+		G.db.profile.steps.completionist = true
+		check(G:StepApplies(s[3], pf) == true, "and shown inside it")
+		G.db.profile.steps.completionist = wasCompletionist
+
+		local realGetItemCount = C_Item.GetItemCount
+		C_Item.GetItemCount = function() return 0 end
+		check(G:StepApplies(s[7], pf) == false, "an .item step is hidden without the item")
+		C_Item.GetItemCount = function() return 1 end
+		check(G:StepApplies(s[7], pf) == true, "and shown while carrying it")
+		C_Item.GetItemCount = realGetItemCount
+	end
 	local bad, berr = P.Parse("#guide X\nstep\n  .buy")
 	check(bad == nil and berr and berr:find("buy needs an item id"), "buy without an id rejected: " .. tostring(berr))
 	bad, berr = P.Parse("#guide X\nstep\n  .path 1;2")
@@ -2926,6 +3040,41 @@ try("forever overlay", function()
 	local prereq = 0
 	for _, q in pairs(G.ATTData.quests) do if q.pre then prereq = prereq + 1 end end
 	check(prereq > 500, "ATT contributes the quest prerequisite graph (as `pre`, the field canTake reads), got " .. prereq)
+
+	-- Data/Curated.lua: the one hand-maintained file in Data/, for positions no generated source can
+	-- ever hold -- an object that exists only once a quest item is used, a mob that is summoned
+	-- rather than spawned. Merged LAST and gap-fill only.
+	--
+	-- The second check is the one that matters. Gap-fill is what makes an entry in that file safe to
+	-- leave lying around: the day upstream learns the position, the curated one stops being
+	-- consulted and can be deleted without changing any behaviour. Turn it into an override and
+	-- every stale hand-typed coordinate silently outranks the real data. The rule is written out
+	-- three times -- here in Data.lua, again in generate_route.lua, again in query.py -- because
+	-- those are three languages reading one file, so this pins the behaviour rather than one copy.
+	check(G.CuratedData and G.VanillaData.curatedMerged == true, "curated overlay loaded and merged")
+	local bowl = G.VanillaData.objs[10076]
+	check(bowl and bowl.c and bowl.c[1] and bowl.c[1][1] == 148,
+		"curated fills a gap: the Scrying Bowl, which has no spawn row anywhere, gets a position")
+
+	-- The no-override rule is tested against a SYNTHETIC overlay, not against the shipped file.
+	--
+	-- Asserting that some object still holds its pfQuest coordinate proves nothing while no curated
+	-- entry targets that object: the check passes whether the merge fills gaps or overwrites, and
+	-- the first version of this test did exactly that -- it survived the rule being inverted. A test
+	-- of "does not overwrite" has to present something that WOULD be overwritten.
+	local V = G.VanillaData
+	local realCurated, realMerged = G.CuratedData, V.curatedMerged
+	local tome = V.objs[12666]
+	local keep = tome and tome.c and tome.c[1] and tome.c[1][2]
+	check(keep ~= nil, "the Twilight Tome has an upstream position to defend")
+	G.CuratedData = { npcs = {}, objs = { [12666] = { n = "decoy", c = { { 148, 1.0, 1.0 } } } },
+		items = {}, quests = {} }
+	V.curatedMerged = nil
+	G:MergeCuratedData()
+	check(V.objs[12666].c[1][2] == keep,
+		"curated does NOT overwrite a position a generated source already had")
+	V.objs[12666].c[1][2] = keep   -- undo if the rule is broken, so later checks see real data
+	G.CuratedData, V.curatedMerged = realCurated, realMerged
 	stub.questLog[99142] = { title = "Tomb Weed", complete = true, objectives = { { text = "Tomb Weed: 5/5", finished = true } } }
 	local mapID, _, _, how = G:DataQuestPosition(99142, true)
 	check(mapID == 18 and how and how:find("Holland", 1, true), "turn-in for a Forever quest resolves to its harvested ender: " .. tostring(how))

@@ -71,7 +71,32 @@ _G.Lodestar = { GetModule = function() return Guide end }
 dofile("Lodestar_Guide/Data/Vanilla.lua")
 dofile("Lodestar_Guide/Data/ATT.lua")
 dofile("Lodestar_Guide/Data/Forever.lua")
+dofile("Lodestar_Guide/Data/Curated.lua")
 local V, A, F = Guide.VanillaData, Guide.ATTData, Guide.ForeverData
+
+-- The curated overlay, folded in exactly as the addon folds it (Data.lua: MergeCuratedData): gaps
+-- only, and last, so a hand-typed coordinate always loses to a generated one. Done here rather than
+-- by reading Guide.CuratedData directly further down so that the generator and the addon cannot
+-- drift into two different ideas of what "curated" means -- which is the bug this project already
+-- had twice, with two hashes answering "who is this" and two copies of "does this step apply".
+do
+	local C = Guide.CuratedData or {}
+	for _, store in ipairs({ "npcs", "objs" }) do
+		for id, ce in pairs(C[store] or {}) do
+			local e = V[store][id]
+			if not e then e = {} V[store][id] = e end
+			if ce.n and not e.n then e.n = ce.n end
+			if ce.c and not (e.c and #e.c > 0) then e.c = ce.c end
+		end
+	end
+	for id, cq in pairs(C.quests or {}) do
+		local q = V.quests[id]
+		if not q then q = {} V.quests[id] = q end
+		for k, v in pairs(cq) do
+			if q[k] == nil then q[k] = v end
+		end
+	end
+end
 
 -- Facts about a quest, from whichever source knows -------------------------------------------------
 
@@ -354,6 +379,13 @@ for qid in pairs(ids) do
 	local ox, oy = spotIn(fq and fq.spots)
 	if not ox then ox, oy = spotIn(aq and aq.spots) end
 	if not ox then ox, oy = spotIn(vanillaObjSpots(vq, mapID)) end
+	-- Last: a hand-curated spot, for an objective no spawn table can ever place -- a mob that is
+	-- summoned rather than spawned, an object that only exists once a quest item is used. `spots` on
+	-- a VANILLA quest can only have come from Data/Curated.lua, because Vanilla.lua's schema has no
+	-- such field; the merge above puts it there so that one lookup serves both. Last on purpose:
+	-- every generated source, including a pfQuest spawn table resolved on the spot, outranks a
+	-- coordinate somebody typed.
+	if not ox then ox, oy = spotIn(vq and vq.spots) end
 	-- A contested zone's quest list is two routes interleaved. Without this an Alliance guide for
 	-- Ashenvale sends the player to Splintertree Post, which is a Horde camp that will kill them.
 	-- Both tests, because they catch different things: the bitmask covers a quest restricted to
@@ -367,7 +399,23 @@ for qid in pairs(ids) do
 	local hardMin = (vq and vq.min) or (aq and aq.min)
 	local reachable = not hardMin or hardMin <= END_LEVEL
 	local inRange = reachable and (not lvl or (lvl <= MAX_LEVEL and lvl >= MIN_LEVEL))
-	if gx and allowed then
+	-- Holiday quests are not levelling content and mostly are not THERE.
+	--
+	-- Hillsbrad was routing "The Power of Pine" and "Crashing the Wickerman Festival", both given by
+	-- Sergeant Hartman, who is a Hallow's End NPC. Outside the holiday he does not exist, so the
+	-- route walked a level-30 player to an empty patch of Southshore and told them to talk to
+	-- nobody. Forever launches on November 4 and Hallow's End ends on the 1st, so on day one every
+	-- player following that route would have hit it.
+	--
+	-- Nothing else catches these. The level filter cannot: pfQuest says level 60, ATT says 25, and
+	-- the generator prefers ATT, so they arrive looking like ordinary level-25 content -- the data
+	-- actively disguises them. The giver check cannot either, because Hartman has a real recorded
+	-- position; he simply is not standing in it for fifty weeks of the year. `event` is the one
+	-- honest signal, and pfQuest carries it for 342 quests, 34 of them at level 35 or below --
+	-- Winter Veil presents, the Scourge Invasion, Lunar Festival. This is a whole class of dead step
+	-- kept out of every zone rather than two lines patched out of one.
+	local seasonal = vq and vq.event ~= nil
+	if gx and allowed and not seasonal then
 		candidates[qid] = {
 			inRange = inRange,
 			id = qid, t = title, lvl = lvl, giver = giver, ender = ender,

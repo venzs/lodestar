@@ -116,11 +116,20 @@ class Guide:
     file: str
     name: str = ""
     next: str | None = None
+    # Faction-scoped successors from "#next Horde: <guide>". A neutral race picks a side at
+    # creation and level 12 sends the two halves to different continents, so there is no single
+    # successor to put in `next`.
+    next_by_faction: dict[str, str] = field(default_factory=dict)
     min_level: int = 1
     max_level: int = 60
     faction: str = "Both"
     steps: list[Step] = field(default_factory=list)
     problems: list[tuple[str, int, str]] = field(default_factory=list)   # (severity, line, message)
+    # Item ids the route tells the player to buy, anywhere in the guide. Kept on the guide rather
+    # than on the step because a purchase and the objective it satisfies are routinely far apart:
+    # Dun Morogh buys the Rhapsody Malt at the inn eighty lines before the boar ribs it goes with,
+    # and Tirisfal buys the Coarse Thread AFTER the pelts, on the way back through Brill.
+    bought: set[int] = field(default_factory=set)
     # Steps this route deliberately defers because their chain starts outside it. Not a problem --
     # the route says so on the step -- but worth a number, since it only shrinks when the harvest
     # places the missing giver or a neighbouring route covers the chain.
@@ -156,8 +165,16 @@ def parse_guide(file: str, text: str, first_line: int) -> Guide:
             elif key == "next":
                 # "#next Horde: <guide>" chains per faction for a neutral race; the qualified form
                 # is not the unconditional successor, so it must not overwrite it.
+                #
+                # It is kept rather than dropped. Throwing it away left Zephras Isle -- the one
+                # Forever-new starting zone, and so the one most likely to be wrong -- with no
+                # successor at all, which switched off every chain check that route had: whether
+                # its #next names a guide that exists, and whether a quest it accepts is ever
+                # turned in. The newest zone was the least verified.
                 mf = re.match(r"^(Horde|Alliance)\s*:\s*(.+)$", value, re.I)
-                if not mf:
+                if mf:
+                    g.next_by_faction[mf.group(1).capitalize()] = mf.group(2).strip()
+                else:
                     g.next = value
             elif key == "faction":
                 g.faction = value.capitalize()
@@ -222,6 +239,11 @@ def parse_guide(file: str, text: str, first_line: int) -> Guide:
                 parts = [p.strip() for p in args.split(",") if p.strip()]
                 if not parts or not parts[0].isdigit():
                     g.error(line_no, "buy needs an item id")
+                else:
+                    # Recorded on the guide, deliberately NOT appended to step.actions: a step can
+                    # carry both a .turnin and a .buy, and the "optional step made only of turn-ins"
+                    # test above is an all() over the step's actions that a buy would quietly break.
+                    g.bought.add(int(parts[0]))
             elif directive == "path":
                 for pair in args.split(";"):
                     if not re.match(r"^\s*-?[\d.]+\s*,\s*-?[\d.]+\s*$", pair):
@@ -259,6 +281,34 @@ def npc_positions(data, quest: dict, key: str) -> list[tuple[str, float, float, 
             for c in e.get("c") or []:
                 out.append((data["zones"].get(c[0], str(c[0])), float(c[1]), float(c[2]), e.get("n", f"#{eid}")))
     return out
+
+
+def item_start_zones(data, quest: dict, key: str) -> tuple[list[str], list[str]]:
+    """(zone names where the start/end ITEM can be got, item names) for an item-started quest.
+
+    A quest does not need an NPC to give it. Ten of this pack's twelve "no position" warnings are
+    quests that start from an item -- Ursangous's Paw off an elite bear, the Aged Envelope out of
+    Benedict's Chest, Captain Sander's Treasure Map as a rare murloc drop, the Tome of Divinity in a
+    paladin's bags. There is no giver standing anywhere, so asking where the giver stands has no
+    answer, and the warning was reporting the question rather than a defect.
+
+    Zones, not coordinates, on purpose. An item's sources are the mobs that drop it, and a gnoll
+    that drops the Gold Pickup Schedule spawns all over Elwynn; the nearest spawn to the route's
+    `.goto` could be most of a zone away without anything being wrong. Checking "can you get this
+    here at all" is the part the data actually supports, and turning an unverifiable warning into a
+    confident distance ERROR would be worse than leaving it alone.
+    """
+    zones: set[str] = set()
+    names: list[str] = []
+    for iid in (quest.get(key) or {}).get("items") or []:
+        it = data["items"].get(iid) or {}
+        names.append(it.get("n", f"item #{iid}"))
+        for src_key, store in (("npcs", "npcs"), ("objs", "objs"), ("vend", "npcs")):
+            for entry in it.get(src_key) or []:
+                sid = entry[0] if isinstance(entry, (list, tuple)) else entry
+                for c in (data[store].get(sid) or {}).get("c") or []:
+                    zones.add(data["zones"].get(c[0], str(c[0])))
+    return sorted(zones), names
 
 
 def route_shape(g: Guide) -> dict:
@@ -345,6 +395,7 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
     turnin_step: dict[int, int] = {}
     level = g.min_level
     last_step = len(g.steps)
+    tracked: dict[int, tuple[set[int], list[int]]] = {}   # quest -> (objective indices watched, lines)
     # first pass: where each quest is turned in (for ordering checks)
     for st in g.steps:
         for a in st.actions:
@@ -428,24 +479,90 @@ def check_guide(g: Guide, data, before_accepted: set[int], before_turned: set[in
                 if st.index != last_step and a.quest not in turnin_step and a.quest not in later_turned:
                     g.warn(a.line, f"accept {a.quest} ({title}): never turned in (this guide or the #next chain)")
                 if st.goto:
-                    check_goto(g, a, st, npc_positions(data, q, "start"), tolerance, "giver")
+                    check_goto(g, a, st, npc_positions(data, q, "start"), tolerance, "giver", data, q, "start")
                     check_faction(g, data, a, q, "start", "take")
             elif a.type == "turnin":
                 if a.quest not in accepted:
                     g.error(a.line, f"turnin {a.quest} ({title}): not accepted earlier (this guide or a preceding one)")
                 turned.add(a.quest)
                 if st.goto:
-                    check_goto(g, a, st, npc_positions(data, q, "end"), tolerance, "ender")
+                    check_goto(g, a, st, npc_positions(data, q, "end"), tolerance, "ender", data, q, "end")
                     check_faction(g, data, a, q, "end", "hand")
             elif a.type == "complete":
                 if a.quest not in accepted:
                     g.error(a.line, f"complete {a.quest} ({title}): not accepted earlier")
                 elif a.quest in turned and turnin_step.get(a.quest, 10**9) < st.index:
                     g.error(a.line, f"complete {a.quest} ({title}): after its turn-in")
+                tracked.setdefault(a.quest, (set(), []))
+                tracked[a.quest][1].append(a.line)
+                if a.objective is not None:
+                    tracked[a.quest][0].add(a.objective)
+                else:
+                    tracked[a.quest][0].add(0)      # un-indexed: the whole quest, covered by definition
+    check_coverage(g, quests, tracked)
 
 
-def check_goto(g: Guide, a: Action, st: Step, positions, tolerance: float, what: str) -> None:
+def check_coverage(g: Guide, quests, tracked: dict[int, tuple[set[int], list[int]]]) -> None:
+    """Flag a quest the route tracks with `.complete <id>,<n>` for FEWER objectives than it has.
+
+    This is the shape of the bug a player hit in Deathknell: The Mindless Ones wants eight Mindless
+    Zombies and eight Wretched ones, the route watched `.complete 364,1`, and the step went green on
+    the first counter. The next step is the turn-in, so the guide walked him to Sarvis to hand in a
+    quest the client would refuse. Partial tracking is worse than no tracking -- a step with no
+    `.complete` at all waits for the quest to go complete on its own, while a step that watches one
+    objective of two asserts something false and the route advances on it.
+
+    Counted, not mapped. pfQuest stores a quest's objectives as a bag of npc/item/object ids in no
+    particular order, and the client's objective INDEX order is its own; lining the two up to name
+    which objective is missing would be a guess dressed as a fact. The count is the part the data
+    actually supports, so the warning reports the count and lets a human look.
+
+    Two things stop this being noisy. Un-indexed `.complete <id>` means "this step finishes the
+    quest" and covers everything. And an objective can be satisfied at a vendor rather than in the
+    field -- Beer Basted Boar Ribs wants boar ribs AND a Rhapsody Malt bought at the inn -- so a
+    `.buy` of one of the quest's own objective items counts as covering one. Without that second
+    rule this fires on both of the tree's buy-backed collect quests, which is how a warning nobody
+    can act on gets added to the pile people stop reading.
+
+    The cap means a guide that both buys an item and tracks it could mask a third objective. It is
+    the one hole, it needs a redundant `.complete` for something the route already told you to buy,
+    and closing it needs an objective-index-to-item mapping that the data does not carry.
+    """
+    for qid, (idx, lines) in sorted(tracked.items()):
+        if 0 in idx:
+            continue
+        q = quests.get(qid)
+        if not q:
+            continue                                # Forever/ATT quests: no objective list to count
+        obj = q.get("obj") or {}
+        known = sum(len(v or []) for v in obj.values())
+        if known < 2:
+            continue
+        buys = len(g.bought & set(obj.get("items") or []))
+        covered = min(len(idx) + buys, known)
+        if covered < known:
+            g.warn(lines[0],
+                   f"complete {qid} ({q.get('t', '?')}): the data has {known} objectives, the route "
+                   f"tracks {covered} -- the step goes green early and the turn-in after it is refused")
+
+
+def check_goto(g: Guide, a: Action, st: Step, positions, tolerance: float, what: str,
+               data=None, quest: dict | None = None, key: str | None = None) -> None:
     if not positions:
+        # No NPC and no object to stand in front of. Before calling that a gap, ask whether the
+        # quest is one that starts (or ends) with an ITEM, because then there is nothing to stand
+        # in front of by design and the route is right to point wherever the item is got.
+        if data is not None and quest is not None and key is not None:
+            zones, names = item_start_zones(data, quest, key)
+            if names:
+                zone = st.goto[0] if st.goto else None
+                if not zones:
+                    g.warn(a.line, f".{a.type} {a.quest}: starts from {names[0]}, which has no "
+                                   f"recorded source -- the .goto cannot be checked")
+                elif zone and not any(z.lower() == zone.lower() for z in zones):
+                    g.warn(a.line, f".{a.type} {a.quest}: .goto is in {zone} but {names[0]} comes "
+                                   f"from {', '.join(zones[:3])}")
+                return
         g.warn(a.line, f".{a.type} {a.quest}: the {what} has no position in the data")
         return
     zone, x, y = st.goto  # type: ignore[misc]
@@ -468,9 +585,24 @@ def lint(paths: list[str], tolerance: float, record_shape: bool = False) -> tupl
     by_name = {g.name: g for g in guides}
     # predecessors through #next (transitive)
     preds: dict[str, set[str]] = {g.name: set() for g in guides}
+
+    def successors(g: Guide) -> list[str]:
+        """Every guide this one can lead to, unconditional and faction-scoped alike.
+
+        Both branches of a neutral route count. The sets they feed are already unions -- Duskwood
+        has three predecessors and always has -- so a Skyborne's two successors need no special
+        case. The union is permissive: it can let a quest that only ONE faction's successor turns
+        in pass the "never turned in" check. That is the right way to be wrong here, because the
+        alternative in place until now was no chain check on that route whatsoever.
+        """
+        out = [g.next] if g.next else []
+        out += g.next_by_faction.values()
+        return out
+
     for g in guides:
-        if g.next and g.next in preds:
-            preds[g.next].add(g.name)
+        for nxt in successors(g):
+            if nxt in preds:
+                preds[nxt].add(g.name)
     changed = True
     while changed:
         changed = False
@@ -481,8 +613,28 @@ def lint(paths: list[str], tolerance: float, record_shape: bool = False) -> tupl
                         ps.add(pp)
                         changed = True
     for g in guides:
-        if g.next and g.next not in by_name:
-            g.warn(0, f"#next '{g.next}' is not a guide in the packs (yet)")
+        for nxt in successors(g):
+            if nxt not in by_name:
+                g.warn(0, f"#next '{nxt}' is not a guide in the packs (yet)")
+
+    # The band in a guide's NAME is what a player picking a route reads; `#levels` is what the
+    # engine actually uses. When they disagree the list lies, and two of ours lie the same way:
+    # "Horde 25-30: Ashenvale" carries 24-26 and "Horde 25-30: Thousand Needles" carries 27-29, so
+    # a level-25 Horde player is offered two routes both claiming 25-30, one of which ends before
+    # they get there and one of which has not started.
+    #
+    # The half-open spelling is allowed, because it is a convention here and not a mistake: five
+    # guides across both factions name 12-20 and carry 12-19, meaning "from 12 until 20". Flagging
+    # those would bury the four real ones under five nobody should act on. So a name is accepted if
+    # it matches the band either inclusively or half-open, and flagged only when it matches neither.
+    for g in guides:
+        m = re.search(r"(\d+)\s*-\s*(\d+)\s*:", g.name)
+        if not m:
+            continue
+        a, b = int(m.group(1)), int(m.group(2))
+        if (a, b) != (g.min_level, g.max_level) and (a, b - 1) != (g.min_level, g.max_level):
+            g.warn(0, f"the name says levels {a}-{b} but #levels is {g.min_level}-{g.max_level}; "
+                      f"the name is what the guide list shows")
 
     def quests_of(g: Guide, kind: str) -> set[int]:
         return {a.quest for st in g.steps for a in st.actions if a.type == kind and a.quest is not None}

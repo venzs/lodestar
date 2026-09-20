@@ -15,6 +15,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "..", "Lodestar_Guide", "Data", "Vanilla.lua")
+CURATED = os.path.join(HERE, "..", "..", "Lodestar_Guide", "Data", "Curated.lua")
 
 
 def lua_value(text):
@@ -92,7 +93,37 @@ def load():
     for body, name in zip(bodies, names):
         for m in re.finditer(r"^t\[(\d+)\]=(.*)$", body, re.M):
             data[name][int(m.group(1))] = lua_value(m.group(2))
+    apply_curated(data)
     return data
+
+
+def apply_curated(data) -> int:
+    """Fold Data/Curated.lua over the generated data, filling gaps only.
+
+    The same merge the addon does in Data.lua (MergeCuratedData) and the route generator does at
+    load. Three copies of it is two too many, but they live in three languages reading the same
+    file, and the alternative -- the linter checking guides against data the addon does not have --
+    is how you get a route that passes lint and points at nothing in game. The rule is small enough
+    to state in one line and is stated identically in all three: never overwrite a field a
+    generated source already filled.
+    """
+    if not os.path.exists(CURATED):
+        return 0
+    applied = 0
+    for m in re.finditer(r"^C\.(\w+)\[(\d+)\]\s*=\s*(.*)$", open(CURATED, encoding="utf-8").read(), re.M):
+        store, eid, body = m.group(1), int(m.group(2)), m.group(3)
+        if store not in data:
+            continue
+        entry = data[store].setdefault(eid, {})
+        for k, v in (lua_value(body) or {}).items():
+            if k == "c":
+                if not entry.get("c"):
+                    entry["c"] = v
+                    applied += 1
+            elif entry.get(k) is None:
+                entry[k] = v
+                applied += 1
+    return applied
 
 
 def fmt_pos(d, c, prefer=None):

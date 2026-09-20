@@ -289,25 +289,19 @@ function Parser.StepText(step, questName, objectiveText, mapName, itemName)
 	return table.concat(parts, " · ")
 end
 
---- Does this step apply to the player? classFile/raceName are lower-case. `completionist` shows
---- .optional steps; hasItem(itemID) (optional) decides .item filters.
-function Parser.StepApplies(step, classFile, raceName, completionist, hasItem)
-	if step.classes and not step.classes[classFile] then return false end
-	if step.races and not step.races[raceName] then return false end
-	if step.optional and not completionist then return false end
-	if step.requireItems and hasItem then
-		for _, id in ipairs(step.requireItems) do
-			if not hasItem(id) then return false end
-		end
-	end
-	return true
-end
-
---- Does the guide apply to the player?
-function Parser.GuideApplies(guide, faction, classFile, raceName, level)
-	if guide.faction ~= "Both" and faction and guide.faction ~= faction then return false end
-	if guide.classes and classFile and not guide.classes[classFile] then return false end
-	if guide.races and raceName and not guide.races[raceName] then return false end
-	if level and guide.minLevel and guide.maxLevel and (level < guide.minLevel or level > guide.maxLevel) then return false end
-	return true
-end
+-- Applicability lives in Engine.lua (`stepApplies` / `guideApplies`), not here.
+--
+-- Parser used to carry its own StepApplies and GuideApplies. Nothing in the addon called either:
+-- Engine has always used its own, StepFrame asks Engine, and GuideApplies had no caller at all.
+-- Only the smoke tests still reached for Parser.StepApplies, which left two copies of "does this
+-- step apply" with a test suite pointed at the copy that does not run.
+--
+-- They had already drifted. Engine's version also skips a step whose only job is accepting a quest
+-- this character cannot be given -- the rule that keeps a route from pointing a paladin at a
+-- warlock's scroll -- and Parser's did not. A second implementation missing a rule is not dead
+-- weight, it is a trap: the next caller picks whichever name it finds and inherits a filter that
+-- looks complete. This project has been here once already, with two hashes answering "who is this"
+-- until one moved to Core/Utils.lua.
+--
+-- Parser stays what it is: text in, table out. The tests moved to Engine's implementation, where
+-- they exercise the code that actually decides what a player sees.

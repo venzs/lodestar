@@ -425,9 +425,46 @@ function Guide:MergeForeverData()
 	end
 end
 
+--- Fold Data/Curated.lua into the Vanilla tables, filling gaps only.
+---
+--- Runs LAST, after ATT and the harvest, and that order is the whole point: a curated coordinate is
+--- a stopgap for something no generated source knows, so it must lose to every generated source
+--- rather than win. Nothing here overwrites a field another merge already set, which is what makes
+--- an entry in that file safe to leave lying around until upstream catches up.
+function Guide:MergeCuratedData()
+	local C, V = self.CuratedData, self.VanillaData
+	if not (C and V) or V.curatedMerged then return end
+	V.curatedMerged = true
+	for _, storeName in ipairs({ "npcs", "objs" }) do
+		for id, ce in pairs(C[storeName] or {}) do
+			local e = V[storeName][id]
+			if not e then
+				e = {}
+				V[storeName][id] = e
+			end
+			if ce.n and not e.n then e.n = ce.n end
+			-- Only when the entry has NO positions at all. Appending to a list that already has
+			-- entries would be an override wearing a merge's clothes: the arrow would start
+			-- choosing between a harvested spot and a hand-typed one with nothing to separate them.
+			if ce.c and not (e.c and #e.c > 0) then e.c = ce.c end
+		end
+	end
+	for id, cq in pairs(C.quests or {}) do
+		local q = V.quests[id]
+		if not q then
+			q = {}
+			V.quests[id] = q
+		end
+		for k, v in pairs(cq) do
+			if q[k] == nil then q[k] = v end
+		end
+	end
+end
+
 function Guide:EnableData()
 	self:MergeATTData()
 	self:MergeForeverData()
+	self:MergeCuratedData()
 	if not self.dataSlash then
 		self.dataSlash = true
 		Lodestar:RegisterSlashVerb("quest", function(rest) self:DataLookup(strtrim(rest or "")) end, "look up a quest in the built-in database: /lode quest <id|name>")

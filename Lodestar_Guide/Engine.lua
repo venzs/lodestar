@@ -482,6 +482,20 @@ local function questName(questID)
 	return "quest #" .. questID
 end
 
+--- The quest's title if the client already has it, and nothing else.
+---
+--- `questName` asks the server for a title it does not hold, which fires QUEST_DATA_LOAD_RESULT and
+--- comes back round as another evaluate. That is right when the name is the point -- a step frame
+--- with "quest #364" on it is useless -- and wrong for an advisory line in chat, which should not
+--- start a round trip to phrase itself. It matters most exactly where it is least wanted: a quest
+--- the player is NOT carrying is the case where the title is least likely to be cached, so the
+--- "you are not on this quest" message was the one message almost guaranteed to trigger a load.
+local function questNameCached(questID)
+	local title = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questID)
+	if title and title ~= "" then return title end
+	return nil
+end
+
 local function objectiveText(questID, index)
 	if not C_QuestLog.IsOnQuest(questID) then return nil end
 	local objectives = C_QuestLog.GetQuestObjectives(questID)
@@ -998,6 +1012,72 @@ function Guide:EvaluateStep(initial)
 	end
 	if not initial and self.stepIndex ~= from and self.db.profile.steps.announce then
 		Lodestar:Msg("Step %d: %s", self.stepIndex, self:StepText(self.current.steps[self.stepIndex]))
+	end
+
+	-- A step we advanced ONTO can be a dead end exactly as a saved one can. A `.complete` that
+	-- watches one objective of a two-objective quest goes green on the first, and the very next step
+	-- is a turn-in the client will refuse -- The Mindless Ones wants eight Mindless Zombies AND eight
+	-- Wretched ones, and the guide sent the player to Sarvis with the second counter untouched.
+	-- `StepBlocked` exists for precisely this and was only ever consulted for saved progress and when
+	-- ranking a resume; forward advance never asked.
+	--
+	-- Said out loud rather than reconciled around. Moving the player back is the obvious fix and is a
+	-- trap: the step behind is the one this function just judged COMPLETE, so the next quest event
+	-- would advance onto the blocked step again and the two would ping-pong -- the exact failure this
+	-- file has already been through. Naming what is missing cannot loop and tells the player the one
+	-- thing they actually need.
+	--
+	-- Once per step. EvaluateStep runs on every quest event, and a line repeated on every kill is
+	-- noise that teaches people to stop reading Lodestar's chat.
+	-- The other way to land on a turn-in that cannot happen is to not be on the quest at all.
+	--
+	-- `StepBlocked` deliberately does not cover this: it asks whether a quest being CARRIED is
+	-- unfinished. Skip the accept -- press `>` past it, which is what a player does when they do not
+	-- want the quest -- and the turn-in step later is neither complete (that needs the quest turned
+	-- in) nor blocked (that needs it in the log). So the route parks on it, silently, at an NPC with
+	-- nothing to say, and the only way out is to press `>` again without being told to. This is the
+	-- likelier of the two: skipping quests is ordinary play, where the half-watched objective was a
+	-- bug in one guide.
+	--
+	-- Not auto-skipped, for the same reason the blocked case is not reconciled around: quietly
+	-- stepping over a turn-in would also step over the ones a player merely has not done yet.
+	local landed = self.current.steps[self.stepIndex]
+	local blocked = landed and self:StepBlocked(landed)
+	local orphan
+	if landed and landed.actions and not blocked then
+		for _, a in ipairs(landed.actions) do
+			if a.type == "turnin" and a.questID and not C_QuestLog.IsOnQuest(a.questID)
+				and not self:IsActionComplete(a, nil) then
+				orphan = a
+				break
+			end
+		end
+	end
+	if blocked or orphan then
+		if self.blockedSaid ~= self.stepIndex then
+			self.blockedSaid = self.stepIndex
+			if orphan then
+				Lodestar:Msg("You are not on |cffff9933%s|r, so there is nothing to hand in here. " ..
+					"Press > to skip this step, or go back and pick the quest up.",
+					questNameCached(orphan.questID) or ("quest #" .. orphan.questID))
+			else
+				for _, a in ipairs(landed.actions) do
+					if a.type == "turnin" and a.questID and C_QuestLog.IsOnQuest(a.questID)
+						and not C_QuestLog.IsComplete(a.questID) then
+						local missing = {}
+						for _, o in ipairs(C_QuestLog.GetQuestObjectives(a.questID) or {}) do
+							if not o.finished and o.text then missing[#missing + 1] = o.text end
+						end
+						Lodestar:Msg("|cffff9933%s is not finished|r, so this step cannot be handed in yet%s",
+							questName(a.questID) or ("quest " .. a.questID),
+							#missing > 0 and (" — still needed: " .. table.concat(missing, "; ") .. ".") or ".")
+						break
+					end
+				end
+			end
+		end
+	elseif self.blockedSaid then
+		self.blockedSaid = nil
 	end
 	self:RefreshStepFrame()
 end

@@ -18,6 +18,7 @@ Data\Vanilla.lua
 Data\Trainers.lua
 Data\ATT.lua
 Data\Forever.lua
+Data\Curated.lua
 Parser.lua
 Arrow.lua
 MapLine.lua
