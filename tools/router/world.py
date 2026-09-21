@@ -24,7 +24,11 @@ from typing import Optional
 from .model import MapPos
 
 RUN_SPEED = 7.0            # yd/s, base run speed (Warcraft Wiki "Speed")
-TAXI_SPEED = 32.0          # yd/s along the taxi path; only used when no recorded flight time exists
+TAXI_SPEED = 30.0          # yd/s along the flown TaxiPathNode polyline. Calibrated 2026-09-20 against
+                           # 787 measured Classic flight durations (RestedXP's DB/flightData.lua, node
+                           # ids shared with taxi.py): median 30.0, p10-p90 29.9-30.2 on Horde. Tails
+                           # of 16-40 are pairs where the client's multi-hop route is not the shortest
+                           # path in yards; the median is the constant, the tails are a routing gap.
 HS_CAST = 10.0             # seconds
 HS_COOLDOWN = 60 * 60.0    # Classic-era hearthstone cooldown; retune from HEARTHSTONE cooldown probe
 DEFAULT_DETOUR = 1.25      # straight-line -> real path multiplier before any lap data
